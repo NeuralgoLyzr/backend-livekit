@@ -2,12 +2,17 @@
  * Express application setup
  */
 
-import express, { type Request, type Response, type NextFunction } from 'express';
+import express, {
+  type Express,
+  type Request,
+  type Response,
+  type NextFunction,
+} from 'express';
 import cors from 'cors';
 import sessionRouter from './routes/session.js';
 import healthRouter from './routes/health.js';
 
-export const app = express();
+export const app: Express = express();
 
 // Middleware
 app.use(cors());

@@ -4,7 +4,7 @@
 
 import { Router } from 'express';
 
-const router = Router();
+const router: Router = Router();
 const startTime = Date.now();
 
 router.get('/', (req, res) => {

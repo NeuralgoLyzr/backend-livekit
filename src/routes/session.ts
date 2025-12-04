@@ -12,7 +12,7 @@ import { storage } from '../lib/storage.js';
 import { config } from '../config/index.js';
 import type { AgentConfig } from '../types/index.js';
 
-const router = Router();
+const router: Router = Router();
 
 // Validation constants
 const MAX_IDENTITY_LENGTH = 128;

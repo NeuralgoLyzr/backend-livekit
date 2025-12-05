@@ -1,269 +1,132 @@
-# LiveKit Backend
+# LiveKit Backend API (`backend-livekit`)
 
-Node.js + TypeScript backend that issues LiveKit access tokens and dispatches custom agents with dynamic STT/TTS/prompt configuration.
+Express + TypeScript service that issues LiveKit access tokens, dispatches a LiveKit agent (the Python worker in `../python-agent-livekit`), and stores lightweight session metadata for the frontend voice agent builder.
 
-## Features
+## What lives here (for API tools)
 
-- ✅ Generate short-lived LiveKit access tokens (10-minute TTL)
-- ✅ Dispatch agents with custom STT, TTS, and LLM configurations
-- ✅ Dynamic agent configuration via metadata
-- ✅ Modular, production-ready code structure
-- ✅ TypeScript with ES modules
-- ✅ Health check endpoint
-- ✅ CORS-enabled for frontend integration
+- `src/index.ts` – process entrypoint that boots Express.
+- `src/app.ts` – middleware, CORS, routing, and error handling.
+- `src/routes/session.ts` – POST `/session` (create + dispatch) and POST `/session/end`.
+- `src/routes/health.ts` – GET `/health`.
+- `src/services/tokenService.ts` – LiveKit JWT generation.
+- `src/services/agentService.ts` – dispatches to the agent name in `config.agent.name`.
+- `src/config/index.ts` – required env validation and defaults.
+- `src/lib/storage.ts` – in-memory session cache.
+- `src/types` – request/metadata types shared across the service.
 
-## Architecture
+## Quick start (pnpm)
 
-This backend now only runs the **Express API server** (`src/index.ts`).  
-It still dispatches agents via the LiveKit API, but the LiveKit agent itself now lives in a different repository.  
-Historical agent code remains in `src/agents/customAgent_unused_file.ts` purely for reference and is no longer executed.  
-Likewise, the old `agentFactory` helper has been archived as `agentFactory_unused_file.ts`.
-
-## Project Structure
-
-```
-backend/
-├── src/
-│   ├── index.ts                 # Express server entry point
-│   ├── app.ts                   # Express app setup
-│   ├── config/
-│   │   └── index.ts             # Configuration loader
-│   ├── routes/
-│   │   ├── session.ts           # POST /session endpoint
-│   │   └── health.ts            # GET /health endpoint
-│   ├── services/
-│   │   ├── tokenService.ts      # Token generation
-│   │   └── agentService.ts      # Agent dispatch
-│   ├── lib/
-│   │   └── storage.ts           # Session storage
-│   └── agents/
-│       ├── customAgent_unused_file.ts   # Legacy agent example (not used)
-│       └── agentFactory_unused_file.ts  # Legacy STT/TTS/LLM helper (not used)
-├── package.json
-├── tsconfig.json
-├── .env.example
-└── README.md
-```
-
-## Setup
-
-### 1. Install Dependencies
+Prereqs: Node 20+, pnpm 9+, LiveKit Cloud project with an agent created.
 
 ```bash
-npm install
+cd backend-livekit
+pnpm install
+pnpm dev   # tsx watch on src/index.ts (default port 4000)
 ```
 
-### 2. Configure Environment Variables
-
-Copy `.env.example` to `.env`:
+Production:
 
 ```bash
-cp .env.example .env
+pnpm build
+pnpm start   # runs dist/index.js
 ```
 
-Edit `.env` and add your LiveKit credentials:
+Create `.env` (no template checked in):
 
 ```env
-LIVEKIT_URL=wss://your-project.livekit.cloud
-LIVEKIT_API_KEY=your_api_key
-LIVEKIT_API_SECRET=your_api_secret
-PORT=3000
+LIVEKIT_URL=wss://<your-project>.livekit.cloud
+LIVEKIT_API_KEY=...
+LIVEKIT_API_SECRET=...
+PORT=4000                 # optional
+AGENT_NAME=shreya-obnox   # must match the Python agent registration
 ```
 
-### 3. Run the API Server
+## API reference
 
-The backend now only needs the Express API process:
+Base URL defaults to `http://localhost:4000`.
 
-```bash
-npm run dev:api
-```
+### POST `/session`
 
-For production:
+Creates a LiveKit user token, persists session metadata, and dispatches the agent.
 
-```bash
-npm run build
-npm run start:api
-```
+Request:
 
-> The LiveKit agent itself runs from a different repository. Keep that process running separately when you want full voice flows; the legacy agent sample that lived in this repo is now archived in `src/agents/customAgent_unused_file.ts`.
-
-## API Documentation
-
-### POST /session
-
-Creates a new session with user token and dispatches an agent.
-
-**Request:**
 ```json
 {
-  "userIdentity": "user123",
-  "roomName": "optional-room-name",
+  "userIdentity": "user-123",
+  "roomName": "optional-room",
   "agentConfig": {
-    "stt": "deepgram",
-    "tts": "cartesia",
-    "prompt": "You are a friendly customer support agent.",
-    "llm": "gpt-4o-mini"
+    "stt": "assemblyai/universal-streaming:en",
+    "tts": "cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
+    "llm": "openai/gpt-4o-mini",
+    "prompt": "You are a helpful voice AI assistant. Be concise and friendly.",
+    "greeting": "Say, 'Hi I’m Maya, how can I help you today?'",
+    "realtime": false,
+    "realtime_model": "gpt-4o-realtime-preview",
+    "realtime_voice": "sage",
+    "vad_enabled": true,
+    "turn_detection_enabled": true,
+    "noise_cancellation_enabled": true,
+    "noise_cancellation_type": "auto"
   }
 }
 ```
 
-**Response:**
+Response:
+
 ```json
 {
-  "userToken": "eyJhbGc...",
+  "userToken": "<jwt>",
   "roomName": "room-uuid",
-  "livekitUrl": "wss://your-project.livekit.cloud",
+  "livekitUrl": "wss://<your-project>.livekit.cloud",
   "agentDispatched": true,
   "agentConfig": {
-    "stt": "deepgram",
-    "tts": "cartesia",
-    "llm": "gpt-4o-mini"
+    "stt": "assemblyai/universal-streaming:en",
+    "tts": "cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
+    "llm": "openai/gpt-4o-mini",
+    "realtime": false
   }
 }
 ```
 
-**Fields:**
-- `userIdentity` (required): Unique identifier for the user
-- `roomName` (optional): Room name; auto-generated if not provided
-- `agentConfig` (optional): Agent configuration object
-  - `stt` (optional): STT provider - `deepgram`, `assemblyai`, `openai` (default: `deepgram`)
-  - `tts` (optional): TTS provider - `cartesia`, `openai`, `elevenlabs` (default: `cartesia`)
-  - `prompt` (optional): System prompt for the agent (default: `"You are a helpful AI assistant."`)
-  - `llm` (optional): LLM model - `gpt-4o-mini`, `gpt-4o`, etc. (default: `gpt-4o-mini`)
+Validation:
 
-### GET /health
+- `userIdentity` is required, alphanumeric/underscore/hyphen, ≤128 chars.
+- `roomName` optional, same constraints (auto-generated when omitted).
+- `agentConfig` is forwarded as metadata to the Python agent; unknown keys are ignored there.
 
-Health check endpoint.
+### POST `/session/end`
 
-**Response:**
-```json
-{
-  "status": "ok",
-  "timestamp": "2025-11-20T12:00:00.000Z",
-  "uptime": 3600
-}
+```
+{ "roomName": "room-uuid" }
 ```
 
-## Usage Examples
+Deletes the LiveKit room (via `roomService`) and clears cached metadata. Returns `204` or `404` if the room is unknown.
 
-### Create Session with Default Configuration
+### GET `/health`
 
-```bash
-curl -X POST http://localhost:3000/session \
-  -H "Content-Type: application/json" \
-  -d '{
-    "userIdentity": "user123"
-  }'
-```
+Simple uptime/status payload.
 
-### Create Session with Custom Agent Configuration
+## Agent metadata contract (backend → python-agent-livekit)
 
-```bash
-curl -X POST http://localhost:3000/session \
-  -H "Content-Type: application/json" \
-  -d '{
-    "userIdentity": "user123",
-    "roomName": "support-room",
-    "agentConfig": {
-      "stt": "deepgram",
-      "tts": "openai",
-      "prompt": "You are a medical assistant. Be professional and empathetic.",
-      "llm": "gpt-4o"
-    }
-  }'
-```
+`agentService` serializes `agentConfig` into dispatch metadata that `python-agent-livekit/src/agent.py` reads. Keep these names stable:
 
-### Health Check
+- `stt`, `tts`, `llm` – LiveKit Inference model descriptors.
+- `prompt`, `greeting` – instructions for the assistant.
+- `realtime`, `realtime_model`, `realtime_voice` – toggles OpenAI Realtime path.
+- `vad_enabled`, `turn_detection_enabled`.
+- `noise_cancellation_enabled`, `noise_cancellation_type` (`auto|telephony|standard|none`).
 
-```bash
-curl http://localhost:3000/health
-```
+## Development notes
 
-## Agent Configuration
-
-The agent dynamically initializes with the configuration passed in the dispatch metadata.
-
-### Supported STT Providers
-- `deepgram` (default) - Deepgram Nova 3
-- `assemblyai` - AssemblyAI Universal Streaming
-- `openai` - OpenAI Whisper
-
-### Supported TTS Providers
-- `cartesia` (default) - Cartesia Sonic 3
-- `openai` - OpenAI TTS
-- `elevenlabs` - ElevenLabs
-
-### Supported LLM Models
-- `gpt-4o-mini` (default)
-- `gpt-4o`
-- `gpt-4-turbo`
-- Any OpenAI model
-
-## Legacy Agent Files
-
-The original in-repo agent implementation is no longer executed, but the source is preserved for reference:
-
-- `src/agents/customAgent_unused_file.ts` – historical example agent. Use the dedicated agent repository for any active deployments.
-- `src/agents/agentFactory_unused_file.ts` – archived helper that shows how STT/TTS/LLM descriptors were composed.
-
-## How It Works
-
-1. **User calls POST /session**
-   - Backend validates request
-   - Generates user token with LiveKit SDK
-   - Stores session metadata
-
-2. **Backend dispatches agent**
-   - Calls `AgentDispatchClient.createDispatch()`
-   - Passes agent config as JSON metadata
-   - LiveKit routes dispatch to running agent server
-
-3. **Agent receives dispatch**
-   - Agent server receives job request
-   - Reads configuration from `JobContext.metadata`
-   - Initializes STT/TTS/LLM dynamically
-
-4. **Agent joins room**
-   - Connects to LiveKit room
-   - Publishes hello data message
-   - Starts voice session
-
-## Development
-
-### Scripts
-
-- `npm run dev:api` - Run Express server in watch mode
-- `npm run build` - Compile TypeScript to JavaScript
-- `npm run start:api` - Run compiled Express server
-
-Archived scripts (`dev:agent`, `start:agent`) have been removed because the agent now lives in a separate repository. Keep the external agent service running alongside this API when testing full flows.
-
-### Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `LIVEKIT_URL` | Yes | LiveKit server URL |
-| `LIVEKIT_API_KEY` | Yes | LiveKit API key |
-| `LIVEKIT_API_SECRET` | Yes | LiveKit API secret |
-| `PORT` | No | Express server port (default: 3000) |
-| `NODE_ENV` | No | Environment (development/production) |
+- Frontend expects this service at `NEXT_PUBLIC_BACKEND_URL` (defaults to `http://localhost:4000`).
+- In-memory storage only; restart clears sessions.
+- Update validation or response shapes in `src/routes/session.ts` and keep `frontend-livekit/lib/types.ts` in sync.
+- The displayed endpoints in `src/index.ts` are informational logs only.
 
 ## Troubleshooting
 
-### Agent not dispatching
+- **Missing env**: `src/config/index.ts` throws on startup if `LIVEKIT_*` keys are unset.
+- **Agent not joining**: ensure AGENT_NAME matches the running Python agent registration and that the agent process is reachable by LiveKit Cloud.
+- **CORS**: enabled globally; adjust in `src/app.ts` if you need stricter origins.
 
-Make sure:
-1. Agent server is running (`npm run dev:agent`)
-2. Environment variables are set correctly
-3. Agent name in config matches: `custom-agent`
-
-### Connection errors
-
-Verify:
-1. LiveKit credentials are correct
-2. LiveKit URL is accessible
-3. No firewall blocking WebSocket connections
-
-## License
-
-MIT

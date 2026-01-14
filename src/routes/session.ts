@@ -10,6 +10,7 @@ import { agentService } from '../services/agentService.js';
 import { roomService } from '../services/roomService.js';
 import { storage } from '../lib/storage.js';
 import { config } from '../config/index.js';
+import { normalizeTools } from '../config/tools.js';
 import type { AgentConfig } from '../types/index.js';
 
 const router: Router = Router();
@@ -84,6 +85,11 @@ function validateRoomName(roomName: unknown): { valid: boolean; error?: string }
 router.post('/', async (req, res) => {
   try {
     const { userIdentity, roomName, agentConfig }: SessionRequest = req.body;
+    const normalizedTools = normalizeTools(agentConfig);
+    const finalAgentConfig: AgentConfig = {
+      ...agentConfig,
+      tools: normalizedTools,
+    };
 
     // Validate userIdentity
     const identityValidation = validateUserIdentity(userIdentity);
@@ -129,7 +135,7 @@ router.post('/', async (req, res) => {
     // Store session metadata
     storage.set(finalRoomName, {
       userIdentity: userIdentity.trim(),
-      agentConfig,
+      agentConfig: finalAgentConfig,
       createdAt: new Date().toISOString(),
     });
 
@@ -138,7 +144,7 @@ router.post('/', async (req, res) => {
     }
 
     // Dispatch agent with custom configuration
-    await agentService.dispatchAgent(finalRoomName, agentConfig);
+    await agentService.dispatchAgent(finalRoomName, finalAgentConfig);
 
     // Return session details
     res.json({
@@ -147,10 +153,11 @@ router.post('/', async (req, res) => {
       livekitUrl: config.livekit.url,
       agentDispatched: true,
       agentConfig: {
-        stt: agentConfig?.stt ?? 'assemblyai/universal-streaming:en',
-        tts: agentConfig?.tts ?? 'cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
-        llm: agentConfig?.llm ?? 'openai/gpt-4o-mini',
-        realtime: agentConfig?.realtime ?? false,
+        stt: finalAgentConfig?.stt ?? 'assemblyai/universal-streaming:en',
+        tts: finalAgentConfig?.tts ?? 'cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
+        llm: finalAgentConfig?.llm ?? 'openai/gpt-4o-mini',
+        realtime: finalAgentConfig?.realtime ?? false,
+        tools: finalAgentConfig?.tools ?? [],
       },
     });
   } catch (error) {

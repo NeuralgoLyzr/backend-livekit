@@ -11,6 +11,7 @@ import express, {
 import cors from 'cors';
 import sessionRouter from './routes/session.js';
 import healthRouter from './routes/health.js';
+import configRouter from './routes/config.js';
 
 export const app: Express = express();
 
@@ -27,6 +28,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Routes
 app.use('/session', sessionRouter);
 app.use('/health', healthRouter);
+app.use('/config', configRouter);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {

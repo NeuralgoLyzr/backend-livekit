@@ -12,11 +12,21 @@ import cors from 'cors';
 import sessionRouter from './routes/session.js';
 import healthRouter from './routes/health.js';
 import configRouter from './routes/config.js';
+import telephonyRouter from './routes/telephony.js';
+import { config } from './config/index.js';
 
 export const app: Express = express();
 
 // Middleware
 app.use(cors());
+
+// LiveKit webhooks require raw body access for signature validation.
+// IMPORTANT: This must be registered before `express.json()` consumes the body.
+app.use(
+  '/telephony/livekit-webhook',
+  express.raw({ type: ['application/webhook+json', 'application/json'] })
+);
+
 app.use(express.json());
 
 // Request logging
@@ -29,6 +39,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use('/session', sessionRouter);
 app.use('/health', healthRouter);
 app.use('/config', configRouter);
+app.use('/telephony', telephonyRouter);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -39,6 +50,9 @@ app.get('/', (req: Request, res: Response) => {
       health: 'GET /health',
       createSession: 'POST /session',
       endSession: 'POST /session/end',
+      ...(config.telephony.enabled
+        ? { telephonyWebhook: 'POST /telephony/livekit-webhook' }
+        : {}),
     },
     docs: 'See README.md for API documentation',
   });
@@ -53,7 +67,7 @@ app.use((req: Request, res: Response) => {
 });
 
 // Error handling middleware
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   console.error('Error:', err);
   res.status(500).json({
     error: 'Internal server error',

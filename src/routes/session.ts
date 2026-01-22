@@ -132,19 +132,19 @@ router.post('/', async (req, res) => {
       finalRoomName
     );
 
-    // Store session metadata
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[session] Dispatching agent config:', finalAgentConfig);
+    }
+
+    // Dispatch agent with custom configuration
+    await agentService.dispatchAgent(finalRoomName, finalAgentConfig);
+
+    // Store session metadata only after successful dispatch
     storage.set(finalRoomName, {
       userIdentity: userIdentity.trim(),
       agentConfig: finalAgentConfig,
       createdAt: new Date().toISOString(),
     });
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[session] Dispatching agent config:', agentConfig);
-    }
-
-    // Dispatch agent with custom configuration
-    await agentService.dispatchAgent(finalRoomName, finalAgentConfig);
 
     // Return session details
     res.json({

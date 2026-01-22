@@ -107,6 +107,38 @@ Deletes the LiveKit room (via `roomService`) and clears cached metadata. Returns
 
 Simple uptime/status payload.
 
+## Telephony (Mode A: SIP trunk into LiveKit)
+
+This repo supports receiving **LiveKit webhooks** and dispatching your agent when a **SIP/PSTN participant** joins a room.
+
+### Telephony env vars
+
+Add these to your `.env`:
+
+```env
+TELEPHONY_ENABLED=true
+
+# LiveKit webhook verification. By default, the service uses LIVEKIT_API_KEY/SECRET.
+# Set these only if you sign webhooks with a different key.
+LIVEKIT_WEBHOOK_API_KEY=...
+LIVEKIT_WEBHOOK_API_SECRET=...
+
+# Heuristic for SIP participant detection (identity prefix).
+TELEPHONY_SIP_IDENTITY_PREFIX=sip_
+
+# If true, dispatch agent on *any* participant_joined (useful for debugging only).
+TELEPHONY_DISPATCH_ON_ANY_PARTICIPANT_JOIN=false
+```
+
+### Endpoints
+
+- `POST /telephony/livekit-webhook`
+  - Expects `Content-Type: application/webhook+json` and an `Authorization` header from LiveKit.
+  - Returns `200` quickly and processes events asynchronously.
+
+- `GET /telephony/calls/:callId` (non-prod only)
+- `GET /telephony/calls/by-room/:roomName` (non-prod only)
+
 ## Agent metadata contract (backend → python-agent-livekit)
 
 `agentService` serializes `agentConfig` into dispatch metadata that `python-agent-livekit/src/agent.py` reads. Keep these names stable:

@@ -22,6 +22,9 @@ app.listen(port, () => {
   console.log('\n Available Endpoints:');
   console.log(`   - Health check:  GET  http://localhost:${port}/health`);
   console.log(`   - Create session: POST http://localhost:${port}/session`);
+  if (config.telephony.enabled) {
+    console.log(`   - LiveKit webhook: POST http://localhost:${port}/telephony/livekit-webhook`);
+  }
   console.log('━'.repeat(50));
   console.log('\n To start the agent server, run:');
   console.log('   npm run dev:agent\n');

@@ -31,4 +31,16 @@ export const config = {
   agent: {
     name: process.env.AGENT_NAME || 'shreya-obnox', // Agent name for explicit dispatch  ('custom-agent' init name)
   },
+  telephony: {
+    enabled: process.env.TELEPHONY_ENABLED === 'true',
+    webhook: {
+      // By default, validate webhook JWTs using the same LiveKit key/secret.
+      // Can be overridden if you sign webhooks with a different key.
+      apiKey: process.env.LIVEKIT_WEBHOOK_API_KEY || process.env.LIVEKIT_API_KEY!,
+      apiSecret: process.env.LIVEKIT_WEBHOOK_API_SECRET || process.env.LIVEKIT_API_SECRET!,
+    },
+    sipIdentityPrefix: process.env.TELEPHONY_SIP_IDENTITY_PREFIX || 'sip_',
+    dispatchOnAnyParticipantJoin:
+      process.env.TELEPHONY_DISPATCH_ON_ANY_PARTICIPANT_JOIN === 'true',
+  },
 };

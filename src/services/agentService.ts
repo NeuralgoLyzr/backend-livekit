@@ -44,7 +44,7 @@ export const agentService = {
         { metadata }
       );
 
-      console.log(`✓ Agent dispatched to room "${roomName}" (ID: ${dispatch.id})`);
+      console.log(`✓ Agent dispatched to room "${roomName}" (ID: ${dispatch?.id ?? 'unknown'})`);
     } catch (error) {
       console.error(`✗ Failed to dispatch agent to room "${roomName}":`, error);
       throw error;

@@ -9,23 +9,22 @@ const store = new InMemoryTelephonyStore();
 const routing = new DefaultCallRouting();
 const agentDispatch = new AgentDispatchAdapter();
 const webhookVerifier = new LiveKitWebhookVerifier(
-  config.telephony.webhook.apiKey,
-  config.telephony.webhook.apiSecret
+    config.telephony.webhook.apiKey,
+    config.telephony.webhook.apiSecret
 );
 
 const sessionService = new TelephonySessionService({
-  store,
-  routing,
-  agentDispatch,
-  sipIdentityPrefix: config.telephony.sipIdentityPrefix,
-  dispatchOnAnyParticipantJoin: config.telephony.dispatchOnAnyParticipantJoin,
+    store,
+    routing,
+    agentDispatch,
+    sipIdentityPrefix: config.telephony.sipIdentityPrefix,
+    dispatchOnAnyParticipantJoin: config.telephony.dispatchOnAnyParticipantJoin,
 });
 
 export const telephonyModule = {
-  store,
-  routing,
-  agentDispatch,
-  webhookVerifier,
-  sessionService,
+    store,
+    routing,
+    agentDispatch,
+    webhookVerifier,
+    sessionService,
 };
-

@@ -2,12 +2,7 @@
  * Express application setup
  */
 
-import express, {
-  type Express,
-  type Request,
-  type Response,
-  type NextFunction,
-} from 'express';
+import express, { type Express, type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import sessionRouter from './routes/session.js';
 import healthRouter from './routes/health.js';
@@ -23,16 +18,16 @@ app.use(cors());
 // LiveKit webhooks require raw body access for signature validation.
 // IMPORTANT: This must be registered before `express.json()` consumes the body.
 app.use(
-  '/telephony/livekit-webhook',
-  express.raw({ type: ['application/webhook+json', 'application/json'] })
+    '/telephony/livekit-webhook',
+    express.raw({ type: ['application/webhook+json', 'application/json'] })
 );
 
 app.use(express.json());
 
 // Request logging
 app.use((req: Request, res: Response, next: NextFunction) => {
-  console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
-  next();
+    console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
+    next();
 });
 
 // Routes
@@ -43,34 +38,34 @@ app.use('/telephony', telephonyRouter);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
-  res.json({
-    name: 'LiveKit Backend API',
-    version: '1.0.0',
-    endpoints: {
-      health: 'GET /health',
-      createSession: 'POST /session',
-      endSession: 'POST /session/end',
-      ...(config.telephony.enabled
-        ? { telephonyWebhook: 'POST /telephony/livekit-webhook' }
-        : {}),
-    },
-    docs: 'See README.md for API documentation',
-  });
+    res.json({
+        name: 'LiveKit Backend API',
+        version: '1.0.0',
+        endpoints: {
+            health: 'GET /health',
+            createSession: 'POST /session',
+            endSession: 'POST /session/end',
+            ...(config.telephony.enabled
+                ? { telephonyWebhook: 'POST /telephony/livekit-webhook' }
+                : {}),
+        },
+        docs: 'See README.md for API documentation',
+    });
 });
 
 // 404 handler
 app.use((req: Request, res: Response) => {
-  res.status(404).json({
-    error: 'Not found',
-    path: req.path,
-  });
+    res.status(404).json({
+        error: 'Not found',
+        path: req.path,
+    });
 });
 
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-  console.error('Error:', err);
-  res.status(500).json({
-    error: 'Internal server error',
-    message: err.message,
-  });
+    console.error('Error:', err);
+    res.status(500).json({
+        error: 'Internal server error',
+        message: err.message,
+    });
 });

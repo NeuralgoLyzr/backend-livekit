@@ -53,31 +53,31 @@ Request:
 
 ```json
 {
-  "userIdentity": "user-123",
-  "roomName": "optional-room",
-  "agentConfig": {
-    "stt": "assemblyai/universal-streaming:en",
-    "tts": "cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
-    "llm": "openai/gpt-4o-mini",
-    "prompt": "You are a helpful voice AI assistant. Be concise and friendly.",
-    "greeting": "Say, 'Hi I’m Maya, how can I help you today?'",
-    "realtime": false,
-    "realtime_model": "gpt-4o-realtime-preview",
-    "realtime_voice": "sage",
-    "vad_enabled": true,
-    "turn_detection_enabled": true,
-    "noise_cancellation_enabled": true,
-    "noise_cancellation_type": "auto",
-    "avatar": {
-      "enabled": true,
-      "provider": "anam",
-      "anam": {
-        "name": "Maya",
-        "avatarId": "<anam-avatar-id>"
-      },
-      "avatar_participant_name": "anam-avatar-agent"
+    "userIdentity": "user-123",
+    "roomName": "optional-room",
+    "agentConfig": {
+        "stt": "assemblyai/universal-streaming:en",
+        "tts": "cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
+        "llm": "openai/gpt-4o-mini",
+        "prompt": "You are a helpful voice AI assistant. Be concise and friendly.",
+        "greeting": "Say, 'Hi I’m Maya, how can I help you today?'",
+        "realtime": false,
+        "realtime_model": "gpt-4o-realtime-preview",
+        "realtime_voice": "sage",
+        "vad_enabled": true,
+        "turn_detection_enabled": true,
+        "noise_cancellation_enabled": true,
+        "noise_cancellation_type": "auto",
+        "avatar": {
+            "enabled": true,
+            "provider": "anam",
+            "anam": {
+                "name": "Maya",
+                "avatarId": "<anam-avatar-id>"
+            },
+            "avatar_participant_name": "anam-avatar-agent"
+        }
     }
-  }
 }
 ```
 
@@ -85,16 +85,16 @@ Response:
 
 ```json
 {
-  "userToken": "<jwt>",
-  "roomName": "room-uuid",
-  "livekitUrl": "wss://<your-project>.livekit.cloud",
-  "agentDispatched": true,
-  "agentConfig": {
-    "stt": "assemblyai/universal-streaming:en",
-    "tts": "cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
-    "llm": "openai/gpt-4o-mini",
-    "realtime": false
-  }
+    "userToken": "<jwt>",
+    "roomName": "room-uuid",
+    "livekitUrl": "wss://<your-project>.livekit.cloud",
+    "agentDispatched": true,
+    "agentConfig": {
+        "stt": "assemblyai/universal-streaming:en",
+        "tts": "cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
+        "llm": "openai/gpt-4o-mini",
+        "realtime": false
+    }
 }
 ```
 
@@ -142,8 +142,8 @@ TELEPHONY_DISPATCH_ON_ANY_PARTICIPANT_JOIN=false
 ### Endpoints
 
 - `POST /telephony/livekit-webhook`
-  - Expects `Content-Type: application/webhook+json` and an `Authorization` header from LiveKit.
-  - Returns `200` quickly and processes events asynchronously.
+    - Expects `Content-Type: application/webhook+json` and an `Authorization` header from LiveKit.
+    - Returns `200` quickly and processes events asynchronously.
 
 - `GET /telephony/calls/:callId` (non-prod only)
 - `GET /telephony/calls/by-room/:roomName` (non-prod only)
@@ -158,11 +158,11 @@ TELEPHONY_DISPATCH_ON_ANY_PARTICIPANT_JOIN=false
 - `vad_enabled`, `turn_detection_enabled`.
 - `noise_cancellation_enabled`, `noise_cancellation_type` (`auto|telephony|standard|none`).
 - `avatar` (optional): when enabled, the Python agent may start an avatar worker to publish synced audio+video tracks:
-  - `avatar.enabled` (boolean)
-  - `avatar.provider` (`anam`)
-  - `avatar.anam.avatarId` (string)
-  - `avatar.anam.name` (string, optional)
-  - `avatar.avatar_participant_name` (string, optional)
+    - `avatar.enabled` (boolean)
+    - `avatar.provider` (`anam`)
+    - `avatar.anam.avatarId` (string)
+    - `avatar.anam.name` (string, optional)
+    - `avatar.avatar_participant_name` (string, optional)
 
 ## Development notes
 
@@ -176,4 +176,3 @@ TELEPHONY_DISPATCH_ON_ANY_PARTICIPANT_JOIN=false
 - **Missing env**: `src/config/index.ts` throws on startup if `LIVEKIT_*` keys are unset.
 - **Agent not joining**: ensure AGENT_NAME matches the running Python agent registration and that the agent process is reachable by LiveKit Cloud.
 - **CORS**: enabled globally; adjust in `src/app.ts` if you need stricter origins.
-

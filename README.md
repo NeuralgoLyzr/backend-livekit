@@ -67,7 +67,16 @@ Request:
     "vad_enabled": true,
     "turn_detection_enabled": true,
     "noise_cancellation_enabled": true,
-    "noise_cancellation_type": "auto"
+    "noise_cancellation_type": "auto",
+    "avatar": {
+      "enabled": true,
+      "provider": "anam",
+      "anam": {
+        "name": "Maya",
+        "avatarId": "<anam-avatar-id>"
+      },
+      "avatar_participant_name": "anam-avatar-agent"
+    }
   }
 }
 ```
@@ -148,6 +157,12 @@ TELEPHONY_DISPATCH_ON_ANY_PARTICIPANT_JOIN=false
 - `realtime`, `realtime_model`, `realtime_voice` – toggles OpenAI Realtime path.
 - `vad_enabled`, `turn_detection_enabled`.
 - `noise_cancellation_enabled`, `noise_cancellation_type` (`auto|telephony|standard|none`).
+- `avatar` (optional): when enabled, the Python agent may start an avatar worker to publish synced audio+video tracks:
+  - `avatar.enabled` (boolean)
+  - `avatar.provider` (`anam`)
+  - `avatar.anam.avatarId` (string)
+  - `avatar.anam.name` (string, optional)
+  - `avatar.avatar_participant_name` (string, optional)
 
 ## Development notes
 

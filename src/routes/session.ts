@@ -82,6 +82,23 @@ function validateRoomName(roomName: unknown): { valid: boolean; error?: string }
   return { valid: true };
 }
 
+function validateAvatarConfig(agentConfig: AgentConfig | undefined): { valid: boolean; error?: string } {
+  const avatar = agentConfig?.avatar;
+  if (!avatar?.enabled) return { valid: true };
+
+  const provider = avatar.provider ?? 'anam';
+  if (provider !== 'anam') {
+    return { valid: false, error: `Unsupported avatar provider: ${String(provider)}` };
+  }
+
+  const avatarId = avatar.anam?.avatarId;
+  if (!avatarId || typeof avatarId !== 'string' || avatarId.trim().length === 0) {
+    return { valid: false, error: 'avatar.anam.avatarId is required when avatar.enabled is true' };
+  }
+
+  return { valid: true };
+}
+
 router.post('/', async (req, res) => {
   try {
     const { userIdentity, roomName, agentConfig }: SessionRequest = req.body;
@@ -112,6 +129,14 @@ router.post('/', async (req, res) => {
             turn_detection_enabled: true,
             noise_cancellation_enabled: true,
             noise_cancellation_type: 'auto',
+            avatar: {
+              enabled: true,
+              provider: 'anam',
+              anam: {
+                name: 'Maya',
+                avatarId: '<anam-avatar-id>',
+              },
+            },
           },
         },
       });
@@ -121,6 +146,12 @@ router.post('/', async (req, res) => {
     const roomValidation = validateRoomName(roomName);
     if (!roomValidation.valid) {
       return res.status(400).json({ error: roomValidation.error });
+    }
+
+    // Validate avatar config (only when enabled)
+    const avatarValidation = validateAvatarConfig(finalAgentConfig);
+    if (!avatarValidation.valid) {
+      return res.status(400).json({ error: avatarValidation.error });
     }
 
     // Generate room name if not provided

@@ -2,6 +2,38 @@
  * Shared type definitions
  */
 
+export type AvatarProvider = 'anam';
+
+export interface AnamAvatarConfig {
+  /**
+   * Persona display name in Anam.
+   */
+  name?: string;
+  /**
+   * Anam Avatar ID (from Anam gallery or lab).
+   */
+  avatarId?: string;
+}
+
+export interface AvatarConfig {
+  /**
+   * Enable virtual avatar mode.
+   */
+  enabled?: boolean;
+  /**
+   * Avatar provider to use.
+   */
+  provider?: AvatarProvider;
+  /**
+   * Provider-specific config.
+   */
+  anam?: AnamAvatarConfig;
+  /**
+   * Optional participant name to use for the avatar worker.
+   */
+  avatar_participant_name?: string;
+}
+
 export interface AgentConfig {
   stt?: string;
   tts?: string;
@@ -21,6 +53,11 @@ export interface AgentConfig {
   turn_detection_enabled?: boolean;
   noise_cancellation_enabled?: boolean;
   noise_cancellation_type?: 'auto' | 'telephony' | 'standard' | 'none';
+  /**
+   * Optional virtual avatar config. When enabled, the Python agent may start an
+   * avatar worker (e.g. Anam) to publish synced audio+video into the room.
+   */
+  avatar?: AvatarConfig;
 }
 
 export interface ToolDefinition {

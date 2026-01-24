@@ -175,20 +175,27 @@ router.post('/', async (req, res) => {
         // Generate room name if not provided
         const finalRoomName = roomName?.trim() || `room-${randomUUID()}`;
 
+        // Ensure external tools can correlate requests.
+        const agentConfigWithIds: AgentConfig = {
+            ...finalAgentConfig,
+            user_id: userIdentity.trim(),
+            session_id: finalRoomName,
+        };
+
         // Generate user token
         const userToken = await tokenService.createUserToken(userIdentity.trim(), finalRoomName);
 
         if (process.env.NODE_ENV !== 'production') {
-            console.log('[session] Dispatching agent config:', finalAgentConfig);
+            console.log('[session] Dispatching agent config:', agentConfigWithIds);
         }
 
         // Dispatch agent with custom configuration
-        await agentService.dispatchAgent(finalRoomName, finalAgentConfig);
+        await agentService.dispatchAgent(finalRoomName, agentConfigWithIds);
 
         // Store session metadata only after successful dispatch
         storage.set(finalRoomName, {
             userIdentity: userIdentity.trim(),
-            agentConfig: finalAgentConfig,
+            agentConfig: agentConfigWithIds,
             createdAt: new Date().toISOString(),
         });
 

@@ -25,6 +25,11 @@ export const toolRegistry: ToolDefinition[] = [
         name: 'List Notes',
         description: 'List notes stored for the current room on the agent.',
     },
+    {
+        id: 'call_sub_agent',
+        name: 'Call Sub-Agent',
+        description: 'Delegate a task to a specialized sub-agent via the sub-agent API.',
+    },
 ];
 
 const registryIds = new Set(toolRegistry.map((t) => t.id));

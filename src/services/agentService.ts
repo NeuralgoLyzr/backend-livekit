@@ -29,6 +29,11 @@ export const agentService = {
                 agentConfig?.prompt ??
                 'You are a helpful voice AI assistant. Be concise and friendly.',
             greeting: agentConfig?.greeting ?? null,
+            // Optional config for specialized sub-agent delegation tools.
+            apiKey: agentConfig?.api_key,
+            managed_agents: agentConfig?.managed_agents,
+            user_id: agentConfig?.user_id,
+            session_id: agentConfig?.session_id,
             realtime: agentConfig?.realtime ?? false,
             realtime_model: agentConfig?.realtime_model ?? 'gpt-4o-realtime-preview',
             realtime_voice: agentConfig?.realtime_voice ?? 'sage',
@@ -39,16 +44,16 @@ export const agentService = {
             noise_cancellation_type: agentConfig?.noise_cancellation_type ?? 'auto',
             avatar: agentConfig?.avatar
                 ? {
-                      enabled: agentConfig.avatar.enabled ?? false,
-                      provider: agentConfig.avatar.provider ?? 'anam',
-                      anam: agentConfig.avatar.anam
-                          ? {
-                                name: agentConfig.avatar.anam.name,
-                                avatarId: agentConfig.avatar.anam.avatarId,
-                            }
-                          : undefined,
-                      avatar_participant_name: agentConfig.avatar.avatar_participant_name,
-                  }
+                    enabled: agentConfig.avatar.enabled ?? false,
+                    provider: agentConfig.avatar.provider ?? 'anam',
+                    anam: agentConfig.avatar.anam
+                        ? {
+                            name: agentConfig.avatar.anam.name,
+                            avatarId: agentConfig.avatar.anam.avatarId,
+                        }
+                        : undefined,
+                    avatar_participant_name: agentConfig.avatar.avatar_participant_name,
+                }
                 : undefined,
         };
         const metadata = JSON.stringify(metadataObj);

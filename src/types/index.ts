@@ -105,6 +105,37 @@ export const AgenticRagEntrySchema = z.object({
 	score_threshold: z.number(),
 });
 
+const ThinkingSoundSourceSchema = z.object({
+	source: z.string(),
+	volume: z.number().min(0).max(1).optional(),
+	probability: z.number().min(0).max(1).optional(),
+});
+
+const BackgroundAudioSchema = z.object({
+	/**
+	 * Master enable flag for background audio publishing.
+	 * (The Python agent uses `ambient.enabled` / `thinking.enabled`; this flag is used for UX.)
+	 */
+	enabled: z.boolean().optional(),
+	ambient: z
+		.object({
+			enabled: z.boolean().optional(),
+			source: z.string().optional(),
+			volume: z.number().min(0).max(1).optional(),
+		})
+		.optional(),
+	thinking: z
+		.object({
+			enabled: z.boolean().optional(),
+			/**
+			 * If true, thinking SFX will only play during tool execution (not all agent "thinking").
+			 */
+			tool_calls_only: z.boolean().optional(),
+			sources: z.array(ThinkingSoundSourceSchema).optional(),
+		})
+		.optional(),
+});
+
 export const AgentConfigSchema = z.object({
 	stt: z.string().optional(),
 	tts: z.string().optional(),
@@ -154,6 +185,10 @@ export const AgentConfigSchema = z.object({
 	 * avatar worker (e.g. Anam) to publish synced audio+video into the room.
 	 */
 	avatar: AvatarConfigSchema.optional(),
+	/**
+	 * Optional background audio config (ambient + thinking SFX).
+	 */
+	background_audio: BackgroundAudioSchema.optional(),
 });
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 

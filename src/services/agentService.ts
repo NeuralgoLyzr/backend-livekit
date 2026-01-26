@@ -20,6 +20,17 @@ export const agentService = {
             config.livekit.apiSecret
         );
 
+        const bg = agentConfig?.background_audio;
+        // Only forward background audio config when enabled; otherwise omit so the Python
+        // agent falls back to "no background audio" defaults.
+        const background_audio =
+            bg?.enabled
+                ? {
+                    ambient: bg.ambient,
+                    thinking: bg.thinking,
+                }
+                : undefined;
+
         // Build metadata with agent configuration - matching agent schema
         const metadataObj = {
             stt: agentConfig?.stt ?? 'assemblyai/universal-streaming:en',
@@ -44,6 +55,7 @@ export const agentService = {
             turn_detection_enabled: agentConfig?.turn_detection_enabled ?? true,
             noise_cancellation_enabled: agentConfig?.noise_cancellation_enabled ?? true,
             noise_cancellation_type: agentConfig?.noise_cancellation_type ?? 'auto',
+            background_audio,
             avatar: agentConfig?.avatar
                 ? {
                     enabled: agentConfig.avatar.enabled ?? false,

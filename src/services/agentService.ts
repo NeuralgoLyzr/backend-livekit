@@ -38,6 +38,8 @@ export const agentService = {
             realtime_model: agentConfig?.realtime_model ?? 'gpt-4o-realtime-preview',
             realtime_voice: agentConfig?.realtime_voice ?? 'sage',
             tools: agentConfig?.tools ?? [],
+            lyzr_rag: agentConfig?.lyzr_rag,
+            agentic_rag: agentConfig?.agentic_rag ?? [],
             vad_enabled: agentConfig?.vad_enabled ?? true,
             turn_detection_enabled: agentConfig?.turn_detection_enabled ?? true,
             noise_cancellation_enabled: agentConfig?.noise_cancellation_enabled ?? true,

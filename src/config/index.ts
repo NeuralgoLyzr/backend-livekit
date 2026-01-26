@@ -29,7 +29,7 @@ export const config = {
         ttl: '10m', // Short-lived tokens (10 minutes)
     },
     agent: {
-        name: process.env.AGENT_NAME || 'shreya-obnox', // Agent name for explicit dispatch  ('custom-agent' init name)
+        name: process.env.AGENT_NAME || 'local-test', // Agent name for explicit dispatch  ('custom-agent' init name)
     },
     telephony: {
         enabled: process.env.TELEPHONY_ENABLED === 'true',

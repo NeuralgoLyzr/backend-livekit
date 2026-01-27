@@ -4,8 +4,9 @@
  */
 
 import type { SessionData } from '../types/index.js';
+import type { SessionStorePort } from '../ports/sessionStorePort.js';
 
-class SessionStorage {
+export class InMemorySessionStore implements SessionStorePort {
     private store: Map<string, SessionData>;
 
     constructor() {
@@ -37,5 +38,8 @@ class SessionStorage {
     }
 }
 
-// Export singleton instance
-export const storage = new SessionStorage();
+// Default singleton instance (kept for runtime convenience)
+export const sessionStore: SessionStorePort = new InMemorySessionStore();
+
+// Backward-compatible alias (avoid importing this directly in new code)
+export const storage = sessionStore;

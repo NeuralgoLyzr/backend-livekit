@@ -6,6 +6,83 @@
 import { AgentDispatchClient } from 'livekit-server-sdk';
 import { config } from '../config/index.js';
 import type { AgentConfig } from '../types/index.js';
+import { isDevelopment } from '../lib/env.js';
+import { AGENT_DEFAULTS } from './agentDefaults.js';
+
+type BackgroundAudioConfig = NonNullable<AgentConfig['background_audio']>;
+type ForwardedBackgroundAudioConfig = {
+    ambient?: BackgroundAudioConfig['ambient'];
+    thinking?: BackgroundAudioConfig['thinking'];
+};
+
+function buildBackgroundAudioConfig(
+    backgroundAudio?: AgentConfig['background_audio']
+): ForwardedBackgroundAudioConfig | undefined {
+    if (!backgroundAudio?.enabled) return undefined;
+    return {
+        ambient: backgroundAudio.ambient,
+        thinking: backgroundAudio.thinking,
+    };
+}
+
+type AvatarConfig = NonNullable<AgentConfig['avatar']>;
+type ForwardedAvatarConfig = {
+    enabled: boolean;
+    provider: AvatarConfig['provider'];
+    anam: AvatarConfig['anam'];
+    avatar_participant_name: AvatarConfig['avatar_participant_name'];
+};
+
+function buildAvatarConfig(avatar?: AgentConfig['avatar']): ForwardedAvatarConfig | undefined {
+    if (!avatar) return undefined;
+
+    const anam = avatar.anam
+        ? {
+              name: avatar.anam.name,
+              avatarId: avatar.anam.avatarId,
+          }
+        : undefined;
+
+    return {
+        enabled: avatar.enabled ?? false,
+        provider: avatar.provider ?? 'anam',
+        anam,
+        avatar_participant_name: avatar.avatar_participant_name,
+    };
+}
+
+function buildMetadataObject(agentConfig: AgentConfig): Record<string, unknown> {
+    const background_audio = buildBackgroundAudioConfig(agentConfig.background_audio);
+    const avatar = buildAvatarConfig(agentConfig.avatar);
+
+    return {
+        stt: agentConfig.stt ?? AGENT_DEFAULTS.stt,
+        tts: agentConfig.tts ?? AGENT_DEFAULTS.tts,
+        llm: agentConfig.llm ?? AGENT_DEFAULTS.llm,
+        prompt: agentConfig.prompt ?? AGENT_DEFAULTS.prompt,
+        greeting: agentConfig.greeting ?? AGENT_DEFAULTS.greeting,
+        // Optional config for specialized sub-agent delegation tools.
+        apiKey: agentConfig.api_key,
+        managed_agents: agentConfig.managed_agents,
+        user_id: agentConfig.user_id,
+        session_id: agentConfig.session_id,
+        realtime: agentConfig.realtime ?? AGENT_DEFAULTS.realtime,
+        realtime_model: agentConfig.realtime_model ?? AGENT_DEFAULTS.realtime_model,
+        realtime_voice: agentConfig.realtime_voice ?? AGENT_DEFAULTS.realtime_voice,
+        tools: agentConfig.tools ?? AGENT_DEFAULTS.tools,
+        lyzr_rag: agentConfig.lyzr_rag,
+        agentic_rag: agentConfig.agentic_rag ?? AGENT_DEFAULTS.agentic_rag,
+        vad_enabled: agentConfig.vad_enabled ?? AGENT_DEFAULTS.vad_enabled,
+        turn_detection_enabled:
+            agentConfig.turn_detection_enabled ?? AGENT_DEFAULTS.turn_detection_enabled,
+        noise_cancellation_enabled:
+            agentConfig.noise_cancellation_enabled ?? AGENT_DEFAULTS.noise_cancellation_enabled,
+        noise_cancellation_type:
+            agentConfig.noise_cancellation_type ?? AGENT_DEFAULTS.noise_cancellation_type,
+        background_audio,
+        avatar,
+    };
+}
 
 export const agentService = {
     /**
@@ -20,66 +97,19 @@ export const agentService = {
             config.livekit.apiSecret
         );
 
-        const bg = agentConfig?.background_audio;
-        // Only forward background audio config when enabled; otherwise omit so the Python
-        // agent falls back to "no background audio" defaults.
-        const background_audio =
-            bg?.enabled
-                ? {
-                    ambient: bg.ambient,
-                    thinking: bg.thinking,
-                }
-                : undefined;
-
-        // Build metadata with agent configuration - matching agent schema
-        const metadataObj = {
-            stt: agentConfig?.stt ?? 'assemblyai/universal-streaming:en',
-            tts: agentConfig?.tts ?? 'cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
-            llm: agentConfig?.llm ?? 'openai/gpt-4o-mini',
-            prompt:
-                agentConfig?.prompt ??
-                'You are a helpful voice AI assistant. Be concise and friendly.',
-            greeting: agentConfig?.greeting ?? null,
-            // Optional config for specialized sub-agent delegation tools.
-            apiKey: agentConfig?.api_key,
-            managed_agents: agentConfig?.managed_agents,
-            user_id: agentConfig?.user_id,
-            session_id: agentConfig?.session_id,
-            realtime: agentConfig?.realtime ?? false,
-            realtime_model: agentConfig?.realtime_model ?? 'gpt-4o-realtime-preview',
-            realtime_voice: agentConfig?.realtime_voice ?? 'sage',
-            tools: agentConfig?.tools ?? [],
-            lyzr_rag: agentConfig?.lyzr_rag,
-            agentic_rag: agentConfig?.agentic_rag ?? [],
-            vad_enabled: agentConfig?.vad_enabled ?? true,
-            turn_detection_enabled: agentConfig?.turn_detection_enabled ?? true,
-            noise_cancellation_enabled: agentConfig?.noise_cancellation_enabled ?? true,
-            noise_cancellation_type: agentConfig?.noise_cancellation_type ?? 'auto',
-            background_audio,
-            avatar: agentConfig?.avatar
-                ? {
-                    enabled: agentConfig.avatar.enabled ?? false,
-                    provider: agentConfig.avatar.provider ?? 'anam',
-                    anam: agentConfig.avatar.anam
-                        ? {
-                            name: agentConfig.avatar.anam.name,
-                            avatarId: agentConfig.avatar.anam.avatarId,
-                        }
-                        : undefined,
-                    avatar_participant_name: agentConfig.avatar.avatar_participant_name,
-                }
-                : undefined,
-        };
+        const metadataObj = buildMetadataObject(agentConfig);
         const metadata = JSON.stringify(metadataObj);
 
-        // Debug logging for avatar config
-        console.log('[agentService] Dispatch metadata:', JSON.stringify(metadataObj, null, 2));
-        if (metadataObj.avatar) {
-            console.log('[agentService] Avatar config enabled:', metadataObj.avatar.enabled);
-            console.log('[agentService] Avatar provider:', metadataObj.avatar.provider);
-            console.log('[agentService] Avatar anam config:', metadataObj.avatar.anam);
+        if (isDevelopment()) {
+            console.log('[agentService] Dispatch metadata:', JSON.stringify(metadataObj, null, 2));
         } else {
-            console.log('[agentService] No avatar config in request');
+            const avatarEnabled = Boolean(
+                (metadataObj as { avatar?: { enabled?: boolean } }).avatar?.enabled
+            );
+
+            console.log(
+                `[agentService] Dispatching agent to "${roomName}" (avatar: ${avatarEnabled ? 'on' : 'off'})`
+            );
         }
 
         try {

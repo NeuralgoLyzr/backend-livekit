@@ -9,6 +9,7 @@ import healthRouter from './routes/health.js';
 import configRouter from './routes/config.js';
 import telephonyRouter from './routes/telephony.js';
 import { config } from './config/index.js';
+import { formatErrorResponse, getErrorStatus } from './lib/httpErrors.js';
 
 export const app: Express = express();
 
@@ -64,8 +65,5 @@ app.use((req: Request, res: Response) => {
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
     console.error('Error:', err);
-    res.status(500).json({
-        error: 'Internal server error',
-        message: err.message,
-    });
+    res.status(getErrorStatus(err)).json(formatErrorResponse(err));
 });

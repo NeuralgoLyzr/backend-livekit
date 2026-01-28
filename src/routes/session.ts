@@ -29,18 +29,15 @@ router.post('/', async (req, res) => {
                     userIdentity: 'user123',
                     roomName: 'optional-room-name',
                     agentConfig: {
-                        stt: AGENT_DEFAULTS.stt,
-                        tts: AGENT_DEFAULTS.tts,
-                        llm: AGENT_DEFAULTS.llm,
+                        engine: AGENT_DEFAULTS.engine,
                         prompt: 'You are a helpful voice AI assistant.',
-                        greeting: "Say, 'Hi I'm Maya, how can I help you today?'",
-                        realtime: AGENT_DEFAULTS.realtime,
-                        realtime_model: AGENT_DEFAULTS.realtime_model,
-                        realtime_voice: AGENT_DEFAULTS.realtime_voice,
                         vad_enabled: AGENT_DEFAULTS.vad_enabled,
-                        turn_detection_enabled: AGENT_DEFAULTS.turn_detection_enabled,
-                        noise_cancellation_enabled: AGENT_DEFAULTS.noise_cancellation_enabled,
-                        noise_cancellation_type: AGENT_DEFAULTS.noise_cancellation_type,
+                        turn_detection: AGENT_DEFAULTS.turn_detection,
+                        noise_cancellation: AGENT_DEFAULTS.noise_cancellation,
+                        conversation_start: {
+                            who: 'ai',
+                            greeting: "Say, 'Hi I'm Maya, how can I help you today?'",
+                        },
                         background_audio: {
                             enabled: true,
                             ambient: {
@@ -48,12 +45,21 @@ router.post('/', async (req, res) => {
                                 source: '<ambient-audio-source>',
                                 volume: 0.25,
                             },
-                            thinking: {
+                            tool_call: {
                                 enabled: true,
-                                tool_calls_only: true,
                                 sources: [
                                     {
-                                        source: '<thinking-sfx-source>',
+                                        source: '<tool-call-sfx-source>',
+                                        volume: 0.25,
+                                        probability: 1,
+                                    },
+                                ],
+                            },
+                            turn_taking: {
+                                enabled: true,
+                                sources: [
+                                    {
+                                        source: '<turn-taking-sfx-source>',
                                         volume: 0.25,
                                         probability: 1,
                                     },

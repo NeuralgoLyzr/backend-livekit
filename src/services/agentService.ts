@@ -12,7 +12,8 @@ import { AGENT_DEFAULTS } from '../CONSTS.js';
 type BackgroundAudioConfig = NonNullable<AgentConfig['background_audio']>;
 type ForwardedBackgroundAudioConfig = {
     ambient?: BackgroundAudioConfig['ambient'];
-    thinking?: BackgroundAudioConfig['thinking'];
+    tool_call?: BackgroundAudioConfig['tool_call'];
+    turn_taking?: BackgroundAudioConfig['turn_taking'];
 };
 
 function buildBackgroundAudioConfig(
@@ -21,7 +22,8 @@ function buildBackgroundAudioConfig(
     if (!backgroundAudio?.enabled) return undefined;
     return {
         ambient: backgroundAudio.ambient,
-        thinking: backgroundAudio.thinking,
+        tool_call: backgroundAudio.tool_call,
+        turn_taking: backgroundAudio.turn_taking,
     };
 }
 
@@ -56,29 +58,24 @@ function buildMetadataObject(agentConfig: AgentConfig): Record<string, unknown> 
     const avatar = buildAvatarConfig(agentConfig.avatar);
 
     return {
-        stt: agentConfig.stt ?? AGENT_DEFAULTS.stt,
-        tts: agentConfig.tts ?? AGENT_DEFAULTS.tts,
-        llm: agentConfig.llm ?? AGENT_DEFAULTS.llm,
+        engine: agentConfig.engine ?? AGENT_DEFAULTS.engine,
         prompt: agentConfig.prompt ?? AGENT_DEFAULTS.prompt,
-        greeting: agentConfig.greeting ?? AGENT_DEFAULTS.greeting,
+        turn_detection: agentConfig.turn_detection ?? AGENT_DEFAULTS.turn_detection,
+        noise_cancellation: agentConfig.noise_cancellation ?? AGENT_DEFAULTS.noise_cancellation,
+        conversation_start:
+            agentConfig.conversation_start ?? AGENT_DEFAULTS.conversation_start,
+        // Logged only (safe to forward; Python may ignore).
+        agent_name: agentConfig.agent_name,
+        agent_description: agentConfig.agent_description,
         // Optional config for specialized sub-agent delegation tools.
         apiKey: agentConfig.api_key,
         managed_agents: agentConfig.managed_agents,
         user_id: agentConfig.user_id,
         session_id: agentConfig.session_id,
-        realtime: agentConfig.realtime ?? AGENT_DEFAULTS.realtime,
-        realtime_model: agentConfig.realtime_model ?? AGENT_DEFAULTS.realtime_model,
-        realtime_voice: agentConfig.realtime_voice ?? AGENT_DEFAULTS.realtime_voice,
         tools: agentConfig.tools ?? AGENT_DEFAULTS.tools,
         lyzr_rag: agentConfig.lyzr_rag,
         agentic_rag: agentConfig.agentic_rag ?? AGENT_DEFAULTS.agentic_rag,
         vad_enabled: agentConfig.vad_enabled ?? AGENT_DEFAULTS.vad_enabled,
-        turn_detection_enabled:
-            agentConfig.turn_detection_enabled ?? AGENT_DEFAULTS.turn_detection_enabled,
-        noise_cancellation_enabled:
-            agentConfig.noise_cancellation_enabled ?? AGENT_DEFAULTS.noise_cancellation_enabled,
-        noise_cancellation_type:
-            agentConfig.noise_cancellation_type ?? AGENT_DEFAULTS.noise_cancellation_type,
         background_audio,
         avatar,
     };

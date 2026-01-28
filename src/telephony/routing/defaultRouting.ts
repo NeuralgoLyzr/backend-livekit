@@ -6,10 +6,15 @@ export class DefaultCallRouting implements CallRoutingPort {
     // v1 sensible defaults for PSTN.
     return {
       agentConfig: {
-        noise_cancellation_enabled: true,
-        noise_cancellation_type: 'telephony',
+        noise_cancellation: {
+          enabled: true,
+          type: 'telephony',
+        },
         prompt: "You are a helpful voice AI assistant on a phone call. Be concise, speak in short sentences, and confirm important details. If you didn't hear something clearly, ask the caller to repeat.",
-        greeting: 'Hi—how can I help you today?',
+        conversation_start: {
+          who: 'ai',
+          greeting: 'Hi—how can I help you today?',
+        },
         // Keep other fields defaulted by agentService.
       },
     };

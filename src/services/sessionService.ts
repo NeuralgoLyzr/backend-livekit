@@ -5,7 +5,7 @@ import { roomService } from './roomService.js';
 import type { SessionStorePort } from '../ports/sessionStorePort.js';
 import { sessionStore } from '../lib/storage.js';
 import { config } from '../config/index.js';
-import { deriveRagConfigFromFeatures, normalizeTools } from '../config/tools.js';
+import { deriveRagConfigFromKnowledgeBase, normalizeTools } from '../config/tools.js';
 import type { AgentConfig } from '../types/index.js';
 import { HttpError } from '../lib/httpErrors.js';
 import { isDevelopment } from '../lib/env.js';
@@ -23,20 +23,14 @@ export interface CreateSessionResponse {
     livekitUrl: string;
     agentDispatched: true;
     agentConfig: {
-        stt: string;
-        tts: string;
-        llm: string;
-        realtime: boolean;
+        engine: NonNullable<AgentConfig['engine']>;
         tools: string[];
     };
 }
 
 function summarizeAgentConfig(agentConfig?: AgentConfig): CreateSessionResponse['agentConfig'] {
     return {
-        stt: agentConfig?.stt ?? AGENT_DEFAULTS.stt,
-        tts: agentConfig?.tts ?? AGENT_DEFAULTS.tts,
-        llm: agentConfig?.llm ?? AGENT_DEFAULTS.llm,
-        realtime: agentConfig?.realtime ?? AGENT_DEFAULTS.realtime,
+        engine: agentConfig?.engine ?? AGENT_DEFAULTS.engine,
         tools: agentConfig?.tools ?? AGENT_DEFAULTS.tools,
     };
 }
@@ -57,7 +51,7 @@ export function createSessionService(deps: SessionServiceDeps) {
 
             const agentConfig = input.agentConfig ?? {};
             const normalizedTools = normalizeTools(agentConfig);
-            const derivedRag = deriveRagConfigFromFeatures(agentConfig);
+            const derivedRag = deriveRagConfigFromKnowledgeBase(agentConfig);
 
             const finalAgentConfig: AgentConfig = {
                 ...agentConfig,

@@ -77,12 +77,6 @@ export const AvatarConfigSchema = z
 	});
 export type AvatarConfig = z.infer<typeof AvatarConfigSchema>;
 
-export const FeatureSchema = z.object({
-	type: z.string(),
-	config: z.record(z.string(), z.unknown()),
-	priority: z.number(),
-});
-
 export const LyzrRagParamsSchema = z
 	.object({
 		top_k: z.number().optional(),
@@ -105,6 +99,23 @@ export const AgenticRagEntrySchema = z.object({
 	score_threshold: z.number(),
 });
 
+export const KnowledgeBaseConfigSchema = z.object({
+	/**
+	 * Master enable flag for knowledge base (RAG) features.
+	 */
+	enabled: z.boolean().optional(),
+	/**
+	 * Lyzr RAG config. When enabled, the backend may forward this to the agent as `lyzr_rag`.
+	 */
+	lyzr_rag: LyzrRagSchema.optional(),
+	/**
+	 * Agentic RAG skeleton (unused for now, but kept for compatibility).
+	 * When enabled, the backend may forward this to the agent as `agentic_rag`.
+	 */
+	agentic_rag: z.array(AgenticRagEntrySchema).optional(),
+});
+export type KnowledgeBaseConfig = z.infer<typeof KnowledgeBaseConfigSchema>;
+
 const ThinkingSoundSourceSchema = z.object({
 	source: z.string(),
 	volume: z.number().min(0).max(1).optional(),
@@ -124,34 +135,113 @@ const BackgroundAudioSchema = z.object({
 			volume: z.number().min(0).max(1).optional(),
 		})
 		.optional(),
-	thinking: z
+	/**
+	 * Tool-call sound effects (looped while a tool is executing).
+	 */
+	tool_call: z
 		.object({
 			enabled: z.boolean().optional(),
-			/**
-			 * If true, thinking SFX will only play during tool execution (not all agent "thinking").
-			 */
-			tool_calls_only: z.boolean().optional().default(true),
+			sources: z.array(ThinkingSoundSourceSchema).optional(),
+		})
+		.optional(),
+	/**
+	 * Turn-taking sound effects (looped while agent state is "thinking").
+	 */
+	turn_taking: z
+		.object({
+			enabled: z.boolean().optional(),
 			sources: z.array(ThinkingSoundSourceSchema).optional(),
 		})
 		.optional(),
 });
 
 export const AgentConfigSchema = z.object({
-	stt: z.string().optional(),
-	tts: z.string().optional(),
-	llm: z.string().optional(),
+	/**
+	 * Logged only (not used for agent runtime).
+	 */
+	agent_name: z.string().optional(),
+	/**
+	 * Logged only (not used for agent runtime).
+	 */
+	agent_description: z.string().optional(),
+	/**
+	 * Engine configuration. This replaces top-level `stt`/`tts`/`llm` + `realtime*`.
+	 *
+	 * Note: optional to allow partial updates; backend applies defaults when omitted.
+	 */
+	engine: z
+		.discriminatedUnion('kind', [
+			z.object({
+				kind: z.literal('pipeline'),
+				stt: z.string(),
+				llm: z.string(),
+				tts: z.string(),
+				/**
+				 * Optional voice id override for pipeline TTS (implementation-specific).
+				 */
+				voice_id: z.string().optional(),
+			}),
+			z.object({
+				kind: z.literal('realtime'),
+				/**
+				 * Realtime model identifier.
+				 */
+				llm: z.string(),
+				/**
+				 * Optional realtime voice preset.
+				 */
+				voice: z.string().optional(),
+			}),
+		])
+		.optional(),
+	/**
+	 * System prompt / instructions for the agent.
+	 */
 	prompt: z.string().optional(),
-	greeting: z.string().nullable().optional(),
+	/**
+	 * Configure who initiates the conversation.
+	 */
+	conversation_start: z
+		.object({
+			who: z.enum(['human', 'ai']),
+			greeting: z.string().optional(),
+		})
+		.superRefine((data, ctx) => {
+			if (data.who === 'ai' && (!data.greeting || data.greeting.trim().length === 0)) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: 'conversation_start.greeting is required when conversation_start.who is "ai"',
+					path: ['greeting'],
+				});
+			}
+		})
+		.optional(),
+	/**
+	 * Turn detection mode. (Only two supported options.)
+	 */
+	turn_detection: z.enum(['english', 'multilingual']).optional(),
+	/**
+	 * Noise cancellation configuration.
+	 */
+	noise_cancellation: z
+		.object({
+			enabled: z.boolean(),
+			type: z.enum(['auto', 'telephony', 'standard', 'none']),
+		})
+		.optional(),
 	/**
 	 * Optional API key used by certain tools (e.g. sub-agent delegation).
 	 */
 	api_key: z.string().optional(),
 	/**
-	 * Optional feature configuration provided by the agent payload.
+	 * Optional knowledge base (RAG) config provided by the client.
+	 *
+	 * Note: the backend normalizes this into runtime fields like `lyzr_rag` / `agentic_rag`
+	 * before dispatching the agent.
 	 */
-	features: z.array(FeatureSchema).optional(),
+	knowledge_base: KnowledgeBaseConfigSchema.optional(),
 	/**
-	 * Optional RAG config (derived from features).
+	 * Optional RAG config (derived from `knowledge_base` or directly provided).
 	 */
 	lyzr_rag: LyzrRagSchema.optional(),
 	/**
@@ -173,13 +263,7 @@ export const AgentConfigSchema = z.object({
 	 */
 	user_id: z.string().optional(),
 	session_id: z.string().optional(),
-	realtime: z.boolean().optional(),
-	realtime_model: z.string().optional(),
-	realtime_voice: z.string().optional(),
 	vad_enabled: z.boolean().optional(),
-	turn_detection_enabled: z.boolean().optional(),
-	noise_cancellation_enabled: z.boolean().optional(),
-	noise_cancellation_type: z.enum(['auto', 'telephony', 'standard', 'none']).optional(),
 	/**
 	 * Optional virtual avatar config. When enabled, the Python agent may start an
 	 * avatar worker (e.g. Anam) to publish synced audio+video into the room.
@@ -189,7 +273,7 @@ export const AgentConfigSchema = z.object({
 	 * Optional background audio config (ambient + thinking SFX).
 	 */
 	background_audio: BackgroundAudioSchema.optional(),
-});
+}).strict();
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 
 export const ToolDefinitionSchema = z.object({

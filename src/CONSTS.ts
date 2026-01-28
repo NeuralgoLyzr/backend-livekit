@@ -7,7 +7,7 @@ export const AGENT_DEFAULTS = {
         voice_id: undefined as string | undefined,
     },
     prompt: 'You are a helpful voice AI assistant. Be concise and friendly.',
-    turn_detection: 'multilingual' as const,
+    turn_detection: 'english' as const,
     noise_cancellation: {
         enabled: true,
         type: 'auto' as const,

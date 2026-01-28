@@ -31,14 +31,20 @@ pnpm build
 pnpm start   # runs dist/index.js
 ```
 
-Create `.env` (no template checked in):
+Create `.env` (template is provided as `.env.example`):
 
 ```env
 LIVEKIT_URL=wss://<your-project>.livekit.cloud
 LIVEKIT_API_KEY=...
 LIVEKIT_API_SECRET=...
-PORT=4000                 # optional
-AGENT_NAME=shreya-obnox   # must match the Python agent registration
+PORT=4000                 # optional (defaults to 4000)
+AGENT_NAME=local-test     # optional (defaults to "local-test"; must match the Python agent registration)
+```
+
+Tip:
+
+```bash
+cp .env.example .env
 ```
 
 ## API reference
@@ -60,7 +66,8 @@ Request:
         "tts": "cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
         "llm": "openai/gpt-4o-mini",
         "prompt": "You are a helpful voice AI assistant. Be concise and friendly.",
-        "greeting": "Say, 'Hi I’m Maya, how can I help you today?'",
+        "greeting": "Say, 'Hi I'm Maya, how can I help you today?'",
+        "tools": [],
         "realtime": false,
         "realtime_model": "gpt-4o-realtime-preview",
         "realtime_voice": "sage",
@@ -68,6 +75,25 @@ Request:
         "turn_detection_enabled": true,
         "noise_cancellation_enabled": true,
         "noise_cancellation_type": "auto",
+        "background_audio": {
+            "enabled": true,
+            "ambient": {
+                "enabled": true,
+                "source": "<ambient-audio-source>",
+                "volume": 0.25
+            },
+            "thinking": {
+                "enabled": true,
+                "tool_calls_only": true,
+                "sources": [
+                    {
+                        "source": "<thinking-sfx-source>",
+                        "volume": 0.25,
+                        "probability": 1
+                    }
+                ]
+            }
+        },
         "avatar": {
             "enabled": true,
             "provider": "anam",
@@ -93,7 +119,8 @@ Response:
         "stt": "assemblyai/universal-streaming:en",
         "tts": "cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
         "llm": "openai/gpt-4o-mini",
-        "realtime": false
+        "realtime": false,
+        "tools": []
     }
 }
 ```
@@ -103,6 +130,7 @@ Validation:
 - `userIdentity` is required, alphanumeric/underscore/hyphen, ≤128 chars.
 - `roomName` optional, same constraints (auto-generated when omitted).
 - `agentConfig` is forwarded as metadata to the Python agent; unknown keys are ignored there.
+- `agentConfig.api_key` (snake_case) is accepted by this API and forwarded to the agent as `apiKey` (camelCase) for compatibility with the Python metadata model.
 
 ### POST `/session/end`
 
@@ -150,19 +178,39 @@ TELEPHONY_DISPATCH_ON_ANY_PARTICIPANT_JOIN=false
 
 ## Agent metadata contract (backend → python-agent-livekit)
 
-`agentService` serializes `agentConfig` into dispatch metadata that `python-agent-livekit/src/agent.py` reads. Keep these names stable:
+`agentService` serializes `agentConfig` into dispatch metadata that the Python agent reads (see `python-agent-livekit/src/app/config.py`). Keep these names stable:
 
 - `stt`, `tts`, `llm` – LiveKit Inference model descriptors.
 - `prompt`, `greeting` – instructions for the assistant.
 - `realtime`, `realtime_model`, `realtime_voice` – toggles OpenAI Realtime path.
 - `vad_enabled`, `turn_detection_enabled`.
 - `noise_cancellation_enabled`, `noise_cancellation_type` (`auto|telephony|standard|none`).
+- `tools` – list of enabled tool IDs (the Python agent will ignore unknown IDs).
+- `background_audio` – optional ambient + thinking SFX config.
 - `avatar` (optional): when enabled, the Python agent may start an avatar worker to publish synced audio+video tracks:
     - `avatar.enabled` (boolean)
     - `avatar.provider` (`anam`)
     - `avatar.anam.avatarId` (string)
     - `avatar.anam.name` (string, optional)
     - `avatar.avatar_participant_name` (string, optional)
+
+### When the Python agent config changes (backend checklist)
+
+If you add/rename/remove fields in the Python agent’s `agentConfig`, update **all** of these in `backend-livekit`:
+
+- `src/types/index.ts`
+    - Update `AgentConfigSchema` (and any nested schemas like `BackgroundAudioSchema`).
+- `src/services/agentService.ts`
+    - Update `buildMetadataObject()` to ensure the correct keys are forwarded in dispatch metadata (this is what the Python agent reads).
+- `src/services/sessionService.ts`
+    - Update normalization/derivation behavior (e.g. tool normalization, RAG derivation, injected `user_id`/`session_id`).
+    - If you change what’s returned to the frontend, update `CreateSessionResponse` shapes here.
+- `src/routes/session.ts`
+    - Update the validation failure `example.agentConfig` payload (kept in sync with the schema so clients can copy/paste).
+- `src/CONSTS.ts`
+    - Update defaults (`AGENT_DEFAULTS`) for any newly supported fields that should have backend defaults.
+- `src/config/tools.ts` and `src/routes/config.ts`
+    - If the change affects tool IDs / tool availability, update the registry and `/config/tools` response.
 
 ## Development notes
 

@@ -27,7 +27,4 @@ app.listen(port, () => {
             `   - LiveKit webhook: POST http://localhost:${port}/telephony/livekit-webhook`
         );
     }
-    console.log('━'.repeat(50));
-    console.log('\n To start the agent server, run:');
-    console.log('   npm run dev:agent\n');
 });

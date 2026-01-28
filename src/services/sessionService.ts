@@ -9,7 +9,7 @@ import { deriveRagConfigFromFeatures, normalizeTools } from '../config/tools.js'
 import type { AgentConfig } from '../types/index.js';
 import { HttpError } from '../lib/httpErrors.js';
 import { isDevelopment } from '../lib/env.js';
-import { AGENT_DEFAULTS } from './agentDefaults.js';
+import { AGENT_DEFAULTS } from '../CONSTS.js';
 
 export interface CreateSessionInput {
     userIdentity: string;

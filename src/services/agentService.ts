@@ -7,7 +7,7 @@ import { AgentDispatchClient } from 'livekit-server-sdk';
 import { config } from '../config/index.js';
 import type { AgentConfig } from '../types/index.js';
 import { isDevelopment } from '../lib/env.js';
-import { AGENT_DEFAULTS } from './agentDefaults.js';
+import { AGENT_DEFAULTS } from '../CONSTS.js';
 
 type BackgroundAudioConfig = NonNullable<AgentConfig['background_audio']>;
 type ForwardedBackgroundAudioConfig = {
@@ -38,9 +38,9 @@ function buildAvatarConfig(avatar?: AgentConfig['avatar']): ForwardedAvatarConfi
 
     const anam = avatar.anam
         ? {
-              name: avatar.anam.name,
-              avatarId: avatar.anam.avatarId,
-          }
+            name: avatar.anam.name,
+            avatarId: avatar.anam.avatarId,
+        }
         : undefined;
 
     return {

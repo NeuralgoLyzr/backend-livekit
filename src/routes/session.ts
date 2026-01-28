@@ -8,7 +8,7 @@ import { SessionRequestSchema, EndSessionRequestSchema } from '../types/index.js
 import { ZodError } from 'zod';
 import { sessionService } from '../services/sessionService.js';
 import { formatErrorResponse, getErrorStatus } from '../lib/httpErrors.js';
-import { AGENT_DEFAULTS } from '../services/agentDefaults.js';
+import { AGENT_DEFAULTS } from '../CONSTS.js';
 
 const router: Router = Router();
 
@@ -41,6 +41,25 @@ router.post('/', async (req, res) => {
                         turn_detection_enabled: AGENT_DEFAULTS.turn_detection_enabled,
                         noise_cancellation_enabled: AGENT_DEFAULTS.noise_cancellation_enabled,
                         noise_cancellation_type: AGENT_DEFAULTS.noise_cancellation_type,
+                        background_audio: {
+                            enabled: true,
+                            ambient: {
+                                enabled: true,
+                                source: '<ambient-audio-source>',
+                                volume: 0.25,
+                            },
+                            thinking: {
+                                enabled: true,
+                                tool_calls_only: true,
+                                sources: [
+                                    {
+                                        source: '<thinking-sfx-source>',
+                                        volume: 0.25,
+                                        probability: 1,
+                                    },
+                                ],
+                            },
+                        },
                         avatar: {
                             enabled: true,
                             provider: 'anam',

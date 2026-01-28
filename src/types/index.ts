@@ -130,7 +130,7 @@ const BackgroundAudioSchema = z.object({
 			/**
 			 * If true, thinking SFX will only play during tool execution (not all agent "thinking").
 			 */
-			tool_calls_only: z.boolean().optional(),
+			tool_calls_only: z.boolean().optional().default(true),
 			sources: z.array(ThinkingSoundSourceSchema).optional(),
 		})
 		.optional(),

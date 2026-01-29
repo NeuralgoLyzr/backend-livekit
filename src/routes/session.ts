@@ -80,7 +80,7 @@ router.post('/', async (req, res) => {
         }
 
         const response = await sessionService.createSession(parseResult.data);
-        res.json(response);
+        return res.json(response);
     } catch (error) {
         console.error('Session creation error:', error);
         res.status(getErrorStatus(error)).json(
@@ -99,7 +99,7 @@ router.post('/end', async (req, res) => {
         }
 
         await sessionService.endSession(parseResult.data.roomName);
-        res.status(204).send();
+        return res.status(204).send();
     } catch (error) {
         console.error('Session termination error:', error);
         res.status(getErrorStatus(error)).json(

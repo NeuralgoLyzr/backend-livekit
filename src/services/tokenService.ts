@@ -27,6 +27,6 @@ export const tokenService = {
             canPublishData: true,
         });
 
-        return await at.toJwt();
+        return at.toJwt();
     },
 };

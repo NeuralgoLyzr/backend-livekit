@@ -35,6 +35,16 @@ function summarizeAgentConfig(agentConfig?: AgentConfig): CreateSessionResponse[
     };
 }
 
+/**
+ * Placeholder hook to set default dynamic variables.
+ *
+ * Intentionally returns the config unchanged for now (no defaults set by default),
+ * but provides a single place to add future logic (e.g. app-wide defaults).
+ */
+function applyDefaultDynamicVariables(agentConfig: AgentConfig): AgentConfig {
+    return agentConfig;
+}
+
 export interface SessionServiceDeps {
     store: SessionStorePort;
 }
@@ -58,10 +68,12 @@ export function createSessionService(deps: SessionServiceDeps) {
                 tools: normalizedTools,
                 ...derivedRag,
             };
+            const finalAgentConfigWithDefaults = applyDefaultDynamicVariables(finalAgentConfig);
 
-            // Ensure external tools can correlate requests.
+            // Keep legacy correlation fields (used by some tools and logs).
+            // Note: unrelated to dynamic prompt variables.
             const agentConfigWithIds: AgentConfig = {
-                ...finalAgentConfig,
+                ...finalAgentConfigWithDefaults,
                 user_id: userIdentity,
                 session_id: roomName,
             };
@@ -69,7 +81,10 @@ export function createSessionService(deps: SessionServiceDeps) {
             const userToken = await tokenService.createUserToken(userIdentity, roomName);
 
             if (isDevelopment()) {
-                console.log('[sessionService] Dispatching agent config:', agentConfigWithIds);
+                console.log(
+                    '[sessionService] Dispatching agent config:',
+                    agentConfigWithIds
+                );
             }
 
             try {

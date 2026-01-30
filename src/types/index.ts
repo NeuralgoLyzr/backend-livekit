@@ -8,9 +8,48 @@ import { z } from 'zod';
 const MAX_IDENTITY_LENGTH = 128;
 const MAX_ROOM_NAME_LENGTH = 128;
 const VALID_IDENTIFIER_REGEX = /^[\w-]+$/;
+const MAX_DYNAMIC_VARIABLE_KEYS = 100;
+const MAX_DYNAMIC_VARIABLE_VALUE_LENGTH = 4_096;
 
 export const AvatarProviderSchema = z.literal('anam');
 export type AvatarProvider = z.infer<typeof AvatarProviderSchema>;
+
+function DynamicVariablesSchema(fieldName: string) {
+	return z
+		.record(z.string(), z.string())
+		.superRefine((data, ctx) => {
+			const keys = Object.keys(data);
+			if (keys.length > MAX_DYNAMIC_VARIABLE_KEYS) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `${fieldName} must have at most ${MAX_DYNAMIC_VARIABLE_KEYS} keys`,
+					path: [],
+				});
+				return;
+			}
+
+			for (const key of keys) {
+				// Enforce snake_case-ish keys (plus digits). Keeps things consistent in prompt templates.
+				if (!/^[a-z0-9_]+$/.test(key)) {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `${fieldName} key "${key}" must match /^[a-z0-9_]+$/`,
+						path: [key],
+					});
+				}
+
+				const value = data[key];
+				if (value.length > MAX_DYNAMIC_VARIABLE_VALUE_LENGTH) {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `${fieldName}.${key} must be ${MAX_DYNAMIC_VARIABLE_VALUE_LENGTH} characters or less`,
+						path: [key],
+					});
+				}
+			}
+		})
+		.optional();
+}
 
 export const ManagedAgentSchema = z.object({
 	id: z.string(),
@@ -198,6 +237,16 @@ export const AgentConfigSchema = z.object({
 	 * System prompt / instructions for the agent.
 	 */
 	prompt: z.string().optional(),
+	/**
+	 * Per-session dynamic variables to substitute into prompts/greetings.
+	 * Keys must be snake_case; values must be strings.
+	 */
+	dynamic_variables: DynamicVariablesSchema('dynamic_variables'),
+	/**
+	 * Default/fallback dynamic variables (provided by the frontend).
+	 * Used only when `dynamic_variables` does not contain a key.
+	 */
+	dynamic_variable_defaults: DynamicVariablesSchema('dynamic_variable_defaults'),
 	/**
 	 * Configure who initiates the conversation.
 	 */

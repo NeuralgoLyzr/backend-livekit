@@ -60,6 +60,8 @@ function buildMetadataObject(agentConfig: AgentConfig): Record<string, unknown> 
     return {
         engine: agentConfig.engine ?? AGENT_DEFAULTS.engine,
         prompt: agentConfig.prompt ?? AGENT_DEFAULTS.prompt,
+        dynamic_variables: agentConfig.dynamic_variables,
+        dynamic_variable_defaults: agentConfig.dynamic_variable_defaults,
         turn_detection: agentConfig.turn_detection ?? AGENT_DEFAULTS.turn_detection,
         noise_cancellation: agentConfig.noise_cancellation ?? AGENT_DEFAULTS.noise_cancellation,
         conversation_start:

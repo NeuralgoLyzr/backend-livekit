@@ -331,28 +331,33 @@ export const AgentIdSchema = z
 	.regex(VALID_MONGO_OBJECT_ID_REGEX, 'agentId must be a valid Mongo ObjectId');
 export type AgentId = z.infer<typeof AgentIdSchema>;
 
+const AgentConfigWithNameSchema = AgentConfigSchema.extend({
+	agent_name: z
+		.string()
+		.min(1, 'agent_name is required')
+		.max(128, 'agent_name must be 128 characters or less'),
+	agent_description: z
+		.string()
+		.max(2_048, 'agent_description must be 2048 characters or less')
+		.optional(),
+}).strict();
+
 export const CreateAgentRequestSchema = z
 	.object({
-		name: z.string().min(1, 'name is required').max(128, 'name must be 128 characters or less'),
-		description: z.string().max(2_048, 'description must be 2048 characters or less').optional(),
-		config: AgentConfigSchema.optional(),
+		config: AgentConfigWithNameSchema,
 	})
 	.strict();
 export type CreateAgentRequest = z.infer<typeof CreateAgentRequestSchema>;
 
 export const UpdateAgentRequestSchema = z
 	.object({
-		name: z.string().min(1).max(128).optional(),
-		description: z.string().max(2_048).optional().nullable(),
-		config: AgentConfigSchema.optional(),
+		config: AgentConfigWithNameSchema,
 	})
 	.strict();
 export type UpdateAgentRequest = z.infer<typeof UpdateAgentRequestSchema>;
 
 export const AgentResponseSchema = z.object({
 	id: AgentIdSchema,
-	name: z.string(),
-	description: z.string().nullable(),
 	config: AgentConfigSchema,
 	createdAt: z.string(),
 	updatedAt: z.string(),

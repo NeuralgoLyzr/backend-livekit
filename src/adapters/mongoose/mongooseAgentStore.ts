@@ -14,8 +14,6 @@ import { getAgentModel, type AgentRow } from '../../models/agentModel.js';
 function toStoredAgent(row: AgentRow): StoredAgent {
     return {
         id: row._id.toString(),
-        name: row.name,
-        description: row.description ?? null,
         // Stored as a JSON blob, validated at boundaries (route/service).
         config: row.config as unknown as AgentConfig,
         createdAt: row.createdAt.toISOString(),
@@ -57,8 +55,6 @@ export class MongooseAgentStore implements AgentStorePort {
         const Agent = getAgentModel();
 
         const created = await Agent.create({
-            name: input.name,
-            description: input.description ?? null,
             config: input.config as unknown,
             deletedAt: null,
         });
@@ -74,8 +70,6 @@ export class MongooseAgentStore implements AgentStorePort {
         const _id = new mongoose.Types.ObjectId(id);
 
         const $set: Record<string, unknown> = {};
-        if (input.name !== undefined) $set.name = input.name;
-        if (input.description !== undefined) $set.description = input.description ?? null;
         if (input.config !== undefined) $set.config = input.config as unknown;
 
         if (Object.keys($set).length === 0) {

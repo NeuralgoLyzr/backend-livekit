@@ -2,22 +2,16 @@ import type { AgentConfig } from '../types/index.js';
 
 export interface StoredAgent {
     id: string;
-    name: string;
-    description: string | null;
     config: AgentConfig;
     createdAt: string;
     updatedAt: string;
 }
 
 export interface CreateAgentInput {
-    name: string;
-    description?: string | null;
     config: AgentConfig;
 }
 
 export interface UpdateAgentInput {
-    name?: string;
-    description?: string | null;
     config?: AgentConfig;
 }
 

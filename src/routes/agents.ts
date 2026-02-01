@@ -50,9 +50,7 @@ router.post('/', async (req, res) => {
         }
 
         const created = await getService().createAgent({
-            name: parseResult.data.name,
-            description: parseResult.data.description ?? null,
-            config: parseResult.data.config ?? {},
+            config: parseResult.data.config,
         });
 
         return res.status(201).json({ agent: created });
@@ -97,7 +95,7 @@ router.put('/:agentId', async (req, res) => {
         }
 
         const updated = await getService().updateAgent(parseId.data, {
-            ...parseBody.data,
+            config: parseBody.data.config,
         });
         if (!updated) return res.status(404).json({ error: 'Agent not found' });
         return res.json({ agent: updated });

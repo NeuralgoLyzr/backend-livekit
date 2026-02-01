@@ -2,8 +2,6 @@ import mongoose, { type Model, type Types } from 'mongoose';
 
 export interface AgentRow {
     _id: Types.ObjectId;
-    name: string;
-    description?: string | null;
     config: unknown;
     createdAt: Date;
     updatedAt: Date;
@@ -12,8 +10,6 @@ export interface AgentRow {
 
 const AgentSchema = new mongoose.Schema<AgentRow>(
     {
-        name: { type: String, required: true },
-        description: { type: String, required: false, default: null },
         config: { type: mongoose.Schema.Types.Mixed, required: true, default: {} },
         deletedAt: { type: Date, required: false, default: null },
     },

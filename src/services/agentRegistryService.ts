@@ -15,7 +15,7 @@ export interface AgentRegistryService {
     deleteAgent(agentId: string): Promise<boolean>;
 }
 
-function normalizeName(name: string): string {
+function normalizeAgentName(name: string): string {
     return name.trim();
 }
 
@@ -30,27 +30,27 @@ export function createAgentRegistryService(deps: { store: AgentStorePort }): Age
         },
 
         async createAgent(input: CreateAgentInput): Promise<StoredAgent> {
-            const name = normalizeName(input.name);
-            if (name.length === 0) {
-                throw new HttpError(400, 'Agent name cannot be empty');
-            }
+            const agentName = normalizeAgentName(input.config.agent_name ?? '');
+            if (agentName.length === 0) throw new HttpError(400, 'config.agent_name is required');
 
             return deps.store.create({
                 ...input,
-                name,
-                description: input.description ?? null,
-                config: input.config ?? {},
+                config: {
+                    ...input.config,
+                    agent_name: agentName,
+                },
             });
         },
 
         async updateAgent(agentId: string, input: UpdateAgentInput): Promise<StoredAgent | null> {
-            const patch: UpdateAgentInput = {
-                ...input,
-                ...(input.name !== undefined ? { name: normalizeName(input.name) } : {}),
-            };
+            const patch: UpdateAgentInput = { ...input };
 
-            if (patch.name !== undefined && patch.name.length === 0) {
-                throw new HttpError(400, 'Agent name cannot be empty');
+            if (patch.config) {
+                const agentName = normalizeAgentName(patch.config.agent_name ?? '');
+                if (agentName.length === 0) {
+                    throw new HttpError(400, 'config.agent_name is required');
+                }
+                patch.config = { ...patch.config, agent_name: agentName };
             }
 
             return deps.store.update(agentId, patch);

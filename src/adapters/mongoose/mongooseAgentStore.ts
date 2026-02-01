@@ -9,9 +9,9 @@ import type {
 } from '../../ports/agentStorePort.js';
 import type { AgentConfig } from '../../types/index.js';
 import { connectMongo } from '../../db/mongoose.js';
-import { getAgentModel, type AgentRow } from '../../models/agentModel.js';
+import { getAgentModel, type AgentConfigDocument } from '../../models/agentModel.js';
 
-function toStoredAgent(row: AgentRow): StoredAgent {
+function toStoredAgent(row: AgentConfigDocument): StoredAgent {
     return {
         id: row._id.toString(),
         // Stored as a JSON blob, validated at boundaries (route/service).
@@ -33,7 +33,7 @@ export class MongooseAgentStore implements AgentStorePort {
             .sort({ updatedAt: -1 })
             .skip(offset)
             .limit(limit)
-            .lean<AgentRow[]>();
+            .lean<AgentConfigDocument[]>();
 
         return rows.map(toStoredAgent);
     }
@@ -45,7 +45,7 @@ export class MongooseAgentStore implements AgentStorePort {
         if (!mongoose.Types.ObjectId.isValid(id)) return null;
         const _id = new mongoose.Types.ObjectId(id);
 
-        const row = await Agent.findOne({ _id, deletedAt: null }).lean<AgentRow>();
+        const row = await Agent.findOne({ _id, deletedAt: null }).lean<AgentConfigDocument>();
         if (!row) return null;
         return toStoredAgent(row);
     }
@@ -59,7 +59,7 @@ export class MongooseAgentStore implements AgentStorePort {
             deletedAt: null,
         });
 
-        return toStoredAgent(created.toObject() as AgentRow);
+        return toStoredAgent(created.toObject() as AgentConfigDocument);
     }
 
     async update(id: string, input: UpdateAgentInput): Promise<StoredAgent | null> {
@@ -73,7 +73,7 @@ export class MongooseAgentStore implements AgentStorePort {
         if (input.config !== undefined) $set.config = input.config as unknown;
 
         if (Object.keys($set).length === 0) {
-            const existing = await Agent.findOne({ _id, deletedAt: null }).lean<AgentRow>();
+            const existing = await Agent.findOne({ _id, deletedAt: null }).lean<AgentConfigDocument>();
             if (!existing) return null;
             return toStoredAgent(existing);
         }
@@ -82,7 +82,7 @@ export class MongooseAgentStore implements AgentStorePort {
             { _id, deletedAt: null },
             { $set },
             { new: true, runValidators: true }
-        ).lean<AgentRow>();
+        ).lean<AgentConfigDocument>();
 
         if (!updated) return null;
         return toStoredAgent(updated);

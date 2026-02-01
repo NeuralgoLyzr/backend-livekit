@@ -1,6 +1,6 @@
 import mongoose, { type Model, type Types } from 'mongoose';
 
-export interface AgentRow {
+export interface AgentConfigDocument {
     _id: Types.ObjectId;
     config: unknown;
     createdAt: Date;
@@ -8,24 +8,23 @@ export interface AgentRow {
     deletedAt?: Date | null;
 }
 
-const AgentSchema = new mongoose.Schema<AgentRow>(
+const AgentSchema = new mongoose.Schema<AgentConfigDocument>(
     {
         config: { type: mongoose.Schema.Types.Mixed, required: true, default: {} },
         deletedAt: { type: Date, required: false, default: null },
     },
     {
         timestamps: true,
-        // Prisma MongoDB defaults to the model name as the collection name.
-        // Pin it here to avoid a data migration during the Prisma -> Mongoose cutover.
-        collection: 'Agent',
+        // Explicitly pin the collection name (don't rely on model-name defaults).
+        collection: 'lk_agent_configs',
     }
 );
 
 AgentSchema.index({ updatedAt: -1 });
 AgentSchema.index({ deletedAt: 1 });
 
-export function getAgentModel(): Model<AgentRow> {
-    const existing = mongoose.models.Agent as Model<AgentRow> | undefined;
-    return existing ?? mongoose.model<AgentRow>('Agent', AgentSchema);
+export function getAgentModel(): Model<AgentConfigDocument> {
+    const existing = mongoose.models.Agent as Model<AgentConfigDocument> | undefined;
+    return existing ?? mongoose.model<AgentConfigDocument>('Agent', AgentSchema);
 }
 

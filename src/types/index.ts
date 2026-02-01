@@ -8,6 +8,7 @@ import { z } from 'zod';
 const MAX_IDENTITY_LENGTH = 128;
 const MAX_ROOM_NAME_LENGTH = 128;
 const VALID_IDENTIFIER_REGEX = /^[\w-]+$/;
+const VALID_MONGO_OBJECT_ID_REGEX = /^[a-f0-9]{24}$/i;
 const MAX_DYNAMIC_VARIABLE_KEYS = 100;
 const MAX_DYNAMIC_VARIABLE_VALUE_LENGTH = 4_096;
 
@@ -325,6 +326,39 @@ export const AgentConfigSchema = z.object({
 }).strict();
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 
+export const AgentIdSchema = z
+	.string()
+	.regex(VALID_MONGO_OBJECT_ID_REGEX, 'agentId must be a valid Mongo ObjectId');
+export type AgentId = z.infer<typeof AgentIdSchema>;
+
+export const CreateAgentRequestSchema = z
+	.object({
+		name: z.string().min(1, 'name is required').max(128, 'name must be 128 characters or less'),
+		description: z.string().max(2_048, 'description must be 2048 characters or less').optional(),
+		config: AgentConfigSchema.optional(),
+	})
+	.strict();
+export type CreateAgentRequest = z.infer<typeof CreateAgentRequestSchema>;
+
+export const UpdateAgentRequestSchema = z
+	.object({
+		name: z.string().min(1).max(128).optional(),
+		description: z.string().max(2_048).optional().nullable(),
+		config: AgentConfigSchema.optional(),
+	})
+	.strict();
+export type UpdateAgentRequest = z.infer<typeof UpdateAgentRequestSchema>;
+
+export const AgentResponseSchema = z.object({
+	id: AgentIdSchema,
+	name: z.string(),
+	description: z.string().nullable(),
+	config: AgentConfigSchema,
+	createdAt: z.string(),
+	updatedAt: z.string(),
+});
+export type AgentResponse = z.infer<typeof AgentResponseSchema>;
+
 export const ToolDefinitionSchema = z.object({
 	id: z.string(),
 	name: z.string(),
@@ -362,6 +396,7 @@ const RoomNameSchema = z
 export const SessionRequestSchema = z.object({
 	userIdentity: UserIdentitySchema,
 	roomName: RoomNameSchema,
+	agentId: AgentIdSchema.optional(),
 	agentConfig: AgentConfigSchema.optional(),
 });
 export type SessionRequest = z.infer<typeof SessionRequestSchema>;

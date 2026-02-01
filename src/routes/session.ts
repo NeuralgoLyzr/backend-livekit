@@ -28,6 +28,7 @@ router.post('/', async (req, res) => {
                 example: {
                     userIdentity: 'user123',
                     roomName: 'optional-room-name',
+                    agentId: '<saved-agent-id>',
                     agentConfig: {
                         engine: AGENT_DEFAULTS.engine,
                         prompt: 'You are a helpful voice AI assistant.',

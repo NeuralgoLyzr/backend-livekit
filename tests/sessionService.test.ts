@@ -3,10 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { setRequiredEnv } from './testUtils';
 
 function createStore() {
-    const map = new Map<string, any>();
+    const map = new Map<string, unknown>();
     return {
-        set: (k: string, v: any) => void map.set(k, v),
-        get: (k: string) => map.get(k),
+        set: (k: string, v: unknown) => void map.set(k, v),
+        get: (k: string): unknown => map.get(k),
         delete: (k: string) => map.delete(k),
         has: (k: string) => map.has(k),
         size: () => map.size,
@@ -32,13 +32,13 @@ describe('sessionService (unit)', () => {
         const store = createStore();
         const svc = createSessionService({ store });
 
-        const agentConfig = {
+        const agentConfig: Record<string, unknown> = {
             tools: ['get_weather', 'get_weather', 'unknown_tool'],
             knowledge_base: {
                 enabled: true,
                 lyzr_rag: { base_url: 'x', rag_id: 'r', rag_name: 'n' },
-            } as any,
-        } as any;
+            },
+        };
 
         const result = await svc.createSession({ userIdentity: 'user_1', agentConfig });
 
@@ -50,12 +50,16 @@ describe('sessionService (unit)', () => {
         expect(dispatchAgent).toHaveBeenCalledTimes(1);
         const [roomName, dispatchedConfig] = dispatchAgent.mock.calls[0];
         expect(roomName).toBe(result.roomName);
-        expect(dispatchedConfig.user_id).toBe('user_1');
-        expect(dispatchedConfig.session_id).toBe(result.roomName);
-        expect(dispatchedConfig.tools).toEqual(['get_weather', 'search_knowledge_base']);
+        expect((dispatchedConfig as Record<string, unknown>).user_id).toBe('user_1');
+        expect((dispatchedConfig as Record<string, unknown>).session_id).toBe(result.roomName);
+        expect((dispatchedConfig as Record<string, unknown>).tools).toEqual([
+            'get_weather',
+            'search_knowledge_base',
+        ]);
 
         expect(store.has(result.roomName)).toBe(true);
-        expect(store.get(result.roomName).userIdentity).toBe('user_1');
+        const stored = store.get(result.roomName) as Record<string, unknown>;
+        expect(stored.userIdentity).toBe('user_1');
     });
 
     it('wraps agent dispatch failures as 502 and does not store the session', async () => {
@@ -93,7 +97,7 @@ describe('sessionService (unit)', () => {
             throw new Error('expected endSession to throw');
         } catch (err) {
             expect(err).toBeInstanceOf(HttpError);
-            expect((err as any).status).toBe(404);
+            expect((err as { status?: number }).status).toBe(404);
         }
     });
 

@@ -1,0 +1,35 @@
+services:
+    mongo:
+        image: mongo:7
+        container_name: backend_livekit_mongo
+        ports:
+            - '27018:27017'
+        volumes:
+            - mongo_data:/data/db
+        healthcheck:
+            test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.runCommand({ ping: 1 })']
+            interval: 5s
+            timeout: 5s
+            retries: 20
+
+    backend:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: backend_livekit_api
+        ports:
+            - '4000:4000'
+        environment:
+            # Required for persistence.
+            - MONGODB_URI=mongodb://mongo:27017/livekit_dev
+            # Required at process startup (even if you don't call POST /session).
+            - LIVEKIT_URL=wss://example.livekit.invalid
+            - LIVEKIT_API_KEY=dummy
+            - LIVEKIT_API_SECRET=dummy
+            - PORT=4000
+        depends_on:
+            mongo:
+                condition: service_healthy
+
+volumes:
+    mongo_data:

@@ -10,10 +10,13 @@ import type { AgentConfig } from '../types/index.js';
 import { HttpError } from '../lib/httpErrors.js';
 import { isDevelopment } from '../lib/env.js';
 import { AGENT_DEFAULTS } from '../CONSTS.js';
+import { MongooseAgentStore } from '../adapters/mongoose/mongooseAgentStore.js';
+import { createAgentConfigResolverService } from './agentConfigResolverService.js';
 
 export interface CreateSessionInput {
     userIdentity: string;
     roomName?: string;
+    agentId?: string;
     agentConfig?: AgentConfig;
 }
 
@@ -50,6 +53,15 @@ export interface SessionServiceDeps {
 }
 
 export function createSessionService(deps: SessionServiceDeps) {
+    let resolver:
+        | ReturnType<typeof createAgentConfigResolverService>
+        | null = null;
+    function getResolver() {
+        if (resolver) return resolver;
+        resolver = createAgentConfigResolverService({ agentStore: new MongooseAgentStore() });
+        return resolver;
+    }
+
     return {
         async createSession(input: CreateSessionInput): Promise<CreateSessionResponse> {
             const userIdentity = input.userIdentity.trim();
@@ -59,7 +71,13 @@ export function createSessionService(deps: SessionServiceDeps) {
             const roomName =
                 requestedRoomName.length > 0 ? requestedRoomName : `room-${randomUUID()}`;
 
-            const agentConfig = input.agentConfig ?? {};
+            const agentConfig =
+                input.agentId
+                    ? await getResolver().resolveByAgentId({
+                        agentId: input.agentId,
+                        overrides: input.agentConfig,
+                    })
+                    : (input.agentConfig ?? {});
             const normalizedTools = normalizeTools(agentConfig);
             const derivedRag = deriveRagConfigFromKnowledgeBase(agentConfig);
 

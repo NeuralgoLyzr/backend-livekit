@@ -17,6 +17,7 @@ describe('backend HTTP contract', () => {
             health: 'GET /health',
             createSession: 'POST /session',
             endSession: 'POST /session/end',
+            agents: 'GET /agents',
         });
         expect(res.body.endpoints.telephonyWebhook).toBeUndefined();
     });

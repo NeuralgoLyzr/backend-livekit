@@ -8,6 +8,7 @@ import sessionRouter from './routes/session.js';
 import healthRouter from './routes/health.js';
 import configRouter from './routes/config.js';
 import telephonyRouter from './routes/telephony.js';
+import agentsRouter from './routes/agents.js';
 import { config } from './config/index.js';
 import { formatErrorResponse, getErrorStatus } from './lib/httpErrors.js';
 
@@ -36,6 +37,7 @@ app.use('/session', sessionRouter);
 app.use('/health', healthRouter);
 app.use('/config', configRouter);
 app.use('/telephony', telephonyRouter);
+app.use('/agents', agentsRouter);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -46,6 +48,7 @@ app.get('/', (req: Request, res: Response) => {
             health: 'GET /health',
             createSession: 'POST /session',
             endSession: 'POST /session/end',
+            agents: 'GET /agents',
             ...(config.telephony.enabled
                 ? { telephonyWebhook: 'POST /telephony/livekit-webhook' }
                 : {}),

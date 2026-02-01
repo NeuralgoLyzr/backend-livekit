@@ -375,6 +375,7 @@ export const SessionDataSchema = z.object({
 	userIdentity: z.string(),
 	agentConfig: AgentConfigSchema.optional(),
 	createdAt: z.string(),
+	endedAt: z.string().optional(),
 });
 export type SessionData = z.infer<typeof SessionDataSchema>;
 
@@ -417,3 +418,31 @@ export const EndSessionRequestSchema = z.object({
 		),
 });
 export type EndSessionRequest = z.infer<typeof EndSessionRequestSchema>;
+
+export const SessionObservabilityIngestSchema = z
+	.object({
+		roomName: z
+			.string({ error: 'roomName is required' })
+			.min(1, 'roomName is required')
+			.max(
+				MAX_ROOM_NAME_LENGTH,
+				`roomName must be ${MAX_ROOM_NAME_LENGTH} characters or less`
+			)
+			.regex(
+				VALID_IDENTIFIER_REGEX,
+				'roomName can only contain letters, numbers, underscores, and hyphens'
+			),
+		/**
+		 * `session.history` serialized on close (optional).
+		 * Shape depends on LiveKit Agents SDK version.
+		 */
+		conversationHistory: z.unknown().optional(),
+		/**
+		 * `ctx.make_session_report().to_dict()` serialized on session end (optional).
+		 */
+		sessionReport: z.unknown().optional(),
+		closeReason: z.string().nullable().optional(),
+		receivedAt: z.string().nullable().optional(),
+	})
+	.strict();
+export type SessionObservabilityIngest = z.infer<typeof SessionObservabilityIngestSchema>;

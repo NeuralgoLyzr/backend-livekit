@@ -24,7 +24,8 @@ app.use(
     express.raw({ type: ['application/webhook+json', 'application/json'] })
 );
 
-app.use(express.json());
+// Session reports / histories can be larger than Express's default (100kb).
+app.use(express.json({ limit: '10mb' }));
 
 // Request logging
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -48,6 +49,7 @@ app.get('/', (req: Request, res: Response) => {
             health: 'GET /health',
             createSession: 'POST /session',
             endSession: 'POST /session/end',
+            sessionObservability: 'POST /session/observability',
             agents: 'GET /agents',
             ...(config.telephony.enabled
                 ? { telephonyWebhook: 'POST /telephony/livekit-webhook' }

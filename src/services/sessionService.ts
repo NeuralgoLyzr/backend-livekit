@@ -137,6 +137,27 @@ export function createSessionService(deps: SessionServiceDeps) {
                 throw new HttpError(404, 'Session not found for room');
             }
 
+            // IMPORTANT:
+            // Do NOT delete the LiveKit room here. Deleting the room immediately can
+            // prevent the agent session from closing cleanly, which in turn can
+            // prevent post-call observability hooks (session history/report) from
+            // being emitted.
+            //
+            // Instead, mark the session as ended and let a later step (e.g.
+            // `/session/observability`) perform cleanup once transcripts/reports
+            // have been received.
+            const existing = deps.store.get(normalizedRoomName);
+            if (existing) {
+                deps.store.set(normalizedRoomName, {
+                    ...existing,
+                    endedAt: new Date().toISOString(),
+                });
+            }
+        },
+
+        async cleanupSession(roomName: string): Promise<void> {
+            const normalizedRoomName = roomName.trim();
+
             try {
                 await roomService.deleteRoom(normalizedRoomName);
             } catch (error) {

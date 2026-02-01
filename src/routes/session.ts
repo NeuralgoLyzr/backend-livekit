@@ -4,7 +4,11 @@
  */
 
 import { Router } from 'express';
-import { SessionRequestSchema, EndSessionRequestSchema } from '../types/index.js';
+import {
+    SessionRequestSchema,
+    EndSessionRequestSchema,
+    SessionObservabilityIngestSchema,
+} from '../types/index.js';
 import { ZodError } from 'zod';
 import { sessionService } from '../services/sessionService.js';
 import { formatErrorResponse, getErrorStatus } from '../lib/httpErrors.js';
@@ -106,6 +110,53 @@ router.post('/end', async (req, res) => {
         res.status(getErrorStatus(error)).json(
             formatErrorResponse(error, {
                 fallbackMessage: 'Failed to end session',
+            })
+        );
+    }
+});
+
+/**
+ * Receive post-call session artifacts (for testing).
+ *
+ * This is intended for local debugging of LiveKit Agents data hooks:
+ * - `session.history` (conversation transcript / timeline)
+ * - `ctx.make_session_report()` (structured report)
+ */
+router.post('/observability', async (req, res) => {
+    try {
+        const parseResult = SessionObservabilityIngestSchema.safeParse(req.body);
+        if (!parseResult.success) {
+            return res.status(400).json(formatZodError(parseResult.error));
+        }
+
+        const payload = parseResult.data;
+        console.log('[session/observability] room=', payload.roomName);
+        console.log(
+            '[session/observability] conversationHistory=',
+            JSON.stringify(payload.conversationHistory ?? null, null, 2)
+        );
+        console.log(
+            '[session/observability] sessionReport=',
+            JSON.stringify(payload.sessionReport ?? null, null, 2)
+        );
+
+        // Clean up only after the structured report arrives (it includes full history/events).
+        // This avoids deleting the room too early (e.g., when we only received a `close` hook).
+        if (payload.sessionReport) {
+            // If cleanup fails we still return 204 so the agent doesn't retry forever.
+            try {
+                await sessionService.cleanupSession(payload.roomName);
+            } catch (error) {
+                console.error('[session/observability] cleanup error:', error);
+            }
+        }
+
+        return res.status(204).send();
+    } catch (error) {
+        console.error('Session observability ingest error:', error);
+        res.status(getErrorStatus(error)).json(
+            formatErrorResponse(error, {
+                fallbackMessage: 'Failed to ingest session observability payload',
             })
         );
     }

@@ -235,6 +235,26 @@ export const AgentConfigSchema = z.object({
 		])
 		.optional(),
 	/**
+	 * Optional: stash both engine configs so the UI can switch modes without
+	 * losing previously-entered settings. Runtime still uses `engine`.
+	 */
+	engine_pipeline: z
+		.object({
+			kind: z.literal('pipeline'),
+			stt: z.string(),
+			llm: z.string(),
+			tts: z.string(),
+			voice_id: z.string().optional(),
+		})
+		.optional(),
+	engine_realtime: z
+		.object({
+			kind: z.literal('realtime'),
+			llm: z.string(),
+			voice: z.string().optional(),
+		})
+		.optional(),
+	/**
 	 * System prompt / instructions for the agent.
 	 */
 	prompt: z.string().optional(),

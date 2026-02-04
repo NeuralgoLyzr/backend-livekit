@@ -52,7 +52,7 @@ function DynamicVariablesSchema(fieldName: string) {
 		.optional();
 }
 
-export const ManagedAgentSchema = z.object({
+export const ManagedAgentEntrySchema = z.object({
 	id: z.string(),
 	name: z.string(),
 	/**
@@ -62,7 +62,19 @@ export const ManagedAgentSchema = z.object({
 	 */
 	usage_description: z.string(),
 });
-export type ManagedAgent = z.infer<typeof ManagedAgentSchema>;
+export type ManagedAgentEntry = z.infer<typeof ManagedAgentEntrySchema>;
+
+export const ManagedAgentsConfigSchema = z.object({
+	/**
+	 * Enable managed agents feature.
+	 */
+	enabled: z.boolean().default(false),
+	/**
+	 * List of managed sub-agents available to this agent.
+	 */
+	agents: z.array(ManagedAgentEntrySchema).default([]),
+});
+export type ManagedAgentsConfig = z.infer<typeof ManagedAgentsConfigSchema>;
 
 export const AnamAvatarConfigSchema = z.object({
 	/**
@@ -319,9 +331,9 @@ export const AgentConfigSchema = z.object({
 	 */
 	agentic_rag: z.array(AgenticRagEntrySchema).optional(),
 	/**
-	 * Optional list of managed specialized sub-agents available to this agent.
+	 * Optional config for managed specialized sub-agents available to this agent.
 	 */
-	managed_agents: z.array(ManagedAgentSchema).optional(),
+	managed_agents: ManagedAgentsConfigSchema.optional(),
 	/**
 	 * Array of tool identifiers that should be enabled for this session.
 	 * Tool IDs must match those exposed by the backend tool registry and

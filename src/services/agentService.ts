@@ -71,7 +71,9 @@ function buildMetadataObject(agentConfig: AgentConfig): Record<string, unknown> 
         agent_description: agentConfig.agent_description,
         // Optional config for specialized sub-agent delegation tools.
         apiKey: agentConfig.api_key,
-        managed_agents: agentConfig.managed_agents,
+        managed_agents: agentConfig.managed_agents?.enabled
+        	? agentConfig.managed_agents.agents
+        	: undefined,
         user_id: agentConfig.user_id,
         session_id: agentConfig.session_id,
         tools: agentConfig.tools ?? AGENT_DEFAULTS.tools,

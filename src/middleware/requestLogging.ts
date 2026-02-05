@@ -7,6 +7,7 @@ import { logger } from '../lib/logger.js';
 import { runWithRequestContext } from '../lib/requestContext.js';
 
 type Outcome = 'success' | 'error';
+type Pathname = `/${string}` | '';
 
 export interface HttpWideEvent {
     event: 'http_request';
@@ -35,6 +36,18 @@ function shouldSample(event: HttpWideEvent, req: Request): boolean {
     return Math.random() < SUCCESS_SAMPLE_RATE;
 }
 
+function getPathname(url: string): Pathname {
+    const pathname = url.split('?')[0] ?? '';
+    return (pathname.startsWith('/') ? pathname : '') as Pathname;
+}
+
+function isHealthCheckRequest(req: Request): boolean {
+    // Skip noisy health-check polling in logs.
+    const raw = req.originalUrl || req.url || '';
+    const pathname = getPathname(raw);
+    return pathname === '/health' || pathname === '/health/';
+}
+
 export function requestLoggingMiddleware(req: Request, res: Response, next: NextFunction): void {
     const headerRequestId = req.header('x-request-id');
     const requestId = headerRequestId && headerRequestId.trim().length > 0 ? headerRequestId : randomUUID();
@@ -42,6 +55,7 @@ export function requestLoggingMiddleware(req: Request, res: Response, next: Next
     res.setHeader('X-Request-Id', requestId);
 
     const start = Date.now();
+    const isHealthCheck = isHealthCheckRequest(req);
 
     const wideEvent: HttpWideEvent = {
         event: 'http_request',
@@ -58,6 +72,10 @@ export function requestLoggingMiddleware(req: Request, res: Response, next: Next
         wideEvent.statusCode = res.statusCode;
         wideEvent.durationMs = Date.now() - start;
         wideEvent.outcome = res.statusCode >= 500 ? 'error' : 'success';
+
+        // Health endpoint is typically polled frequently by load balancers / uptime checks.
+        // Keep logs clean by skipping successful health checks (still log 5xx).
+        if (isHealthCheck && res.statusCode < 500) return;
 
         if (shouldSample(wideEvent, req)) {
             // requestId will also be included by logger mixin, but keeping it explicit helps downstream queries.

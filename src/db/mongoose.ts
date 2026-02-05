@@ -1,11 +1,17 @@
 import mongoose from 'mongoose';
 
+import { MONGO_FALLBACK } from '../CONSTS.js';
 import { HttpError } from '../lib/httpErrors.js';
 
 let connectPromise: Promise<typeof mongoose> | null = null;
 
 function getMongoUri(): string {
     const uri = (process.env.MONGODB_URI || '').trim();
+    if (uri) return uri;
+
+    const fallback = (MONGO_FALLBACK.uri || '').trim();
+    if (fallback) return fallback;
+
     if (!uri) {
         throw new HttpError(
             503,
@@ -16,12 +22,23 @@ function getMongoUri(): string {
     return uri;
 }
 
+function getMongoDbName(): string | undefined {
+    const dbName = (process.env.MONGODB_DATABASE || '').trim();
+    if (dbName) return dbName;
+
+    const fallback = (MONGO_FALLBACK.database || '').trim();
+    return fallback || undefined;
+}
+
 export async function connectMongo(): Promise<typeof mongoose> {
     if (mongoose.connection.readyState === 1) return mongoose;
     if (connectPromise) return connectPromise;
 
     const uri = getMongoUri();
-    connectPromise = mongoose.connect(uri);
+    const dbName = getMongoDbName();
+    connectPromise = mongoose.connect(uri, {
+        ...(dbName ? { dbName } : {}),
+    });
 
     try {
         await connectPromise;

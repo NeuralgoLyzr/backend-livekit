@@ -5,6 +5,7 @@
 
 import { RoomServiceClient } from 'livekit-server-sdk';
 import { config } from '../config/index.js';
+import { logger } from '../lib/logger.js';
 
 const client = new RoomServiceClient(
     config.livekit.url,
@@ -18,7 +19,30 @@ export const roomService = {
      * @param roomName - Room to delete
      */
     async deleteRoom(roomName: string): Promise<void> {
-        await client.deleteRoom(roomName);
-        console.log(`Deleted LiveKit room "${roomName}"`);
+        const start = Date.now();
+        try {
+            await client.deleteRoom(roomName);
+            logger.info(
+                {
+                    event: 'livekit_room_delete',
+                    roomName,
+                    durationMs: Date.now() - start,
+                    outcome: 'success',
+                },
+                'Deleted LiveKit room'
+            );
+        } catch (error) {
+            logger.error(
+                {
+                    event: 'livekit_room_delete',
+                    roomName,
+                    durationMs: Date.now() - start,
+                    outcome: 'error',
+                    err: error,
+                },
+                'Failed to delete LiveKit room'
+            );
+            throw error;
+        }
     },
 };

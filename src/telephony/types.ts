@@ -49,6 +49,10 @@ export interface LiveKitWebhookEvent {
 
 export interface NormalizedLiveKitEvent {
     eventId: string;
+    /**
+     * True if eventId was derived (e.g. missing LiveKit `evt.id`).
+     */
+    eventIdDerived?: boolean;
     event: string;
     createdAt: number | null;
     roomName: string | null;

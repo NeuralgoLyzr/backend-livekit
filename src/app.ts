@@ -11,6 +11,8 @@ import telephonyRouter from './routes/telephony.js';
 import agentsRouter from './routes/agents.js';
 import { config } from './config/index.js';
 import { formatErrorResponse, getErrorStatus } from './lib/httpErrors.js';
+import { requestLoggingMiddleware } from './middleware/requestLogging.js';
+import { logger } from './lib/logger.js';
 
 export const app: Express = express();
 
@@ -27,11 +29,7 @@ app.use(
 // Session reports / histories can be larger than Express's default (100kb).
 app.use(express.json({ limit: '10mb' }));
 
-// Request logging
-app.use((req: Request, res: Response, next: NextFunction) => {
-    console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
-    next();
-});
+app.use(requestLoggingMiddleware);
 
 // Routes
 app.use('/session', sessionRouter);
@@ -69,6 +67,16 @@ app.use((req: Request, res: Response) => {
 
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-    console.error('Error:', err);
-    res.status(getErrorStatus(err)).json(formatErrorResponse(err));
+    const statusCode = getErrorStatus(err);
+    logger.error(
+        {
+            event: 'http_error',
+            statusCode,
+            method: req.method,
+            path: req.originalUrl || req.url,
+            err,
+        },
+        'Request failed'
+    );
+    res.status(statusCode).json(formatErrorResponse(err));
 });

@@ -8,6 +8,7 @@ import { config } from '../config/index.js';
 import type { AgentConfig } from '../types/index.js';
 import { isDevelopment } from '../lib/env.js';
 import { AGENT_DEFAULTS } from '../CONSTS.js';
+import { logger } from '../lib/logger.js';
 
 type BackgroundAudioConfig = NonNullable<AgentConfig['background_audio']>;
 type ForwardedBackgroundAudioConfig = {
@@ -89,6 +90,28 @@ function buildMetadataObject(agentConfig: AgentConfig): Record<string, unknown> 
     };
 }
 
+function summarizeAgentConfig(agentConfig: AgentConfig): Record<string, unknown> {
+    const engineKind =
+        (agentConfig.engine as { kind?: unknown } | undefined)?.kind ??
+        (AGENT_DEFAULTS.engine as { kind?: unknown }).kind;
+
+    const avatarEnabled = Boolean(agentConfig.avatar?.enabled);
+    const backgroundAudioEnabled = Boolean(agentConfig.background_audio?.enabled);
+
+    return {
+        engineKind,
+        toolsCount: agentConfig.tools?.length ?? AGENT_DEFAULTS.tools.length,
+        vadEnabled: agentConfig.vad_enabled ?? AGENT_DEFAULTS.vad_enabled,
+        turnDetection: agentConfig.turn_detection ?? AGENT_DEFAULTS.turn_detection,
+        avatarEnabled,
+        backgroundAudioEnabled,
+        hasApiKey: Boolean(agentConfig.api_key),
+        hasLyzrTools: Boolean(agentConfig.lyzr_tools),
+        hasLyzrRag: Boolean(agentConfig.lyzr_rag),
+        hasAgenticRag: Boolean(agentConfig.agentic_rag),
+    };
+}
+
 export const agentService = {
     /**
      * Dispatch an agent to a room with custom configuration
@@ -96,6 +119,7 @@ export const agentService = {
      * @param agentConfig - Configuration object (STT, TTS, prompt, etc.)
      */
     async dispatchAgent(roomName: string, agentConfig: AgentConfig = {}): Promise<void> {
+        const start = Date.now();
         const client = new AgentDispatchClient(
             config.livekit.url,
             config.livekit.apiKey,
@@ -105,26 +129,53 @@ export const agentService = {
         const metadataObj = buildMetadataObject(agentConfig);
         const metadata = JSON.stringify(metadataObj);
 
+        // Dev-only: keep a lightweight marker, but avoid dumping raw metadata (may include secrets/PII).
         if (isDevelopment()) {
-            console.log('[agentService] Dispatch metadata:', JSON.stringify(metadataObj, null, 2));
-        } else {
-            const avatarEnabled = Boolean(
-                (metadataObj as { avatar?: { enabled?: boolean } }).avatar?.enabled
-            );
-
-            console.log(
-                `[agentService] Dispatching agent to "${roomName}" (avatar: ${avatarEnabled ? 'on' : 'off'})`
+            logger.debug(
+                {
+                    event: 'livekit_agent_dispatch_attempt',
+                    roomName,
+                    agentName: config.agent.name,
+                    userId: agentConfig.user_id,
+                    sessionId: agentConfig.session_id,
+                    agentConfig: summarizeAgentConfig(agentConfig),
+                },
+                'Dispatching agent (dev)'
             );
         }
 
         try {
             const dispatch = await client.createDispatch(roomName, config.agent.name, { metadata });
 
-            console.log(
-                `✓ Agent dispatched to room "${roomName}" (ID: ${dispatch?.id ?? 'unknown'})`
+            logger.info(
+                {
+                    event: 'livekit_agent_dispatch',
+                    roomName,
+                    agentName: config.agent.name,
+                    userId: agentConfig.user_id,
+                    sessionId: agentConfig.session_id,
+                    dispatchId: dispatch?.id ?? 'unknown',
+                    durationMs: Date.now() - start,
+                    outcome: 'success',
+                    agentConfig: summarizeAgentConfig(agentConfig),
+                },
+                'Dispatched agent to room'
             );
         } catch (error) {
-            console.error(`✗ Failed to dispatch agent to room "${roomName}":`, error);
+            logger.error(
+                {
+                    event: 'livekit_agent_dispatch',
+                    roomName,
+                    agentName: config.agent.name,
+                    userId: agentConfig.user_id,
+                    sessionId: agentConfig.session_id,
+                    durationMs: Date.now() - start,
+                    outcome: 'error',
+                    agentConfig: summarizeAgentConfig(agentConfig),
+                    err: error,
+                },
+                'Failed to dispatch agent to room'
+            );
             throw error;
         }
     },

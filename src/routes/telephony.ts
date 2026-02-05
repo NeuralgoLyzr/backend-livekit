@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { config } from '../config/index.js';
 import { telephonyModule } from '../telephony/telephonyModule.js';
 import { normalizeLiveKitWebhookEvent } from '../telephony/adapters/livekit/eventNormalizer.js';
+import { logger } from '../lib/logger.js';
 
 const router: Router = Router();
 
@@ -29,6 +30,15 @@ router.post('/livekit-webhook', async (req, res) => {
     try {
         evt = await telephonyModule.webhookVerifier.verifyAndDecode(rawBody, authHeader);
     } catch (error) {
+        logger.warn(
+            {
+                event: 'telephony_webhook_rejected',
+                reason: 'invalid_signature',
+                hasAuthorizationHeader: Boolean(authHeader),
+                err: error,
+            },
+            'Rejected LiveKit telephony webhook'
+        );
         // Invalid signature / malformed payload
         return res.status(401).json({
             error: 'Invalid webhook signature',
@@ -38,12 +48,54 @@ router.post('/livekit-webhook', async (req, res) => {
         });
     }
 
-    const normalized = normalizeLiveKitWebhookEvent(evt);
+    const normalized = normalizeLiveKitWebhookEvent(evt, { rawBody });
+
+    logger.info(
+        {
+            event: 'telephony_webhook_received',
+            eventId: normalized.eventId,
+            eventIdDerived: normalized.eventIdDerived ?? false,
+            livekitEvent: normalized.event,
+            roomName: normalized.roomName,
+            participant: normalized.participant,
+        },
+        'Accepted LiveKit telephony webhook'
+    );
 
     // Respond quickly; do work in the background.
-    void telephonyModule.sessionService.handleLiveKitEvent(normalized).catch((err) => {
-        console.error('[telephony] Failed to handle webhook event:', err);
-    });
+    const handleStart = Date.now();
+    void telephonyModule.sessionService
+        .handleLiveKitEvent(normalized)
+        .then((result) => {
+            logger.info(
+                {
+                    event: 'telephony_webhook_processed',
+                    eventId: normalized.eventId,
+                    livekitEvent: normalized.event,
+                    roomName: normalized.roomName,
+                    durationMs: Date.now() - handleStart,
+                    idempotencyFirstSeen: result.firstSeen,
+                    ignoredReason: result.ignoredReason,
+                    dispatchAttempted: result.dispatchAttempted,
+                    dispatchSucceeded: result.dispatchSucceeded,
+                    callId: result.callId,
+                },
+                'Processed LiveKit telephony webhook'
+            );
+        })
+        .catch((err) => {
+            logger.error(
+                {
+                    event: 'telephony_webhook_processed',
+                    eventId: normalized.eventId,
+                    livekitEvent: normalized.event,
+                    roomName: normalized.roomName,
+                    durationMs: Date.now() - handleStart,
+                    err,
+                },
+                'Failed to process LiveKit telephony webhook'
+            );
+        });
 
     return res.status(200).json({ ok: true });
 });

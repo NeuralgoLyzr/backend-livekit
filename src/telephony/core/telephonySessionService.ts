@@ -37,12 +37,32 @@ function isSipParticipant(
 export class TelephonySessionService {
     constructor(private readonly deps: TelephonySessionServiceDeps) {}
 
-    async handleLiveKitEvent(evt: NormalizedLiveKitEvent): Promise<void> {
+    async handleLiveKitEvent(evt: NormalizedLiveKitEvent): Promise<{
+        firstSeen: boolean;
+        ignoredReason?: 'duplicate' | 'missing_room' | 'non_sip_participant' | 'unsupported_event';
+        dispatchAttempted: boolean;
+        dispatchSucceeded: boolean;
+        callId?: string;
+    }> {
         // Idempotency guard
         const firstSeen = await this.deps.store.recordEventSeen(evt.eventId);
-        if (!firstSeen) return;
+        if (!firstSeen) {
+            return {
+                firstSeen: false,
+                ignoredReason: 'duplicate',
+                dispatchAttempted: false,
+                dispatchSucceeded: false,
+            };
+        }
 
-        if (!evt.roomName) return;
+        if (!evt.roomName) {
+            return {
+                firstSeen: true,
+                ignoredReason: 'missing_room',
+                dispatchAttempted: false,
+                dispatchSucceeded: false,
+            };
+        }
 
         switch (evt.event) {
             case 'participant_joined': {
@@ -53,7 +73,12 @@ export class TelephonySessionService {
                         this.deps.dispatchOnAnyParticipantJoin
                     )
                 ) {
-                    return;
+                    return {
+                        firstSeen: true,
+                        ignoredReason: 'non_sip_participant',
+                        dispatchAttempted: false,
+                        dispatchSucceeded: false,
+                    };
                 }
 
                 const call = await this.deps.store.upsertCallByRoomName(evt.roomName, {
@@ -66,8 +91,13 @@ export class TelephonySessionService {
                     },
                 });
 
-                await this.dispatchAgentIfNeeded(call);
-                return;
+                const dispatched = await this.dispatchAgentIfNeeded(call);
+                return {
+                    firstSeen: true,
+                    dispatchAttempted: dispatched,
+                    dispatchSucceeded: dispatched,
+                    callId: call.callId,
+                };
             }
 
             case 'participant_left': {
@@ -78,21 +108,42 @@ export class TelephonySessionService {
                         this.deps.dispatchOnAnyParticipantJoin
                     )
                 ) {
-                    return;
+                    return {
+                        firstSeen: true,
+                        ignoredReason: 'non_sip_participant',
+                        dispatchAttempted: false,
+                        dispatchSucceeded: false,
+                    };
                 }
                 const call = await this.deps.store.getCallByRoomName(evt.roomName);
-                if (!call) return;
+                if (!call) {
+                    return {
+                        firstSeen: true,
+                        dispatchAttempted: false,
+                        dispatchSucceeded: false,
+                    };
+                }
                 await this.deps.store.markEnded(call.callId, 'ended');
-                return;
+                return {
+                    firstSeen: true,
+                    dispatchAttempted: false,
+                    dispatchSucceeded: false,
+                    callId: call.callId,
+                };
             }
 
             default:
-                return;
+                return {
+                    firstSeen: true,
+                    ignoredReason: 'unsupported_event',
+                    dispatchAttempted: false,
+                    dispatchSucceeded: false,
+                };
         }
     }
 
-    private async dispatchAgentIfNeeded(call: TelephonyCall): Promise<void> {
-        if (call.agentDispatched) return;
+    private async dispatchAgentIfNeeded(call: TelephonyCall): Promise<boolean> {
+        if (call.agentDispatched) return false;
 
         const routing = await this.deps.routing.resolveRouting({
             roomName: call.roomName,
@@ -103,5 +154,6 @@ export class TelephonySessionService {
 
         await this.deps.agentDispatch.dispatchAgent(call.roomName, routing.agentConfig);
         await this.deps.store.markAgentDispatched(call.callId);
+        return true;
     }
 }

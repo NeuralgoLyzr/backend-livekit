@@ -12,6 +12,7 @@ import { isDevelopment } from '../lib/env.js';
 import { AGENT_DEFAULTS } from '../CONSTS.js';
 import { MongooseAgentStore } from '../adapters/mongoose/mongooseAgentStore.js';
 import { createAgentConfigResolverService } from './agentConfigResolverService.js';
+import { logger } from '../lib/logger.js';
 
 export interface CreateSessionInput {
     userIdentity: string;
@@ -100,9 +101,16 @@ export function createSessionService(deps: SessionServiceDeps) {
             const userToken = await tokenService.createUserToken(userIdentity, roomName);
 
             if (isDevelopment()) {
-                console.log(
-                    '[sessionService] Dispatching agent config:',
-                    agentConfigWithIds
+                logger.debug(
+                    {
+                        event: 'session_create_dispatch_attempt',
+                        roomName,
+                        userIdentity,
+                        agentId: input.agentId,
+                        agentConfig: summarizeAgentConfig(finalAgentConfigWithDefaults),
+                        hasApiKey: Boolean(agentConfigWithIds.api_key),
+                    },
+                    'Dispatching agent (dev)'
                 );
             }
 

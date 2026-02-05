@@ -11,8 +11,9 @@ import {
 } from '../types/index.js';
 import { ZodError } from 'zod';
 import { sessionService } from '../services/sessionService.js';
-import { formatErrorResponse, getErrorStatus } from '../lib/httpErrors.js';
 import { AGENT_DEFAULTS } from '../CONSTS.js';
+import { asyncHandler } from '../lib/asyncHandler.js';
+import { logger } from '../lib/logger.js';
 
 const router: Router = Router();
 
@@ -23,8 +24,9 @@ function formatZodError(error: ZodError): { error: string; issues: typeof error.
     };
 }
 
-router.post('/', async (req, res) => {
-    try {
+router.post(
+    '/',
+    asyncHandler(async (req, res) => {
         const parseResult = SessionRequestSchema.safeParse(req.body);
         if (!parseResult.success) {
             return res.status(400).json({
@@ -85,35 +87,33 @@ router.post('/', async (req, res) => {
         }
 
         const response = await sessionService.createSession(parseResult.data);
-        return res.json(response);
-    } catch (error) {
-        console.error('Session creation error:', error);
-        res.status(getErrorStatus(error)).json(
-            formatErrorResponse(error, {
-                fallbackMessage: 'Failed to create session',
-            })
-        );
-    }
-});
 
-router.post('/end', async (req, res) => {
-    try {
+        const wideEvent = res.locals.wideEvent as { roomName?: string; userIdentity?: string } | undefined;
+        if (wideEvent) {
+            wideEvent.roomName = response.roomName;
+            wideEvent.userIdentity = parseResult.data.userIdentity;
+        }
+
+        return res.json(response);
+    })
+);
+
+router.post(
+    '/end',
+    asyncHandler(async (req, res) => {
         const parseResult = EndSessionRequestSchema.safeParse(req.body);
         if (!parseResult.success) {
             return res.status(400).json(formatZodError(parseResult.error));
         }
 
         await sessionService.endSession(parseResult.data.roomName);
+
+        const wideEvent = res.locals.wideEvent as { roomName?: string } | undefined;
+        if (wideEvent) wideEvent.roomName = parseResult.data.roomName;
+
         return res.status(204).send();
-    } catch (error) {
-        console.error('Session termination error:', error);
-        res.status(getErrorStatus(error)).json(
-            formatErrorResponse(error, {
-                fallbackMessage: 'Failed to end session',
-            })
-        );
-    }
-});
+    })
+);
 
 /**
  * Receive post-call session artifacts (for testing).
@@ -122,22 +122,23 @@ router.post('/end', async (req, res) => {
  * - `session.history` (conversation transcript / timeline)
  * - `ctx.make_session_report()` (structured report)
  */
-router.post('/observability', async (req, res) => {
-    try {
+router.post(
+    '/observability',
+    asyncHandler(async (req, res) => {
         const parseResult = SessionObservabilityIngestSchema.safeParse(req.body);
         if (!parseResult.success) {
             return res.status(400).json(formatZodError(parseResult.error));
         }
 
         const payload = parseResult.data;
-        console.log('[session/observability] room=', payload.roomName);
-        console.log(
-            '[session/observability] conversationHistory=',
-            JSON.stringify(payload.conversationHistory ?? null, null, 2)
-        );
-        console.log(
-            '[session/observability] sessionReport=',
-            JSON.stringify(payload.sessionReport ?? null, null, 2)
+        logger.info(
+            {
+                event: 'session_observability_ingest',
+                roomName: payload.roomName,
+                hasConversationHistory: Boolean(payload.conversationHistory),
+                hasSessionReport: Boolean(payload.sessionReport),
+            },
+            'Ingested session observability payload'
         );
 
         // Clean up only after the structured report arrives (it includes full history/events).
@@ -147,19 +148,15 @@ router.post('/observability', async (req, res) => {
             try {
                 await sessionService.cleanupSession(payload.roomName);
             } catch (error) {
-                console.error('[session/observability] cleanup error:', error);
+                logger.error({ err: error, event: 'session_cleanup_failed', roomName: payload.roomName });
             }
         }
 
+        const wideEvent = res.locals.wideEvent as { roomName?: string } | undefined;
+        if (wideEvent) wideEvent.roomName = payload.roomName;
+
         return res.status(204).send();
-    } catch (error) {
-        console.error('Session observability ingest error:', error);
-        res.status(getErrorStatus(error)).json(
-            formatErrorResponse(error, {
-                fallbackMessage: 'Failed to ingest session observability payload',
-            })
-        );
-    }
-});
+    })
+);
 
 export default router;

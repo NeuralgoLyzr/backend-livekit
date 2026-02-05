@@ -1,7 +1,23 @@
 import type { LiveKitWebhookEvent, NormalizedLiveKitEvent } from '../../types.js';
+import { createHash } from 'node:crypto';
 
-export function normalizeLiveKitWebhookEvent(evt: LiveKitWebhookEvent): NormalizedLiveKitEvent {
-    const eventId = typeof evt.id === 'string' && evt.id.trim().length > 0 ? evt.id : 'missing-id';
+export function normalizeLiveKitWebhookEvent(
+    evt: LiveKitWebhookEvent,
+    options?: { rawBody?: string }
+): NormalizedLiveKitEvent {
+    let eventIdDerived = false;
+    let eventId = typeof evt.id === 'string' && evt.id.trim().length > 0 ? evt.id : '';
+    if (!eventId) {
+        const rawBody = options?.rawBody;
+        if (typeof rawBody === 'string' && rawBody.length > 0) {
+            const digest = createHash('sha256').update(rawBody).digest('hex').slice(0, 16);
+            eventId = `derived-${digest}`;
+            eventIdDerived = true;
+        } else {
+            // Fallback only; callers should pass rawBody when possible.
+            eventId = 'missing-id';
+        }
+    }
     const event = typeof evt.event === 'string' ? evt.event : 'unknown';
     const createdAt = typeof evt.createdAt === 'number' ? evt.createdAt : null;
     const roomName =
@@ -26,5 +42,5 @@ export function normalizeLiveKitWebhookEvent(evt: LiveKitWebhookEvent): Normaliz
               }
             : undefined;
 
-    return { eventId, event, createdAt, roomName, participant, raw: evt };
+    return { eventId, eventIdDerived, event, createdAt, roomName, participant, raw: evt };
 }

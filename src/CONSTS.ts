@@ -21,3 +21,11 @@ export const AGENT_DEFAULTS = {
     vad_enabled: true,
 } as const;
 
+// Observability / logging
+// Tail sampling is intentionally OFF by default; enable only when log volume becomes a problem.
+export const ENABLE_TAIL_SAMPLING = false;
+
+// Only used when ENABLE_TAIL_SAMPLING is true.
+export const SUCCESS_SAMPLE_RATE = 0.05;
+export const SLOW_REQUEST_MS = 2000;
+

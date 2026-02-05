@@ -47,6 +47,23 @@ export function normalizeTools(agentConfig?: AgentConfig): string[] {
     const tools = agentConfig?.tools;
     const requestedTools: unknown[] = Array.isArray(tools) ? tools : [];
 
+    const wildcardEnabled = requestedTools.some((value) => {
+        if (typeof value !== 'string') return false;
+        const normalized = value.trim().toLowerCase();
+        return normalized === '*' || normalized === 'all';
+    });
+
+    if (wildcardEnabled) {
+        return toolRegistry
+            .map((t) => t.id)
+            .filter(
+                (id) =>
+                    id !== KNOWLEDGE_BASE_TOOL_ID ||
+                    (registryIds.has(KNOWLEDGE_BASE_TOOL_ID) &&
+                        hasKnowledgeBaseEnabled(agentConfig))
+            );
+    }
+
     const cleaned: string[] = [];
     for (const id of requestedTools) {
         if (typeof id !== 'string') continue;

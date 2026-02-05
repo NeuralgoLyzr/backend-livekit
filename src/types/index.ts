@@ -76,6 +76,19 @@ export const ManagedAgentsConfigSchema = z.object({
 });
 export type ManagedAgentsConfig = z.infer<typeof ManagedAgentsConfigSchema>;
 
+export const LyzrToolConfigSchema = z
+	.object({
+		tool_name: z.string(),
+		tool_source: z.string(),
+		action_names: z.array(z.string()),
+		persist_auth: z.boolean(),
+		server_id: z.string().optional(),
+		provider_uuid: z.string().optional(),
+		credential_id: z.string().optional(),
+	})
+	.strict();
+export type LyzrToolConfig = z.infer<typeof LyzrToolConfigSchema>;
+
 export const AnamAvatarConfigSchema = z.object({
 	/**
 	 * Persona display name in Anam.
@@ -340,6 +353,19 @@ export const AgentConfigSchema = z.object({
 	 * recognized by the Python agent.
 	 */
 	tools: z.array(z.string()).optional(),
+	/**
+	 * Remote tool configs (tools v2) exposed as callable action tools.
+	 */
+	lyzr_tools: z.array(LyzrToolConfigSchema).optional(),
+	/**
+	 * Optional Lyzr agent id used by the `/v3/inference/tools/execute` endpoint.
+	 *
+	 * When sessions are created with a stored `agentId`, the backend can forward it here.
+	 */
+	agent_id: z
+		.string()
+		.regex(VALID_MONGO_OBJECT_ID_REGEX, 'agent_id must be a valid Mongo ObjectId')
+		.optional(),
 	/**
 	 * Optional identifiers forwarded to external tools/APIs.
 	 */

@@ -92,6 +92,7 @@ export function createSessionService(deps: SessionServiceDeps) {
             // Note: unrelated to dynamic prompt variables.
             const agentConfigWithIds: AgentConfig = {
                 ...finalAgentConfigWithDefaults,
+                ...(input.agentId ? { agent_id: input.agentId } : {}),
                 user_id: userIdentity,
                 session_id: roomName,
             };

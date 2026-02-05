@@ -71,12 +71,16 @@ function buildMetadataObject(agentConfig: AgentConfig): Record<string, unknown> 
         agent_description: agentConfig.agent_description,
         // Optional config for specialized sub-agent delegation tools.
         apiKey: agentConfig.api_key,
+        // Optional correlation id (not required for tool execution when `lyzr_tools` are provided).
+        agentId: agentConfig.agent_id,
         managed_agents: agentConfig.managed_agents?.enabled
-        	? agentConfig.managed_agents.agents
-        	: undefined,
+            ? agentConfig.managed_agents.agents
+            : undefined,
         user_id: agentConfig.user_id,
         session_id: agentConfig.session_id,
         tools: agentConfig.tools ?? AGENT_DEFAULTS.tools,
+        // Remote tool configs (tools v2): used by the Python agent to register callable actions.
+        lyzr_tools: agentConfig.lyzr_tools,
         lyzr_rag: agentConfig.lyzr_rag,
         agentic_rag: agentConfig.agentic_rag ?? AGENT_DEFAULTS.agentic_rag,
         vad_enabled: agentConfig.vad_enabled ?? AGENT_DEFAULTS.vad_enabled,

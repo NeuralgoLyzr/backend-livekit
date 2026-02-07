@@ -10,8 +10,8 @@ router.get('/tools', (_req, res) => {
     });
 });
 
-router.get('/realtime-options', async (_req, res) => {
-    const options = await getRealtimeOptions();
+router.get('/realtime-options', (_req, res) => {
+    const options = getRealtimeOptions();
     res.json(options);
 });
 

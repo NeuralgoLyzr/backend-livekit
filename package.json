@@ -21,6 +21,7 @@
   ],
   "author": "",
   "dependencies": {
+    "@axiomhq/pino": "^1.4.0",
     "@livekit/agents": "^1.0.19",
     "@livekit/protocol": "latest",
     "@livekit/rtc-node": "latest",

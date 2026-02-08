@@ -1,4 +1,5 @@
 import pino from 'pino';
+import { once } from 'node:events';
 import { getRequestId } from './requestContext.js';
 
 function getLogLevel(): string {
@@ -6,7 +7,34 @@ function getLogLevel(): string {
     return process.env.LOG_LEVEL?.trim() || 'info';
 }
 
-export const logger = pino({
+function parseBoolEnv(value: string | undefined): boolean {
+    return (value ?? '').trim().toLowerCase() === 'true';
+}
+
+function getAxiomTransportOptions(): { dataset: string; token: string } | null {
+    if (!parseBoolEnv(process.env.AXIOM_ENABLED)) return null;
+
+    const dataset = process.env.AXIOM_DATASET?.trim() ?? '';
+    const token = process.env.AXIOM_TOKEN?.trim() ?? '';
+
+    if (!dataset || !token) return null;
+
+    return { dataset, token };
+}
+
+const axiomOptions = getAxiomTransportOptions();
+const transport = axiomOptions
+    ? pino.transport({
+        targets: [
+            // Keep JSON logs on stdout (containers / local dev).
+            { target: 'pino/file', options: { destination: 1 } },
+            // Ship to Axiom (official transport).
+            { target: '@axiomhq/pino', options: axiomOptions },
+        ],
+    })
+    : undefined;
+
+const baseLoggerOptions: pino.LoggerOptions = {
     level: getLogLevel(),
     base: {
         service: 'backend-livekit',
@@ -35,5 +63,48 @@ export const logger = pino({
         ],
         remove: true,
     },
-});
+    serializers: {
+        err: pino.stdSerializers.err,
+    },
+};
+
+export const logger = transport ? pino(baseLoggerOptions, transport) : pino(baseLoggerOptions);
+
+if (parseBoolEnv(process.env.AXIOM_ENABLED) && !axiomOptions) {
+    logger.warn(
+        {
+            event: 'axiom_transport_disabled',
+            reason: 'missing_env',
+            hasDataset: Boolean(process.env.AXIOM_DATASET?.trim()),
+            hasToken: Boolean(process.env.AXIOM_TOKEN?.trim()),
+        },
+        'Axiom is enabled but not configured; shipping disabled'
+    );
+}
+
+async function closeTransport(timeoutMs: number): Promise<void> {
+    if (!transport) return;
+
+    // `@axiomhq/pino` flushes on transport close.
+    transport.end();
+
+    await Promise.race([
+        once(transport, 'close'),
+        once(transport, 'finish'),
+        new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+    ]);
+}
+
+export async function shutdownLogger(options?: { timeoutMs?: number }): Promise<void> {
+    const timeoutMs = options?.timeoutMs ?? 2000;
+
+    try {
+        // Best-effort flush for non-transport destinations.
+        logger.flush();
+    } catch {
+        // Ignore: flush isn't guaranteed for all destinations.
+    }
+
+    await closeTransport(timeoutMs);
+}
 

@@ -12,6 +12,7 @@ dotenv.config();
 import { app } from './app.js';
 import { config } from './config/index.js';
 import { disconnectMongo } from './db/mongoose.js';
+import { logger, shutdownLogger } from './lib/logger.js';
 
 const configuredPort = config.server.port;
 
@@ -22,39 +23,59 @@ server.once('listening', () => {
     const actualPort =
         address && typeof address !== 'string' ? (address as AddressInfo).port : configuredPort;
 
-    console.log('\n LiveKit Backend Server Started');
-    console.log('━'.repeat(50));
-    console.log(`✓ Express server running on port ${actualPort}`);
-    console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`✓ LiveKit URL: ${config.livekit.url}`);
-    console.log('\n Available Endpoints:');
-    console.log(`   - Health check:  GET  http://localhost:${actualPort}/health`);
-    console.log(`   - Create session: POST http://localhost:${actualPort}/session`);
-    if (config.telephony.enabled) {
-        console.log(
-            `   - LiveKit webhook: POST http://localhost:${actualPort}/telephony/livekit-webhook`
-        );
-    }
+    const baseUrl = `http://localhost:${actualPort}`;
+
+    logger.info(
+        {
+            event: 'startup',
+            port: actualPort,
+            environment: process.env.NODE_ENV || 'development',
+            livekitUrl: config.livekit.url,
+            telephonyEnabled: config.telephony.enabled,
+            endpoints: {
+                health: `GET ${baseUrl}/health`,
+                root: `GET ${baseUrl}/`,
+                createSession: `POST ${baseUrl}/session`,
+                ...(config.telephony.enabled
+                    ? { livekitWebhook: `POST ${baseUrl}/telephony/livekit-webhook` }
+                    : {}),
+            },
+        },
+        'LiveKit Backend Server Started'
+    );
 });
 
 server.on('error', (error: NodeJS.ErrnoException) => {
-    if (error.code === 'EADDRINUSE') {
-        console.error(`[startup] Port ${configuredPort} is already in use.`);
-        console.error('[startup] Stop the other process or start with a different PORT.');
-        process.exit(1);
-    }
+    void (async () => {
+        if (error.code === 'EADDRINUSE') {
+            logger.error(
+                { event: 'startup_error', code: error.code, port: configuredPort, err: error },
+                'Port is already in use'
+            );
+            await shutdownLogger();
+            process.exit(1);
+        }
 
-    if (error.code === 'EACCES') {
-        console.error(`[startup] No permission to bind to port ${configuredPort}.`);
-        process.exit(1);
-    }
+        if (error.code === 'EACCES') {
+            logger.error(
+                { event: 'startup_error', code: error.code, port: configuredPort, err: error },
+                'No permission to bind to port'
+            );
+            await shutdownLogger();
+            process.exit(1);
+        }
 
-    console.error('[startup] Failed to start server:', error);
-    process.exit(1);
+        logger.error(
+            { event: 'startup_error', code: error.code, port: configuredPort, err: error },
+            'Failed to start server'
+        );
+        await shutdownLogger();
+        process.exit(1);
+    })();
 });
 
 async function shutdown(signal: NodeJS.Signals): Promise<void> {
-    console.log(`\n[shutdown] Received ${signal}. Closing server...`);
+    logger.info({ event: 'shutdown_signal', signal }, 'Closing server');
 
     // Stop accepting new connections.
     await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -63,8 +84,13 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
     try {
         await disconnectMongo();
     } catch (error) {
-        console.warn('[shutdown] Failed to disconnect Mongo:', error);
+        logger.warn(
+            { event: 'shutdown_mongo_disconnect_failed', err: error },
+            'Failed to disconnect Mongo'
+        );
     }
+
+    await shutdownLogger();
 }
 
 process.on('SIGINT', () => {

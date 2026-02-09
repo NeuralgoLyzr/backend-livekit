@@ -35,9 +35,9 @@ phases:
       - echo Pushing Docker image to ECR...
       - docker push $IMAGE_URI:latest
       - docker push $IMAGE_URI:$IMAGE_TAG
-      - echo Writing image definitions file...
-      - printf '[{"name":"%s","imageUri":"%s"}]' $CONTAINER_NAME $IMAGE_URI:$IMAGE_TAG > imagedefinitions.json
+      - echo Forcing new ECS deployment...
+      - aws ecs update-service --cluster lyzr-voice-prod-ecs-cluster --service backend-api-7aaf --force-new-deployment
 
 artifacts:
   files:
-    - imagedefinitions.json
+    - "**/*"

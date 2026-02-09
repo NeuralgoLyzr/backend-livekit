@@ -29,6 +29,10 @@ export class InMemorySessionStore implements SessionStorePort {
         return this.store.has(roomName);
     }
 
+    entries(): Array<[roomName: string, data: SessionData]> {
+        return Array.from(this.store.entries());
+    }
+
     clear(): void {
         this.store.clear();
     }

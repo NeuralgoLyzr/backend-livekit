@@ -17,6 +17,7 @@ import { logger } from '../lib/logger.js';
 export interface CreateSessionInput {
     userIdentity: string;
     roomName?: string;
+    sessionId?: string;
     agentId?: string;
     agentConfig?: AgentConfig;
 }
@@ -24,6 +25,7 @@ export interface CreateSessionInput {
 export interface CreateSessionResponse {
     userToken: string;
     roomName: string;
+    sessionId: string;
     livekitUrl: string;
     agentDispatched: true;
     agentConfig: {
@@ -67,10 +69,12 @@ export function createSessionService(deps: SessionServiceDeps) {
         async createSession(input: CreateSessionInput): Promise<CreateSessionResponse> {
             const userIdentity = input.userIdentity.trim();
             const requestedRoomName = input.roomName?.trim() ?? '';
+            const requestedSessionId = input.sessionId?.trim() ?? '';
 
             // Generate room name if not provided
             const roomName =
                 requestedRoomName.length > 0 ? requestedRoomName : `room-${randomUUID()}`;
+            const sessionId = requestedSessionId.length > 0 ? requestedSessionId : randomUUID();
 
             const agentConfig =
                 input.agentId
@@ -95,7 +99,7 @@ export function createSessionService(deps: SessionServiceDeps) {
                 ...finalAgentConfigWithDefaults,
                 ...(input.agentId ? { agent_id: input.agentId } : {}),
                 user_id: userIdentity,
-                session_id: roomName,
+                session_id: sessionId,
             };
 
             const userToken = await tokenService.createUserToken(userIdentity, roomName);
@@ -126,6 +130,7 @@ export function createSessionService(deps: SessionServiceDeps) {
 
             deps.store.set(roomName, {
                 userIdentity,
+                sessionId,
                 agentConfig: agentConfigWithIds,
                 createdAt: new Date().toISOString(),
             });
@@ -133,16 +138,33 @@ export function createSessionService(deps: SessionServiceDeps) {
             return {
                 userToken,
                 roomName,
+                sessionId,
                 livekitUrl: config.livekit.url,
                 agentDispatched: true,
                 agentConfig: summarizeAgentConfig(finalAgentConfig),
             };
         },
 
-        async endSession(roomName: string): Promise<void> {
-            const normalizedRoomName = roomName.trim();
+        async endSession(input: { roomName?: string; sessionId?: string }): Promise<void> {
+            const normalizedRoomName = input.roomName?.trim() ?? '';
+            const normalizedSessionId = input.sessionId?.trim() ?? '';
 
-            if (!deps.store.has(normalizedRoomName)) {
+            let roomName = normalizedRoomName;
+            if (!roomName && normalizedSessionId) {
+                const match = deps.store
+                    .entries()
+                    .find(([, data]) => data.sessionId === normalizedSessionId);
+                roomName = match?.[0] ?? '';
+            }
+
+            if (!roomName) {
+                if (normalizedSessionId) {
+                    throw new HttpError(404, 'Session not found for sessionId');
+                }
+                throw new HttpError(400, 'Must provide roomName or sessionId');
+            }
+
+            if (!deps.store.has(roomName)) {
                 throw new HttpError(404, 'Session not found for room');
             }
 
@@ -155,9 +177,9 @@ export function createSessionService(deps: SessionServiceDeps) {
             // Instead, mark the session as ended and let a later step (e.g.
             // `/session/observability`) perform cleanup once transcripts/reports
             // have been received.
-            const existing = deps.store.get(normalizedRoomName);
+            const existing = deps.store.get(roomName);
             if (existing) {
-                deps.store.set(normalizedRoomName, {
+                deps.store.set(roomName, {
                     ...existing,
                     endedAt: new Date().toISOString(),
                 });

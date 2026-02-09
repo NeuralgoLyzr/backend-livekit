@@ -376,6 +376,15 @@ export const AgentConfigSchema = z.object({
 	 * Reduces perceived latency at the cost of occasionally discarding a generated response.
 	 */
 	preemptive_generation: z.boolean().optional(),
+	/**
+	 * Enable pronunciation correction in TTS output (regex-based word replacements).
+	 */
+	pronunciation_correction: z.boolean().optional(),
+	/**
+	 * User-defined pronunciation rules (term → replacement) applied before TTS.
+	 * Only active when `pronunciation_correction` is true.
+	 */
+	pronunciation_rules: z.record(z.string(), z.string()).optional(),
 	vad_enabled: z.boolean().optional(),
 	/**
 	 * Optional virtual avatar config. When enabled, the Python agent may start an
@@ -436,6 +445,7 @@ export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
 export const SessionDataSchema = z.object({
 	userIdentity: z.string(),
+	sessionId: z.string(),
 	agentConfig: AgentConfigSchema.optional(),
 	createdAt: z.string(),
 	endedAt: z.string().optional(),
@@ -462,15 +472,18 @@ const RoomNameSchema = z
 	.optional()
 	.or(z.literal(''));
 
+const SessionIdSchema = z.string().uuid('sessionId must be a valid UUID');
+
 export const SessionRequestSchema = z.object({
 	userIdentity: UserIdentitySchema,
 	roomName: RoomNameSchema,
+	sessionId: SessionIdSchema.optional(),
 	agentId: AgentIdSchema.optional(),
 	agentConfig: AgentConfigSchema.optional(),
 });
 export type SessionRequest = z.infer<typeof SessionRequestSchema>;
 
-export const EndSessionRequestSchema = z.object({
+const EndSessionByRoomNameSchema = z.object({
 	roomName: z
 		.string({ error: 'roomName is required' })
 		.min(1, 'roomName is required')
@@ -480,6 +493,15 @@ export const EndSessionRequestSchema = z.object({
 			'roomName can only contain letters, numbers, underscores, and hyphens'
 		),
 });
+
+const EndSessionBySessionIdSchema = z.object({
+	sessionId: SessionIdSchema,
+});
+
+export const EndSessionRequestSchema = z.union([
+	EndSessionByRoomNameSchema,
+	EndSessionBySessionIdSchema,
+]);
 export type EndSessionRequest = z.infer<typeof EndSessionRequestSchema>;
 
 export const SessionObservabilityIngestSchema = z
@@ -495,6 +517,7 @@ export const SessionObservabilityIngestSchema = z
 				VALID_IDENTIFIER_REGEX,
 				'roomName can only contain letters, numbers, underscores, and hyphens'
 			),
+		sessionId: SessionIdSchema.optional(),
 		/**
 		 * `session.history` serialized on close (optional).
 		 * Shape depends on LiveKit Agents SDK version.

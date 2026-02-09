@@ -106,10 +106,15 @@ router.post(
             return res.status(400).json(formatZodError(parseResult.error));
         }
 
-        await sessionService.endSession(parseResult.data.roomName);
+        const payload = parseResult.data;
+        await sessionService.endSession(
+            'roomName' in payload
+                ? { roomName: payload.roomName }
+                : { sessionId: payload.sessionId }
+        );
 
         const wideEvent = res.locals.wideEvent as { roomName?: string } | undefined;
-        if (wideEvent) wideEvent.roomName = parseResult.data.roomName;
+        if (wideEvent && 'roomName' in payload) wideEvent.roomName = payload.roomName;
 
         return res.status(204).send();
     })

@@ -5,5 +5,6 @@ export interface SessionStorePort {
     get(roomName: string): SessionData | undefined;
     delete(roomName: string): boolean;
     has(roomName: string): boolean;
+    entries(): Array<[roomName: string, data: SessionData]>;
 }
 

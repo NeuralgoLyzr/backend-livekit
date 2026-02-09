@@ -371,6 +371,11 @@ export const AgentConfigSchema = z.object({
 	 */
 	user_id: z.string().optional(),
 	session_id: z.string().optional(),
+	/**
+	 * Allow the LLM to start generating a response while waiting for end-of-turn confirmation.
+	 * Reduces perceived latency at the cost of occasionally discarding a generated response.
+	 */
+	preemptive_generation: z.boolean().optional(),
 	vad_enabled: z.boolean().optional(),
 	/**
 	 * Optional virtual avatar config. When enabled, the Python agent may start an

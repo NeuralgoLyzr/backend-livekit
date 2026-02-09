@@ -85,6 +85,7 @@ function buildMetadataObject(agentConfig: AgentConfig): Record<string, unknown> 
         lyzr_rag: agentConfig.lyzr_rag,
         agentic_rag: agentConfig.agentic_rag ?? AGENT_DEFAULTS.agentic_rag,
         vad_enabled: agentConfig.vad_enabled ?? AGENT_DEFAULTS.vad_enabled,
+        preemptive_generation: agentConfig.preemptive_generation ?? false,
         background_audio,
         avatar,
     };
@@ -102,6 +103,7 @@ function summarizeAgentConfig(agentConfig: AgentConfig): Record<string, unknown>
         engineKind,
         toolsCount: agentConfig.tools?.length ?? AGENT_DEFAULTS.tools.length,
         vadEnabled: agentConfig.vad_enabled ?? AGENT_DEFAULTS.vad_enabled,
+        preemptiveGeneration: agentConfig.preemptive_generation ?? false,
         turnDetection: agentConfig.turn_detection ?? AGENT_DEFAULTS.turn_detection,
         avatarEnabled,
         backgroundAudioEnabled,

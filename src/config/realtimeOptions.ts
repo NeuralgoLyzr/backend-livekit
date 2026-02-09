@@ -1,5 +1,6 @@
 import { GEMINI_VOICES } from './geminiVoices.js';
 import { OPENAI_VOICES } from './openaiVoices.js';
+import { ULTRAVOX_VOICES } from './ultravoxVoices.js';
 // import { NOVA_SONIC_VOICES } from './novaSonicVoices.js';
 // import { XAI_VOICES } from './xaiVoices.js';
 
@@ -23,6 +24,14 @@ export type RealtimeProviderOptions = {
      * Voice identifiers to send as `engine.voice`.
      */
     voices: RealtimeOption[];
+    /**
+     * Environment variables required to use this provider.
+     */
+    requiredEnv: string[];
+    /**
+     * Optional warning to surface in UI (e.g. missing env).
+     */
+    warning?: string;
     // /**
     //  * Whether the lists are fetched dynamically at request time.
     //  */
@@ -34,6 +43,7 @@ type RealtimeOptionsResponse = {
 };
 
 export function getRealtimeOptions(): RealtimeOptionsResponse {
+    const hasUltravoxKey = Boolean(process.env.ULTRAVOX_API_KEY?.trim());
     return {
         providers: [
             {
@@ -44,6 +54,7 @@ export function getRealtimeOptions(): RealtimeOptionsResponse {
                     { id: 'gpt-realtime-mini', name: 'gpt-realtime-mini' },
                 ],
                 voices: OPENAI_VOICES,
+                requiredEnv: ['OPENAI_API_KEY'],
             },
             {
                 providerId: 'google',
@@ -55,6 +66,30 @@ export function getRealtimeOptions(): RealtimeOptionsResponse {
                     },
                 ],
                 voices: GEMINI_VOICES,
+                requiredEnv: ['GOOGLE_API_KEY'],
+            },
+            {
+                providerId: 'ultravox',
+                displayName: 'Ultravox',
+                // Note: model ids contain slashes; UI must split on FIRST slash only.
+                models: [
+                    { id: 'fixie-ai/ultravox', name: 'fixie-ai/ultravox' },
+                    {
+                        id: 'fixie-ai/ultravox-gemma3-27b-preview',
+                        name: 'fixie-ai/ultravox-gemma3-27b-preview',
+                    },
+                    {
+                        id: 'fixie-ai/ultravox-llama3.3-70b',
+                        name: 'fixie-ai/ultravox-llama3.3-70b',
+                    },
+                    {
+                        id: 'fixie-ai/ultravox-qwen3-32b-preview',
+                        name: 'fixie-ai/ultravox-qwen3-32b-preview',
+                    },
+                ],
+                voices: ULTRAVOX_VOICES,
+                requiredEnv: ['ULTRAVOX_API_KEY'],
+                warning: hasUltravoxKey ? undefined : 'Missing ULTRAVOX_API_KEY',
             },
             // {
             //     providerId: 'aws-nova',
@@ -64,12 +99,6 @@ export function getRealtimeOptions(): RealtimeOptionsResponse {
             //         { id: 'amazon.nova-sonic-v1:0', name: 'Nova Sonic 1' },
             //     ],
             //     voices: NOVA_SONIC_VOICES,
-            // },
-            // {
-            //     providerId: 'ultravox',
-            //     displayName: 'Ultravox',
-            //     models: [],
-            //     voices: [],
             // },
             // {
             //     providerId: 'xai',

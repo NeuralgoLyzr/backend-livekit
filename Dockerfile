@@ -3,7 +3,7 @@
 ## - Builds TypeScript -> dist/
 ## - Runs production dependencies only
 
-FROM node:22-bookworm-slim AS build
+FROM public.ecr.aws/docker/library/node:22-bookworm-slim AS build
 WORKDIR /app
 
 # pnpm
@@ -21,7 +21,7 @@ RUN pnpm build
 # Keep only production deps for runtime
 RUN pnpm prune --prod
 
-FROM node:22-bookworm-slim AS runtime
+FROM public.ecr.aws/docker/library/node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 

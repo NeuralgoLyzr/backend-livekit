@@ -14,6 +14,19 @@ export interface HttpWideEvent {
     requestId: string;
     method: string;
     path: string;
+    /**
+     * Optional correlation id for a LiveKit session lifecycle.
+     * This is populated by session routes when available.
+     */
+    sessionId?: string;
+    /**
+     * LiveKit room name (known after /session allocates it, or when explicitly provided).
+     */
+    roomName?: string;
+    /**
+     * End-user identity for the session (when available).
+     */
+    userIdentity?: string;
     statusCode?: number;
     durationMs?: number;
     outcome?: Outcome;

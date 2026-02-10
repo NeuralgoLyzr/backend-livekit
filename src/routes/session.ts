@@ -9,6 +9,7 @@ import { AGENT_DEFAULTS } from '../CONSTS.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { formatZodError } from '../lib/zod.js';
 import { logger } from '../lib/logger.js';
+import type { HttpWideEvent } from '../middleware/requestLogging.js';
 
 export function createSessionRouter(sessionService: SessionService): Router {
     const router: Router = Router();
@@ -77,11 +78,10 @@ export function createSessionRouter(sessionService: SessionService): Router {
 
             const response = await sessionService.createSession(parseResult.data);
 
-            const wideEvent = res.locals.wideEvent as
-                | { roomName?: string; userIdentity?: string }
-                | undefined;
+            const wideEvent = res.locals.wideEvent as HttpWideEvent | undefined;
             if (wideEvent) {
                 wideEvent.roomName = response.roomName;
+                wideEvent.sessionId = response.sessionId;
                 wideEvent.userIdentity = parseResult.data.userIdentity;
             }
 
@@ -104,8 +104,14 @@ export function createSessionRouter(sessionService: SessionService): Router {
                     : { sessionId: payload.sessionId }
             );
 
-            const wideEvent = res.locals.wideEvent as { roomName?: string } | undefined;
-            if (wideEvent && 'roomName' in payload) wideEvent.roomName = payload.roomName;
+            const wideEvent = res.locals.wideEvent as HttpWideEvent | undefined;
+            if (wideEvent) {
+                if ('roomName' in payload) {
+                    wideEvent.roomName = payload.roomName;
+                } else {
+                    wideEvent.sessionId = payload.sessionId;
+                }
+            }
 
             return res.status(204).send();
         })
@@ -142,8 +148,11 @@ export function createSessionRouter(sessionService: SessionService): Router {
                 }
             }
 
-            const wideEvent = res.locals.wideEvent as { roomName?: string } | undefined;
-            if (wideEvent) wideEvent.roomName = payload.roomName;
+            const wideEvent = res.locals.wideEvent as HttpWideEvent | undefined;
+            if (wideEvent) {
+                wideEvent.roomName = payload.roomName;
+                wideEvent.sessionId = payload.sessionId ?? undefined;
+            }
 
             return res.status(204).send();
         })

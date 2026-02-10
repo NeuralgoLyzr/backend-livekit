@@ -34,9 +34,6 @@ export function formatErrorResponse(
 
     return {
         error: options?.fallbackMessage ?? 'Internal server error',
-        ...(isDev
-            ? { details: error instanceof Error ? error.message : 'Unknown error' }
-            : {}),
+        ...(isDev ? { details: error instanceof Error ? error.message : 'Unknown error' } : {}),
     };
 }
-

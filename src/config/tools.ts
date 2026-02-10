@@ -103,3 +103,14 @@ export function deriveRagConfigFromKnowledgeBase(agentConfig?: AgentConfig): {
         agentic_rag: kb.agentic_rag ?? [],
     };
 }
+
+/**
+ * Apply tool normalization and KB-derived RAG fields to produce a dispatch-ready config.
+ */
+export function finalizeAgentConfig(agentConfig: AgentConfig): AgentConfig {
+    return {
+        ...agentConfig,
+        tools: normalizeTools(agentConfig),
+        ...deriveRagConfigFromKnowledgeBase(agentConfig),
+    };
+}

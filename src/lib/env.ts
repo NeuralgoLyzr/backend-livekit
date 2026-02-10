@@ -5,4 +5,3 @@ export function isProduction(): boolean {
 export function isDevelopment(): boolean {
     return !isProduction();
 }
-

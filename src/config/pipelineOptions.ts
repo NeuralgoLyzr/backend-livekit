@@ -209,9 +209,7 @@ export function getPipelineOptions(): PipelineOptionsResponse {
             {
                 providerId: 'moonshotai',
                 displayName: 'MoonshotAI (Kimi)',
-                models: [
-                    { id: 'moonshotai/kimi-k2-instruct', name: 'Kimi K2 Instruct' },
-                ],
+                models: [{ id: 'moonshotai/kimi-k2-instruct', name: 'Kimi K2 Instruct' }],
             },
             {
                 providerId: 'deepseek-ai',

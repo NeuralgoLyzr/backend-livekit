@@ -12,4 +12,3 @@ export const OPENAI_VOICES: RealtimeOption[] = [
     { id: 'marin', name: 'Marin', description: 'Professional and clear' },
     { id: 'cedar', name: 'Cedar', description: 'Natural and conversational' },
 ];
-

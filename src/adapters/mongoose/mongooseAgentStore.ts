@@ -73,7 +73,10 @@ export class MongooseAgentStore implements AgentStorePort {
         if (input.config !== undefined) $set.config = input.config as unknown;
 
         if (Object.keys($set).length === 0) {
-            const existing = await Agent.findOne({ _id, deletedAt: null }).lean<AgentConfigDocument>();
+            const existing = await Agent.findOne({
+                _id,
+                deletedAt: null,
+            }).lean<AgentConfigDocument>();
             if (!existing) return null;
             return toStoredAgent(existing);
         }
@@ -102,4 +105,3 @@ export class MongooseAgentStore implements AgentStorePort {
         return res.modifiedCount > 0;
     }
 }
-

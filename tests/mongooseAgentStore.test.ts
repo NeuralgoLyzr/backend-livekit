@@ -46,7 +46,9 @@ const Agent: {
 };
 
 vi.mock('../dist/db/mongoose.js', () => ({ connectMongo }));
-vi.mock('../dist/models/agentModel.js', () => ({ getAgentModel: () => Agent as unknown as AgentModelStub }));
+vi.mock('../dist/models/agentModel.js', () => ({
+    getAgentModel: () => Agent as unknown as AgentModelStub,
+}));
 
 describe('MongooseAgentStore (unit)', () => {
     beforeEach(() => {
@@ -75,7 +77,8 @@ describe('MongooseAgentStore (unit)', () => {
         };
         Agent.find.mockReturnValue(findQuery);
 
-        const { MongooseAgentStore } = await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+        const { MongooseAgentStore } =
+            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
         const store = new MongooseAgentStore();
 
         const result = await store.list({ limit: 10, offset: 5 });
@@ -88,8 +91,6 @@ describe('MongooseAgentStore (unit)', () => {
         expect(result).toEqual([
             {
                 id: '507f1f77bcf86cd799439011',
-                name: 'A',
-                description: null,
                 config: { tools: ['get_weather'] },
                 createdAt: now.toISOString(),
                 updatedAt: now.toISOString(),
@@ -101,10 +102,13 @@ describe('MongooseAgentStore (unit)', () => {
         const updateQuery = { lean: vi.fn(async () => null) };
         Agent.findOneAndUpdate.mockReturnValue(updateQuery);
 
-        const { MongooseAgentStore } = await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+        const { MongooseAgentStore } =
+            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
         const store = new MongooseAgentStore();
 
-        const result = await store.update('507f1f77bcf86cd799439011', { name: 'new' });
+        const result = await store.update('507f1f77bcf86cd799439011', {
+            config: { agent_name: 'new' },
+        });
         expect(result).toBeNull();
     });
 
@@ -121,7 +125,8 @@ describe('MongooseAgentStore (unit)', () => {
         };
         Agent.create.mockResolvedValue({ toObject: () => storedRow });
 
-        const { MongooseAgentStore } = await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+        const { MongooseAgentStore } =
+            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
         const store = new MongooseAgentStore();
 
         const created = await store.create({
@@ -132,4 +137,3 @@ describe('MongooseAgentStore (unit)', () => {
         expect(created.config).toEqual({ nested: { x: 1 } });
     });
 });
-

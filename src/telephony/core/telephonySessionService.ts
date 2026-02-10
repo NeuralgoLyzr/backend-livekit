@@ -35,7 +35,7 @@ function isSipParticipant(
 }
 
 export class TelephonySessionService {
-    constructor(private readonly deps: TelephonySessionServiceDeps) { }
+    constructor(private readonly deps: TelephonySessionServiceDeps) {}
 
     async handleLiveKitEvent(evt: NormalizedLiveKitEvent): Promise<{
         firstSeen: boolean;

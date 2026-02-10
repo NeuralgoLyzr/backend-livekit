@@ -25,13 +25,13 @@ function getAxiomTransportOptions(): { dataset: string; token: string } | null {
 const axiomOptions = getAxiomTransportOptions();
 const transport = axiomOptions
     ? pino.transport<Record<string, any>>({
-        targets: [
-            // Keep JSON logs on stdout (containers / local dev).
-            { target: 'pino/file', options: { destination: 1 } },
-            // Ship to Axiom (official transport).
-            { target: '@axiomhq/pino', options: axiomOptions },
-        ],
-    })
+          targets: [
+              // Keep JSON logs on stdout (containers / local dev).
+              { target: 'pino/file', options: { destination: 1 } },
+              // Ship to Axiom (official transport).
+              { target: '@axiomhq/pino', options: axiomOptions },
+          ],
+      })
     : undefined;
 
 const baseLoggerOptions: pino.LoggerOptions = {
@@ -56,10 +56,13 @@ const baseLoggerOptions: pino.LoggerOptions = {
             'req.headers.authorization',
             'req.headers.Authorization',
             '*.apiSecret',
+            '*.apiKey',
             '*.api_key',
             'api_key',
+            'apiKey',
             'agentConfig.api_key',
             'metadata.api_key',
+            'metadata.apiKey',
         ],
         remove: true,
     },
@@ -107,4 +110,3 @@ export async function shutdownLogger(options?: { timeoutMs?: number }): Promise<
 
     await closeTransport(timeoutMs);
 }
-

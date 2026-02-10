@@ -28,18 +28,18 @@ export function normalizeLiveKitWebhookEvent(
     const participant =
         evt.participant && typeof evt.participant === 'object'
             ? {
-                participantId:
-                    typeof evt.participant.sid === 'string' ? evt.participant.sid : undefined,
-                identity:
-                    typeof evt.participant.identity === 'string'
-                        ? evt.participant.identity
-                        : undefined,
-                kind: typeof evt.participant.kind === 'string' ? evt.participant.kind : undefined,
-                attributes:
-                    evt.participant.attributes && typeof evt.participant.attributes === 'object'
-                        ? (evt.participant.attributes as Record<string, string>)
-                        : undefined,
-            }
+                  participantId:
+                      typeof evt.participant.sid === 'string' ? evt.participant.sid : undefined,
+                  identity:
+                      typeof evt.participant.identity === 'string'
+                          ? evt.participant.identity
+                          : undefined,
+                  kind: typeof evt.participant.kind === 'string' ? evt.participant.kind : undefined,
+                  attributes:
+                      evt.participant.attributes && typeof evt.participant.attributes === 'object'
+                          ? (evt.participant.attributes as Record<string, string>)
+                          : undefined,
+              }
             : undefined;
 
     return { eventId, eventIdDerived, event, createdAt, roomName, participant, raw: evt };

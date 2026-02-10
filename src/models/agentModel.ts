@@ -27,4 +27,3 @@ export function getAgentModel(): Model<AgentConfigDocument> {
     const existing = mongoose.models.Agent as Model<AgentConfigDocument> | undefined;
     return existing ?? mongoose.model<AgentConfigDocument>('Agent', AgentSchema);
 }
-

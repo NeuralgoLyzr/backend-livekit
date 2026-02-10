@@ -1,4 +1,5 @@
 import { config } from '../config/index.js';
+import { services } from '../composition.js';
 import { InMemoryTelephonyStore } from './adapters/store/inMemoryTelephonyStore.js';
 import { LiveKitWebhookVerifier } from './adapters/livekit/webhookVerifier.js';
 import { DefaultCallRouting } from './routing/defaultRouting.js';
@@ -7,7 +8,7 @@ import { AgentDispatchAdapter } from './adapters/livekit/agentDispatchAdapter.js
 
 const store = new InMemoryTelephonyStore();
 const routing = new DefaultCallRouting();
-const agentDispatch = new AgentDispatchAdapter();
+const agentDispatch = new AgentDispatchAdapter(services.agentService);
 const webhookVerifier = new LiveKitWebhookVerifier(
     config.telephony.webhook.apiKey,
     config.telephony.webhook.apiSecret

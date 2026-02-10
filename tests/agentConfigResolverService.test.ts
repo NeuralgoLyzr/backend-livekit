@@ -5,9 +5,8 @@ import { setRequiredEnv } from './testUtils';
 describe('agentConfigResolverService (unit)', () => {
     it('merges overrides and normalizes tools + KB-derived RAG fields', async () => {
         setRequiredEnv();
-        const { createAgentConfigResolverService } = await import(
-            '../dist/services/agentConfigResolverService.js'
-        );
+        const { createAgentConfigResolverService } =
+            await import('../dist/services/agentConfigResolverService.js');
 
         const storedConfig = {
             tools: ['get_weather'],
@@ -50,9 +49,8 @@ describe('agentConfigResolverService (unit)', () => {
 
     it('throws 404 when agent is missing', async () => {
         setRequiredEnv();
-        const { createAgentConfigResolverService } = await import(
-            '../dist/services/agentConfigResolverService.js'
-        );
+        const { createAgentConfigResolverService } =
+            await import('../dist/services/agentConfigResolverService.js');
         const { HttpError } = await import('../dist/lib/httpErrors.js');
 
         const resolver = createAgentConfigResolverService({
@@ -72,4 +70,3 @@ describe('agentConfigResolverService (unit)', () => {
         ).rejects.toBeInstanceOf(HttpError);
     });
 });
-

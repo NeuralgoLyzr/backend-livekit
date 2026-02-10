@@ -103,6 +103,6 @@ describe('backend HTTP contract', () => {
         const app = await importFreshApp({ sessionServiceMock: { endSession } });
 
         await request(app).post('/session/end').send({ roomName: 'room-123' }).expect(204);
-        expect(endSession).toHaveBeenCalledWith('room-123');
+        expect(endSession).toHaveBeenCalledWith({ roomName: 'room-123' });
     });
 });

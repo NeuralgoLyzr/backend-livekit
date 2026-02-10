@@ -3,11 +3,8 @@
  * Starts the Express API server
  */
 
-import dotenv from 'dotenv';
+import 'dotenv/config';
 import type { AddressInfo } from 'node:net';
-
-// Load environment variables FIRST (before importing config)
-dotenv.config();
 
 import { app } from './app.js';
 import { config } from './config/index.js';

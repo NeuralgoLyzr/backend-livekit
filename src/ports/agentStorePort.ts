@@ -27,4 +27,3 @@ export interface AgentStorePort {
     update(id: string, input: UpdateAgentInput): Promise<StoredAgent | null>;
     delete(id: string): Promise<boolean>;
 }
-

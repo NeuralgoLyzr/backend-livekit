@@ -61,4 +61,3 @@ export function createAgentRegistryService(deps: { store: AgentStorePort }): Age
         },
     };
 }
-

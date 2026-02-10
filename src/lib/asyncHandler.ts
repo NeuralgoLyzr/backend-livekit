@@ -7,4 +7,3 @@ export function asyncHandler(
         Promise.resolve(handler(req, res, next)).catch(next);
     };
 }
-

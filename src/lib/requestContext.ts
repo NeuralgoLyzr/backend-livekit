@@ -17,4 +17,3 @@ export function getRequestContext(): RequestContext | undefined {
 export function getRequestId(): string | undefined {
     return requestContextStorage.getStore()?.requestId;
 }
-

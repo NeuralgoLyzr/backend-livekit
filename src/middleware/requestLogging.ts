@@ -50,7 +50,8 @@ function isHealthCheckRequest(req: Request): boolean {
 
 export function requestLoggingMiddleware(req: Request, res: Response, next: NextFunction): void {
     const headerRequestId = req.header('x-request-id');
-    const requestId = headerRequestId && headerRequestId.trim().length > 0 ? headerRequestId : randomUUID();
+    const requestId =
+        headerRequestId && headerRequestId.trim().length > 0 ? headerRequestId : randomUUID();
 
     res.setHeader('X-Request-Id', requestId);
 
@@ -87,4 +88,3 @@ export function requestLoggingMiddleware(req: Request, res: Response, next: Next
         next();
     });
 }
-

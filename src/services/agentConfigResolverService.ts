@@ -1,4 +1,4 @@
-import { deriveRagConfigFromKnowledgeBase, normalizeTools } from '../config/tools.js';
+import { finalizeAgentConfig } from '../config/tools.js';
 import { HttpError } from '../lib/httpErrors.js';
 import type { AgentStorePort } from '../ports/agentStorePort.js';
 import type { AgentConfig } from '../types/index.js';
@@ -39,22 +39,17 @@ export function createAgentConfigResolverService(deps: {
     agentStore: AgentStorePort;
 }): AgentConfigResolverService {
     return {
-        async resolveByAgentId(input: { agentId: string; overrides?: AgentConfig }): Promise<AgentConfig> {
+        async resolveByAgentId(input: {
+            agentId: string;
+            overrides?: AgentConfig;
+        }): Promise<AgentConfig> {
             const agent = await deps.agentStore.getById(input.agentId);
             if (!agent) {
                 throw new HttpError(404, 'Agent not found');
             }
 
             const merged = mergeAgentConfig(agent.config ?? {}, input.overrides);
-            const normalizedTools = normalizeTools(merged);
-            const derivedRag = deriveRagConfigFromKnowledgeBase(merged);
-
-            return {
-                ...merged,
-                tools: normalizedTools,
-                ...derivedRag,
-            };
+            return finalizeAgentConfig(merged);
         },
     };
 }
-

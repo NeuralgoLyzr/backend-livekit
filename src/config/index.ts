@@ -3,11 +3,6 @@
  * Loads and validates environment variables
  */
 
-import dotenv from 'dotenv';
-
-// Load environment variables for this module
-dotenv.config();
-
 const requiredEnvVars = ['LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET'] as const;
 
 for (const envVar of requiredEnvVars) {

@@ -5,6 +5,7 @@ import { vi } from 'vitest';
 type SessionServiceMock = {
     createSession?: Mock;
     endSession?: Mock;
+    cleanupSession?: Mock;
 };
 
 export function setRequiredEnv(overrides?: Record<string, string | undefined>) {
@@ -12,7 +13,6 @@ export function setRequiredEnv(overrides?: Record<string, string | undefined>) {
     process.env.LIVEKIT_API_KEY = 'test_api_key';
     process.env.LIVEKIT_API_SECRET = 'test_api_secret';
     process.env.PORT = '0';
-    // Default to production to keep test output quiet (routes may override as needed).
     process.env.NODE_ENV = 'production';
     process.env.TELEPHONY_ENABLED = 'false';
 
@@ -35,8 +35,18 @@ export async function importFreshApp(options?: {
     if (options?.sessionServiceMock) {
         const createSession = options.sessionServiceMock.createSession ?? vi.fn();
         const endSession = options.sessionServiceMock.endSession ?? vi.fn();
-        vi.doMock('../dist/services/sessionService.js', () => ({
-            sessionService: { createSession, endSession },
+        const cleanupSession = options.sessionServiceMock.cleanupSession ?? vi.fn();
+        vi.doMock('../dist/composition.js', () => ({
+            services: {
+                sessionService: { createSession, endSession, cleanupSession },
+                agentRegistryService: {
+                    listAgents: vi.fn().mockResolvedValue([]),
+                    getAgent: vi.fn().mockResolvedValue(null),
+                    createAgent: vi.fn(),
+                    updateAgent: vi.fn(),
+                    deleteAgent: vi.fn(),
+                },
+            },
         }));
     }
 

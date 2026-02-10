@@ -1,15 +1,12 @@
-/**
- * Express application setup
- */
-
 import express, { type Express, type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
-import sessionRouter from './routes/session.js';
+import { createSessionRouter } from './routes/session.js';
 import healthRouter from './routes/health.js';
 import configRouter from './routes/config.js';
 import telephonyRouter from './routes/telephony.js';
-import agentsRouter from './routes/agents.js';
+import { createAgentsRouter } from './routes/agents.js';
 import { config } from './config/index.js';
+import { services } from './composition.js';
 import { formatErrorResponse, getErrorStatus } from './lib/httpErrors.js';
 import { requestLoggingMiddleware } from './middleware/requestLogging.js';
 import { logger } from './lib/logger.js';
@@ -32,11 +29,11 @@ app.use(express.json({ limit: '10mb' }));
 app.use(requestLoggingMiddleware);
 
 // Routes
-app.use('/session', sessionRouter);
+app.use('/session', createSessionRouter(services.sessionService));
 app.use('/health', healthRouter);
 app.use('/config', configRouter);
 app.use('/telephony', telephonyRouter);
-app.use('/agents', agentsRouter);
+app.use('/agents', createAgentsRouter(services.agentRegistryService));
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -66,7 +63,7 @@ app.use((req: Request, res: Response) => {
 });
 
 // Error handling middleware
-app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
     const statusCode = getErrorStatus(err);
     logger.error(
         {

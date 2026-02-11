@@ -17,6 +17,8 @@ import type { AgentConfig } from '../../types/index.js';
 import { encryptString, decryptString, fingerprintSecret } from '../../lib/crypto/secretBox.js';
 import { HttpError } from '../../lib/httpErrors.js';
 import { logger } from '../../lib/logger.js';
+import type { LiveKitTelephonyProvisioningPort } from './livekitTelephonyProvisioningService.js';
+import { normalizeE164 } from '../core/e164.js';
 
 const TelnyxProviderResourcesSchema = z
     .object({
@@ -30,6 +32,7 @@ export interface TelnyxOnboardingDeps {
     bindingStore: TelephonyBindingStorePort;
     encryptionKey: Buffer;
     livekitSipHost: string;
+    livekitProvisioning: LiveKitTelephonyProvisioningPort;
 }
 
 const TRUNK_NAME_PREFIX = 'livekit-inbound-';
@@ -194,6 +197,15 @@ export class TelnyxOnboardingService {
         const apiKey = this.decryptApiKeyFromIntegration(integration);
         const client = new TelnyxClient(apiKey);
 
+        const providerNumber = await this.getPhoneNumberOrThrow(client, input.providerNumberId);
+        const normalizedDid = this.assertRequestedDidMatchesProviderNumber(
+            input.e164,
+            providerNumber.phone_number
+        );
+
+        // Ensure LiveKit inbound trunk + dispatch rule exist for this DID before connecting provider routing.
+        await this.deps.livekitProvisioning.ensureInboundSetupForDid(normalizedDid);
+
         const parsed = TelnyxProviderResourcesSchema.safeParse(integration.providerResources);
         const connectionId =
             parsed.success && parsed.data.fqdnConnectionId
@@ -213,13 +225,13 @@ export class TelnyxOnboardingService {
             integrationId,
             provider: 'telnyx',
             providerNumberId: input.providerNumberId,
-            e164: input.e164,
+            e164: normalizedDid,
             agentId: input.agentId,
             agentConfig: input.agentConfig,
         });
 
         logger.info(
-            { event: 'telnyx.number.connected', integrationId, e164: input.e164 },
+            { event: 'telnyx.number.connected', integrationId, e164: normalizedDid },
             'Number connected'
         );
         return binding;
@@ -343,6 +355,31 @@ export class TelnyxOnboardingService {
     private async decryptApiKey(integrationId: string): Promise<string> {
         const integration = await this.getIntegrationOrThrow(integrationId);
         return this.decryptApiKeyFromIntegration(integration);
+    }
+
+    private async getPhoneNumberOrThrow(
+        client: TelnyxClient,
+        providerNumberId: string
+    ): Promise<TelnyxPhoneNumber> {
+        try {
+            return await client.getPhoneNumber(providerNumberId);
+        } catch (err) {
+            throw mapTelnyxError(err);
+        }
+    }
+
+    private assertRequestedDidMatchesProviderNumber(requestedDid: string, providerDid: string): string {
+        const normalizedRequested = normalizeE164(requestedDid);
+        const normalizedProvider = normalizeE164(providerDid);
+
+        if (normalizedRequested !== normalizedProvider) {
+            throw new HttpError(
+                422,
+                `Requested e164 ${normalizedRequested} does not match provider number ${normalizedProvider}`
+            );
+        }
+
+        return normalizedProvider;
     }
 
     private async getIntegrationOrThrow(

@@ -9,6 +9,11 @@ import { MongooseTelephonyIntegrationStore } from './adapters/store/mongooseTele
 import { MongooseTelephonyBindingStore } from './adapters/store/mongooseTelephonyBindingStore.js';
 import { TelnyxOnboardingService } from './management/telnyxOnboardingService.js';
 import { BindingBasedCallRouting } from './routing/bindingBasedCallRouting.js';
+import { TwilioOnboardingService } from './management/twilioOnboardingService.js';
+import { SipClient } from 'livekit-server-sdk';
+import { toLiveKitHttpUrl } from './adapters/livekit/livekitHttpUrl.js';
+import { LiveKitSipClientAdapter } from './adapters/livekit/livekitSipClientAdapter.js';
+import { LiveKitTelephonyProvisioningService } from './management/livekitTelephonyProvisioningService.js';
 
 const store = new InMemoryTelephonyStore();
 
@@ -27,6 +32,21 @@ const webhookVerifier = new LiveKitWebhookVerifier(
 
 // Telnyx onboarding (available when encryption key + SIP host configured)
 const mgmtConfig = config.telephony.management;
+
+// LiveKit telephony provisioning (SIP inbound trunk + dispatch rule)
+const sipClient = new SipClient(
+    toLiveKitHttpUrl(config.livekit.url),
+    config.livekit.apiKey,
+    config.livekit.apiSecret,
+    { requestTimeout: 15_000 }
+);
+const livekitProvisioning = new LiveKitTelephonyProvisioningService({
+    sipClient: new LiveKitSipClientAdapter(sipClient),
+    inboundTrunkName: mgmtConfig.livekitProvisioning.inboundTrunkName,
+    dispatchRuleName: mgmtConfig.livekitProvisioning.dispatchRuleName,
+    roomPrefix: mgmtConfig.livekitProvisioning.dispatchRoomPrefix,
+});
+
 const telnyxOnboarding =
     mgmtConfig.encryptionKey && mgmtConfig.livekitSipHost
         ? new TelnyxOnboardingService({
@@ -34,6 +54,18 @@ const telnyxOnboarding =
               bindingStore,
               encryptionKey: mgmtConfig.encryptionKey,
               livekitSipHost: mgmtConfig.livekitSipHost,
+              livekitProvisioning,
+          })
+        : null;
+
+const twilioOnboarding =
+    mgmtConfig.encryptionKey && mgmtConfig.livekitSipHost
+        ? new TwilioOnboardingService({
+              integrationStore,
+              bindingStore,
+              encryptionKey: mgmtConfig.encryptionKey,
+              livekitSipHost: mgmtConfig.livekitSipHost,
+              livekitProvisioning,
           })
         : null;
 
@@ -55,4 +87,5 @@ export const telephonyModule = {
     integrationStore,
     bindingStore,
     telnyxOnboarding,
+    twilioOnboarding,
 };

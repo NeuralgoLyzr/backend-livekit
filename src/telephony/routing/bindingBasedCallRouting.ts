@@ -17,8 +17,23 @@ export class BindingBasedCallRouting implements CallRoutingPort {
         const normalizedDid = normalizeE164(ctx.to);
         const binding = await this.bindingStore.getBindingByE164(normalizedDid);
 
-        if (binding && binding.enabled && binding.agentConfig) {
-            return { agentConfig: binding.agentConfig };
+        if (binding && binding.enabled) {
+            if (binding.agentConfig) {
+                return {
+                    agentConfig: {
+                        ...binding.agentConfig,
+                        ...(binding.agentId ? { agent_id: binding.agentId } : {}),
+                    },
+                };
+            }
+
+            if (binding.agentId) {
+                return {
+                    agentConfig: {
+                        agent_id: binding.agentId,
+                    },
+                };
+            }
         }
 
         return this.fallback.resolveRouting(ctx);

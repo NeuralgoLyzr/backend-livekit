@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { setRequiredEnv } from './testUtils';
 
+type AgentDispatchClient = {
+    createDispatch: (roomName: string, agentName: string, opts: { metadata: string }) => Promise<unknown>;
+};
+
 describe('agentService (unit)', () => {
     it('dispatches agent with correct metadata', async () => {
         setRequiredEnv();
@@ -8,7 +12,7 @@ describe('agentService (unit)', () => {
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'dispatch-1' });
         const svc = createAgentService({
-            client: { createDispatch } as any,
+            client: { createDispatch } as unknown as AgentDispatchClient,
             agentName: 'test-agent',
         });
 
@@ -40,7 +44,7 @@ describe('agentService (unit)', () => {
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-2' });
         const svc = createAgentService({
-            client: { createDispatch } as any,
+            client: { createDispatch } as unknown as AgentDispatchClient,
             agentName: 'test-agent',
         });
 
@@ -60,7 +64,7 @@ describe('agentService (unit)', () => {
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-3' });
         const svc = createAgentService({
-            client: { createDispatch } as any,
+            client: { createDispatch } as unknown as AgentDispatchClient,
             agentName: 'test-agent',
         });
 
@@ -89,7 +93,7 @@ describe('agentService (unit)', () => {
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-4' });
         const svc = createAgentService({
-            client: { createDispatch } as any,
+            client: { createDispatch } as unknown as AgentDispatchClient,
             agentName: 'test-agent',
         });
 
@@ -115,7 +119,7 @@ describe('agentService (unit)', () => {
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-5' });
         const svc = createAgentService({
-            client: { createDispatch } as any,
+            client: { createDispatch } as unknown as AgentDispatchClient,
             agentName: 'test-agent',
         });
 
@@ -130,7 +134,7 @@ describe('agentService (unit)', () => {
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-6' });
         const svc = createAgentService({
-            client: { createDispatch } as any,
+            client: { createDispatch } as unknown as AgentDispatchClient,
             agentName: 'test-agent',
         });
 
@@ -161,7 +165,7 @@ describe('agentService (unit)', () => {
 
         const createDispatch = vi.fn().mockRejectedValue(new Error('network fail'));
         const svc = createAgentService({
-            client: { createDispatch } as any,
+            client: { createDispatch } as unknown as AgentDispatchClient,
             agentName: 'test-agent',
         });
 
@@ -174,7 +178,7 @@ describe('agentService (unit)', () => {
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-7' });
         const svc = createAgentService({
-            client: { createDispatch } as any,
+            client: { createDispatch } as unknown as AgentDispatchClient,
             agentName: 'test-agent',
         });
 
@@ -189,7 +193,7 @@ describe('agentService (unit)', () => {
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-8' });
         const svc = createAgentService({
-            client: { createDispatch } as any,
+            client: { createDispatch } as unknown as AgentDispatchClient,
             agentName: 'test-agent',
         });
 

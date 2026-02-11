@@ -24,7 +24,7 @@ function getAxiomTransportOptions(): { dataset: string; token: string } | null {
 
 const axiomOptions = getAxiomTransportOptions();
 const transport = axiomOptions
-    ? pino.transport<Record<string, any>>({
+    ? pino.transport<Record<string, unknown>>({
           targets: [
               // Keep JSON logs on stdout (containers / local dev).
               { target: 'pino/file', options: { destination: 1 } },

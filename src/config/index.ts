@@ -42,6 +42,14 @@ export const config = {
                 ? Buffer.from(process.env.TELEPHONY_SECRETS_KEY, 'base64')
                 : null,
             livekitSipHost: process.env.LIVEKIT_SIP_HOST || '',
+            livekitProvisioning: {
+                inboundTrunkName:
+                    process.env.TELEPHONY_LIVEKIT_INBOUND_TRUNK_NAME || 'byoc-inbound',
+                dispatchRuleName:
+                    process.env.TELEPHONY_LIVEKIT_DISPATCH_RULE_NAME || 'byoc-dispatch',
+                dispatchRoomPrefix:
+                    process.env.TELEPHONY_LIVEKIT_DISPATCH_ROOM_PREFIX || 'call-',
+            },
         },
     },
     telnyx: {

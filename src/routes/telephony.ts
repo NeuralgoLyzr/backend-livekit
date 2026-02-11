@@ -9,6 +9,7 @@ import { normalizeLiveKitWebhookEvent } from '../telephony/adapters/livekit/even
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { logger } from '../lib/logger.js';
 import { createTelnyxRouter } from '../telephony/http/telnyxRoutes.js';
+import { createTwilioRouter } from '../telephony/http/twilioRoutes.js';
 
 const router: Router = Router();
 
@@ -61,6 +62,17 @@ if (telephonyModule.telnyxOnboarding) {
         '/providers/telnyx',
         createTelnyxRouter({
             onboardingService: telephonyModule.telnyxOnboarding,
+            integrationStore: telephonyModule.integrationStore,
+        })
+    );
+}
+
+// Mount Twilio management routes
+if (telephonyModule.twilioOnboarding) {
+    router.use(
+        '/providers/twilio',
+        createTwilioRouter({
+            onboardingService: telephonyModule.twilioOnboarding,
             integrationStore: telephonyModule.integrationStore,
         })
     );

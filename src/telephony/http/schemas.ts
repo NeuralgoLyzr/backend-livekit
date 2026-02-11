@@ -23,6 +23,23 @@ export const CreateIntegrationRequestSchema = z
     })
     .strict();
 
+export const TwilioVerifyCredentialsRequestSchema = z
+    .object({
+        accountSid: z.string().min(1, 'accountSid is required'),
+        apiKeySid: z.string().min(1, 'apiKeySid is required'),
+        apiKeySecret: z.string().min(1, 'apiKeySecret is required'),
+    })
+    .strict();
+
+export const TwilioCreateIntegrationRequestSchema = z
+    .object({
+        accountSid: z.string().min(1, 'accountSid is required'),
+        apiKeySid: z.string().min(1, 'apiKeySid is required'),
+        apiKeySecret: z.string().min(1, 'apiKeySecret is required'),
+        name: z.string().optional(),
+    })
+    .strict();
+
 export const ConnectNumberRequestSchema = z
     .object({
         agentId: z.string().optional(),
@@ -33,4 +50,6 @@ export const ConnectNumberRequestSchema = z
 
 export type VerifyCredentialsRequest = z.infer<typeof VerifyCredentialsRequestSchema>;
 export type CreateIntegrationRequest = z.infer<typeof CreateIntegrationRequestSchema>;
+export type TwilioVerifyCredentialsRequest = z.infer<typeof TwilioVerifyCredentialsRequestSchema>;
+export type TwilioCreateIntegrationRequest = z.infer<typeof TwilioCreateIntegrationRequestSchema>;
 export type ConnectNumberRequest = z.infer<typeof ConnectNumberRequestSchema>;

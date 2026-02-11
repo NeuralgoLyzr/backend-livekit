@@ -53,7 +53,10 @@ describe('BindingBasedCallRouting', () => {
 
         const result = await router.resolveRouting(makeCtx());
 
-        expect(result.agentConfig).toEqual(BOUND_AGENT_CONFIG);
+        expect(result.agentConfig).toEqual({
+            ...BOUND_AGENT_CONFIG,
+            agent_id: 'agent-1',
+        });
         expect(store.getBindingByE164).toHaveBeenCalledWith('+15559876543');
     });
 
@@ -90,9 +93,24 @@ describe('BindingBasedCallRouting', () => {
         expect(result.agentConfig.prompt).toContain('helpful voice AI assistant');
     });
 
-    it('falls back when the binding has no agentConfig', async () => {
+    it('routes with agent_id when the binding has no agentConfig but has agentId', async () => {
         const store = makeBindingStore({
             getBindingByE164: vi.fn().mockResolvedValue(makeStoredBinding({ agentConfig: null })),
+        });
+        const router = new BindingBasedCallRouting(store);
+
+        const result = await router.resolveRouting(makeCtx());
+
+        expect(result.agentConfig).toEqual({
+            agent_id: 'agent-1',
+        });
+    });
+
+    it('falls back when the binding has neither agentConfig nor agentId', async () => {
+        const store = makeBindingStore({
+            getBindingByE164: vi
+                .fn()
+                .mockResolvedValue(makeStoredBinding({ agentConfig: null, agentId: null })),
         });
         const router = new BindingBasedCallRouting(store);
 

@@ -1,66 +1,60 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { randomBytes } from 'node:crypto';
 
 import type {
-    TelephonyIntegrationStorePort,
-    StoredIntegration,
     CreateIntegrationInput,
+    StoredIntegration,
+    TelephonyIntegrationStorePort,
 } from '../dist/telephony/ports/telephonyIntegrationStorePort.js';
 import type {
-    TelephonyBindingStorePort,
     StoredBinding,
+    TelephonyBindingStorePort,
     UpsertBindingInput,
 } from '../dist/telephony/ports/telephonyBindingStorePort.js';
 
-vi.mock('../dist/telephony/adapters/telnyx/telnyxClient.js', () => {
-    const MockTelnyxClient = vi.fn();
-    MockTelnyxClient.prototype.verifyCredentials = vi.fn();
-    MockTelnyxClient.prototype.listPhoneNumbers = vi.fn();
-    MockTelnyxClient.prototype.getPhoneNumber = vi.fn();
-    MockTelnyxClient.prototype.listFqdnConnections = vi.fn();
-    MockTelnyxClient.prototype.createFqdnConnection = vi.fn();
-    MockTelnyxClient.prototype.listFqdns = vi.fn();
-    MockTelnyxClient.prototype.createFqdn = vi.fn();
-    MockTelnyxClient.prototype.assignPhoneNumberToConnection = vi.fn();
+vi.mock('../dist/telephony/adapters/twilio/twilioClient.js', () => {
+    const MockTwilioClient = vi.fn();
+    MockTwilioClient.prototype.verifyCredentials = vi.fn();
+    MockTwilioClient.prototype.listIncomingPhoneNumbers = vi.fn();
+    MockTwilioClient.prototype.getIncomingPhoneNumber = vi.fn();
+    MockTwilioClient.prototype.listTrunks = vi.fn();
+    MockTwilioClient.prototype.createTrunk = vi.fn();
+    MockTwilioClient.prototype.listOriginationUrls = vi.fn();
+    MockTwilioClient.prototype.createOriginationUrl = vi.fn();
+    MockTwilioClient.prototype.listTrunkPhoneNumbers = vi.fn();
+    MockTwilioClient.prototype.attachPhoneNumberToTrunk = vi.fn();
 
     return {
-        TelnyxClient: MockTelnyxClient,
-        isTelnyxClientError: vi.fn().mockReturnValue(false),
+        TwilioClient: MockTwilioClient,
+        isTwilioClientError: vi.fn().mockReturnValue(false),
     };
 });
 
-import { TelnyxOnboardingService } from '../dist/telephony/management/telnyxOnboardingService.js';
-import { TelnyxClient } from '../dist/telephony/adapters/telnyx/telnyxClient.js';
+import { TwilioOnboardingService } from '../dist/telephony/management/twilioOnboardingService.js';
+import { TwilioClient } from '../dist/telephony/adapters/twilio/twilioClient.js';
 
 const ENCRYPTION_KEY = randomBytes(32);
 const SIP_HOST = 'sip.livekit.cloud';
 
 function setupDefaultClientMocks() {
-    (TelnyxClient.prototype.verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (TwilioClient.prototype.verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({
         valid: true,
     });
-    (TelnyxClient.prototype.listPhoneNumbers as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    (TelnyxClient.prototype.getPhoneNumber as ReturnType<typeof vi.fn>).mockResolvedValue({
-        id: 'pn_1',
-        phone_number: '+15551234567',
-        status: 'active',
-        connection_id: null,
-        connection_name: null,
+    (TwilioClient.prototype.listIncomingPhoneNumbers as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (TwilioClient.prototype.getIncomingPhoneNumber as ReturnType<typeof vi.fn>).mockResolvedValue({
+        sid: 'PN_1',
+        phoneNumber: '+15551234567',
+        friendlyName: 'n1',
     });
-    (TelnyxClient.prototype.listFqdnConnections as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    (TelnyxClient.prototype.createFqdnConnection as ReturnType<typeof vi.fn>).mockResolvedValue({
-        id: 'conn_1',
-        connection_name: 'livekit-inbound-int_1',
+    (TwilioClient.prototype.listTrunks as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (TwilioClient.prototype.createTrunk as ReturnType<typeof vi.fn>).mockResolvedValue({ sid: 'TRUNK_1' });
+    (TwilioClient.prototype.listOriginationUrls as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (TwilioClient.prototype.createOriginationUrl as ReturnType<typeof vi.fn>).mockResolvedValue({
+        sid: 'ORIG_1',
     });
-    (TelnyxClient.prototype.listFqdns as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    (TelnyxClient.prototype.createFqdn as ReturnType<typeof vi.fn>).mockResolvedValue({
-        id: 'fqdn_1',
-        fqdn: SIP_HOST,
-        connection_id: 'conn_1',
-    });
-    (
-        TelnyxClient.prototype.assignPhoneNumberToConnection as ReturnType<typeof vi.fn>
-    ).mockResolvedValue(undefined);
+    (TwilioClient.prototype.attachPhoneNumberToTrunk as ReturnType<typeof vi.fn>).mockResolvedValue(
+        undefined
+    );
 }
 
 function makeIntegration(
@@ -68,7 +62,7 @@ function makeIntegration(
 ): StoredIntegration & { encryptedApiKey: string } {
     return {
         id: 'int_1',
-        provider: 'telnyx',
+        provider: 'twilio',
         name: 'Test',
         apiKeyFingerprint: 'fp_abc',
         status: 'active',
@@ -84,8 +78,8 @@ function makeBinding(overrides?: Partial<StoredBinding>): StoredBinding {
     return {
         id: 'bind_1',
         integrationId: 'int_1',
-        provider: 'telnyx',
-        providerNumberId: 'pn_1',
+        provider: 'twilio',
+        providerNumberId: 'PN_1',
         e164: '+15551234567',
         agentId: null,
         agentConfig: null,
@@ -135,7 +129,7 @@ function createService(overrides?: {
     integrationStore?: TelephonyIntegrationStorePort;
     bindingStore?: TelephonyBindingStorePort;
 }) {
-    return new TelnyxOnboardingService({
+    return new TwilioOnboardingService({
         integrationStore: overrides?.integrationStore ?? stubIntegrationStore(),
         bindingStore: overrides?.bindingStore ?? stubBindingStore(),
         encryptionKey: ENCRYPTION_KEY,
@@ -150,55 +144,88 @@ function createService(overrides?: {
     });
 }
 
-describe('TelnyxOnboardingService', () => {
+describe('TwilioOnboardingService', () => {
     beforeEach(() => {
         setupDefaultClientMocks();
     });
 
-    // ── verifyApiKey ──────────────────────────────────────────────────
-
-    it('verifyApiKey delegates to TelnyxClient.verifyCredentials', async () => {
+    it('verifyCredentials delegates to TwilioClient.verifyCredentials', async () => {
         const service = createService();
-        const result = await service.verifyApiKey('key_test');
+
+        const result = await service.verifyCredentials({
+            accountSid: 'AC123',
+            apiKeySid: 'SK123',
+            apiKeySecret: 'secret',
+        });
 
         expect(result).toEqual({ valid: true });
-        expect(TelnyxClient).toHaveBeenCalledWith('key_test');
-        expect(TelnyxClient.prototype.verifyCredentials).toHaveBeenCalledOnce();
+        expect(TwilioClient).toHaveBeenCalledWith({
+            accountSid: 'AC123',
+            apiKeySid: 'SK123',
+            apiKeySecret: 'secret',
+        });
+        expect(TwilioClient.prototype.verifyCredentials).toHaveBeenCalledOnce();
     });
 
-    // ── createIntegration ─────────────────────────────────────────────
-
-    it('createIntegration encrypts key, stores, and sets up trunk', async () => {
+    it('createIntegration encrypts credentials, stores integration, and sets up trunk + origination url', async () => {
         const integrationStore = stubIntegrationStore();
         const service = createService({ integrationStore });
 
-        const result = await service.createIntegration({ apiKey: 'key_test', name: 'My Telnyx' });
+        const result = await service.createIntegration({
+            accountSid: 'AC123',
+            apiKeySid: 'SK123',
+            apiKeySecret: 'secret',
+            name: 'My Twilio',
+        });
 
-        expect(result.provider).toBe('telnyx');
-        expect(result.name).toBe('My Telnyx');
+        expect(result.provider).toBe('twilio');
+        expect(result.name).toBe('My Twilio');
+
         expect(integrationStore.create).toHaveBeenCalledWith(
             expect.objectContaining({
-                provider: 'telnyx',
-                name: 'My Telnyx',
+                provider: 'twilio',
+                name: 'My Twilio',
                 encryptedApiKey: expect.stringContaining('v1.'),
                 apiKeyFingerprint: expect.any(String),
             })
         );
-        expect(TelnyxClient.prototype.listFqdnConnections).toHaveBeenCalled();
+
+        expect(TwilioClient.prototype.listTrunks).toHaveBeenCalledOnce();
+        expect(TwilioClient.prototype.createTrunk).toHaveBeenCalledWith(
+            expect.objectContaining({
+                friendlyName: 'livekit-inbound-int_1',
+                domainName: 'livekit-inbound-int_1.pstn.twilio.com',
+            })
+        );
+
+        expect(TwilioClient.prototype.listOriginationUrls).toHaveBeenCalledWith('TRUNK_1');
+        expect(TwilioClient.prototype.createOriginationUrl).toHaveBeenCalledWith(
+            'TRUNK_1',
+            expect.objectContaining({
+                sipUrl: `sip:${SIP_HOST}`,
+                enabled: true,
+            })
+        );
+
         expect(integrationStore.updateProviderResources).toHaveBeenCalledWith(
             'int_1',
             expect.objectContaining({
-                fqdnConnectionId: 'conn_1',
-                fqdnId: 'fqdn_1',
+                trunkSid: 'TRUNK_1',
+                originationUrlSid: 'ORIG_1',
             })
         );
     });
 
-    // ── listNumbers ───────────────────────────────────────────────────
-
-    it('listNumbers decrypts key and calls client', async () => {
+    it('listNumbers decrypts credentials and calls client', async () => {
         const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
-        const encrypted = encryptString('key_list_test', ENCRYPTION_KEY);
+        const encrypted = encryptString(
+            JSON.stringify({
+                accountSid: 'AC123',
+                apiKeySid: 'SK_list',
+                apiKeySecret: 'secret',
+            }),
+            ENCRYPTION_KEY
+        );
 
         const integrationStore = stubIntegrationStore();
         (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
@@ -206,36 +233,35 @@ describe('TelnyxOnboardingService', () => {
         );
 
         const mockNumbers = [
-            {
-                id: 'pn_1',
-                phone_number: '+15551234567',
-                status: 'active',
-                connection_id: null,
-                connection_name: null,
-            },
+            { sid: 'PN1', phoneNumber: '+15551234567', friendlyName: 'n1' },
         ];
-        (TelnyxClient.prototype.listPhoneNumbers as ReturnType<typeof vi.fn>).mockResolvedValue(
-            mockNumbers
-        );
+        (
+            TwilioClient.prototype.listIncomingPhoneNumbers as ReturnType<typeof vi.fn>
+        ).mockResolvedValue(mockNumbers);
 
         const service = createService({ integrationStore });
         const numbers = await service.listNumbers('int_1');
 
         expect(numbers).toEqual(mockNumbers);
-        expect(TelnyxClient.prototype.listPhoneNumbers).toHaveBeenCalledOnce();
+        expect(TwilioClient.prototype.listIncomingPhoneNumbers).toHaveBeenCalledOnce();
     });
 
-    // ── connectNumber ─────────────────────────────────────────────────
-
-    it('connectNumber assigns number and creates binding', async () => {
+    it('connectNumber ensures trunk and attaches phone number, then upserts binding', async () => {
         const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
-        const encrypted = encryptString('key_connect_test', ENCRYPTION_KEY);
+        const encrypted = encryptString(
+            JSON.stringify({
+                accountSid: 'AC123',
+                apiKeySid: 'SK_connect',
+                apiKeySecret: 'secret',
+            }),
+            ENCRYPTION_KEY
+        );
 
         const integrationStore = stubIntegrationStore();
         (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
             makeIntegration({
                 encryptedApiKey: encrypted,
-                providerResources: { fqdnConnectionId: 'conn_existing' },
+                providerResources: { trunkSid: 'TRUNK_EXISTING' },
             })
         );
 
@@ -243,18 +269,19 @@ describe('TelnyxOnboardingService', () => {
         const service = createService({ integrationStore, bindingStore });
 
         const result = await service.connectNumber('int_1', {
-            providerNumberId: 'pn_1',
+            providerNumberId: 'PN_1',
             e164: '+15551234567',
         });
 
-        expect(
-            TelnyxClient.prototype.assignPhoneNumberToConnection
-        ).toHaveBeenCalledWith('pn_1', 'conn_existing');
+        expect(TwilioClient.prototype.attachPhoneNumberToTrunk).toHaveBeenCalledWith(
+            'TRUNK_EXISTING',
+            'PN_1'
+        );
         expect(bindingStore.upsertBinding).toHaveBeenCalledWith(
             expect.objectContaining({
                 integrationId: 'int_1',
-                provider: 'telnyx',
-                providerNumberId: 'pn_1',
+                provider: 'twilio',
+                providerNumberId: 'PN_1',
                 e164: '+15551234567',
             })
         );
@@ -263,13 +290,20 @@ describe('TelnyxOnboardingService', () => {
 
     it('connectNumber rejects when requested e164 does not match provider number', async () => {
         const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
-        const encrypted = encryptString('key_connect_test', ENCRYPTION_KEY);
+        const encrypted = encryptString(
+            JSON.stringify({
+                accountSid: 'AC123',
+                apiKeySid: 'SK_connect',
+                apiKeySecret: 'secret',
+            }),
+            ENCRYPTION_KEY
+        );
 
         const integrationStore = stubIntegrationStore();
         (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
             makeIntegration({
                 encryptedApiKey: encrypted,
-                providerResources: { fqdnConnectionId: 'conn_existing' },
+                providerResources: { trunkSid: 'TRUNK_EXISTING' },
             })
         );
 
@@ -278,7 +312,7 @@ describe('TelnyxOnboardingService', () => {
 
         await expect(
             service.connectNumber('int_1', {
-                providerNumberId: 'pn_1',
+                providerNumberId: 'PN_1',
                 e164: '+15559999999',
             })
         ).rejects.toMatchObject({
@@ -287,14 +321,11 @@ describe('TelnyxOnboardingService', () => {
         expect(bindingStore.upsertBinding).not.toHaveBeenCalled();
     });
 
-    // ── disconnectNumber ──────────────────────────────────────────────
-
     it('disconnectNumber disables binding', async () => {
         const bindingStore = stubBindingStore();
         const service = createService({ bindingStore });
 
         await service.disconnectNumber('bind_1');
-
         expect(bindingStore.disableBinding).toHaveBeenCalledWith('bind_1');
     });
 });

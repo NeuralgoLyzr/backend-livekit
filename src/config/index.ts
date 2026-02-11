@@ -37,5 +37,14 @@ export const config = {
         sipIdentityPrefix: process.env.TELEPHONY_SIP_IDENTITY_PREFIX || 'sip_',
         dispatchOnAnyParticipantJoin:
             process.env.TELEPHONY_DISPATCH_ON_ANY_PARTICIPANT_JOIN === 'true',
+        management: {
+            encryptionKey: process.env.TELEPHONY_SECRETS_KEY
+                ? Buffer.from(process.env.TELEPHONY_SECRETS_KEY, 'base64')
+                : null,
+            livekitSipHost: process.env.LIVEKIT_SIP_HOST || '',
+        },
+    },
+    telnyx: {
+        devApiKey: process.env.TELNYX_API_KEY || '',
     },
 };

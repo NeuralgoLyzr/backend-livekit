@@ -1,5 +1,5 @@
 import type { LiveKitWebhookEvent, NormalizedLiveKitEvent } from '../../types.js';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 export function normalizeLiveKitWebhookEvent(
     evt: LiveKitWebhookEvent,
@@ -15,7 +15,7 @@ export function normalizeLiveKitWebhookEvent(
             eventIdDerived = true;
         } else {
             // Fallback only; callers should pass rawBody when possible.
-            eventId = 'missing-id';
+            eventId = `missing-${randomUUID()}`;
         }
     }
     const event = typeof evt.event === 'string' ? evt.event : 'unknown';
@@ -37,10 +37,22 @@ export function normalizeLiveKitWebhookEvent(
                   kind: typeof evt.participant.kind === 'string' ? evt.participant.kind : undefined,
                   attributes:
                       evt.participant.attributes && typeof evt.participant.attributes === 'object'
-                          ? (evt.participant.attributes as Record<string, string>)
+                          ? coerceToStringRecord(evt.participant.attributes)
                           : undefined,
               }
             : undefined;
 
     return { eventId, eventIdDerived, event, createdAt, roomName, participant, raw: evt };
+}
+
+function coerceToStringRecord(obj: Record<string, string>): Record<string, string> {
+    const result: Record<string, string> = {};
+    for (const [key, value] of Object.entries(obj)) {
+        if (typeof value === 'string') {
+            result[key] = value;
+        } else if (value != null) {
+            result[key] = String(value);
+        }
+    }
+    return result;
 }

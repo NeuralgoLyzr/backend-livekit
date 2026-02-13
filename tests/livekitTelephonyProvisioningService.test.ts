@@ -30,9 +30,11 @@ describe('LiveKitTelephonyProvisioningService', () => {
         listSipInboundTrunk: vi.fn(),
         createSipInboundTrunk: vi.fn(),
         updateSipInboundTrunkFields: vi.fn(),
+        deleteSipTrunk: vi.fn(),
         listSipDispatchRule: vi.fn(),
         createSipDispatchRule: vi.fn(),
         updateSipDispatchRuleFields: vi.fn(),
+        deleteSipDispatchRule: vi.fn(),
     };
 
     const service = new LiveKitTelephonyProvisioningService({
@@ -106,5 +108,44 @@ describe('LiveKitTelephonyProvisioningService', () => {
         expect(sipClient.updateSipDispatchRuleFields).toHaveBeenCalledWith('rule_1', {
             trunkIds: expect.any(ListUpdate),
         });
+    });
+
+    it('removeInboundSetupForDid removes DID from trunk while numbers remain', async () => {
+        sipClient.listSipInboundTrunk.mockResolvedValueOnce([
+            makeTrunk({ sipTrunkId: 'trunk_1', numbers: ['+15550000000', '+15551234567'] }),
+        ]);
+
+        const res = await service.removeInboundSetupForDid('+15551234567');
+        expect(res).toEqual({
+            normalizedDid: '+15551234567',
+            inboundTrunkId: 'trunk_1',
+            trunkDeleted: false,
+            dispatchRuleUpdated: false,
+            dispatchRuleDeleted: false,
+        });
+        expect(sipClient.updateSipInboundTrunkFields).toHaveBeenCalledWith('trunk_1', {
+            numbers: expect.any(ListUpdate),
+        });
+        expect(sipClient.deleteSipTrunk).not.toHaveBeenCalled();
+    });
+
+    it('removeInboundSetupForDid deletes empty trunk and dispatch rule', async () => {
+        sipClient.listSipInboundTrunk.mockResolvedValueOnce([
+            makeTrunk({ sipTrunkId: 'trunk_1', numbers: ['+15551234567'] }),
+        ]);
+        sipClient.listSipDispatchRule.mockResolvedValueOnce([
+            makeRule({ sipDispatchRuleId: 'rule_1', trunkIds: ['trunk_1'] }),
+        ]);
+
+        const res = await service.removeInboundSetupForDid('+15551234567');
+        expect(res).toEqual({
+            normalizedDid: '+15551234567',
+            inboundTrunkId: 'trunk_1',
+            trunkDeleted: true,
+            dispatchRuleUpdated: false,
+            dispatchRuleDeleted: true,
+        });
+        expect(sipClient.deleteSipTrunk).toHaveBeenCalledWith('trunk_1');
+        expect(sipClient.deleteSipDispatchRule).toHaveBeenCalledWith('rule_1');
     });
 });

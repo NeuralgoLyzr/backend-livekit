@@ -32,8 +32,7 @@ describe('TwilioClient', () => {
 
         const client = new TwilioClient({
             accountSid: 'AC123',
-            apiKeySid: 'SK123',
-            apiKeySecret: 'secret',
+            authToken: 'secret',
         });
 
         const result = await client.verifyCredentials();
@@ -55,8 +54,7 @@ describe('TwilioClient', () => {
 
         const client = new TwilioClient({
             accountSid: 'AC123',
-            apiKeySid: 'SK_bad',
-            apiKeySecret: 'bad',
+            authToken: 'bad',
         });
 
         try {
@@ -74,8 +72,7 @@ describe('TwilioClient', () => {
 
         const client = new TwilioClient({
             accountSid: 'AC123',
-            apiKeySid: 'SK123',
-            apiKeySecret: 'secret',
+            authToken: 'secret',
         });
 
         try {
@@ -105,8 +102,7 @@ describe('TwilioClient', () => {
 
         const client = new TwilioClient({
             accountSid: 'AC123',
-            apiKeySid: 'SK123',
-            apiKeySecret: 'secret',
+            authToken: 'secret',
         });
 
         const numbers = await client.listIncomingPhoneNumbers();
@@ -128,8 +124,7 @@ describe('TwilioClient', () => {
 
         const client = new TwilioClient({
             accountSid: 'AC123',
-            apiKeySid: 'SK123',
-            apiKeySecret: 'secret',
+            authToken: 'secret',
         });
 
         const number = await client.getIncomingPhoneNumber('PN1');
@@ -150,8 +145,7 @@ describe('TwilioClient', () => {
 
         const client = new TwilioClient({
             accountSid: 'AC123',
-            apiKeySid: 'SK123',
-            apiKeySecret: 'secret',
+            authToken: 'secret',
         });
 
         await client.attachPhoneNumberToTrunk('TRUNK1', 'PN_EXISTING');
@@ -171,8 +165,7 @@ describe('TwilioClient', () => {
 
         const client = new TwilioClient({
             accountSid: 'AC123',
-            apiKeySid: 'SK123',
-            apiKeySecret: 'secret',
+            authToken: 'secret',
         });
 
         await client.attachPhoneNumberToTrunk('TRUNK1', 'PN_NEW');
@@ -185,13 +178,51 @@ describe('TwilioClient', () => {
         expect(String(opts.body)).toContain('PhoneNumberSid=PN_NEW');
     });
 
+    it('detachPhoneNumberFromTrunk deletes existing reference', async () => {
+        fetchMock
+            .mockResolvedValueOnce(
+                jsonResponse({
+                    phone_numbers: [{ sid: 'TPN1', phone_number_sid: 'PN_EXISTING' }],
+                    next_page_uri: null,
+                })
+            )
+            .mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+        const client = new TwilioClient({
+            accountSid: 'AC123',
+            authToken: 'secret',
+        });
+
+        await client.detachPhoneNumberFromTrunk('TRUNK1', 'PN_EXISTING');
+
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        const [url, opts] = fetchMock.mock.calls[1] as [string, RequestInit];
+        expect(url).toBe('https://trunking.twilio.com/v1/Trunks/TRUNK1/PhoneNumbers/TPN1');
+        expect(opts.method).toBe('DELETE');
+    });
+
+    it('deleteTrunk issues DELETE call', async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+        const client = new TwilioClient({
+            accountSid: 'AC123',
+            authToken: 'secret',
+        });
+
+        await client.deleteTrunk('TRUNK1');
+
+        expect(fetchMock).toHaveBeenCalledWith(
+            'https://trunking.twilio.com/v1/Trunks/TRUNK1',
+            expect.objectContaining({ method: 'DELETE' })
+        );
+    });
+
     it('maps network failure to PROVIDER_UNREACHABLE', async () => {
         fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'));
 
         const client = new TwilioClient({
             accountSid: 'AC123',
-            apiKeySid: 'SK123',
-            apiKeySecret: 'secret',
+            authToken: 'secret',
         });
 
         try {

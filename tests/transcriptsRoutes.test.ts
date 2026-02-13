@@ -1,0 +1,157 @@
+import request from 'supertest';
+import { describe, expect, it, vi } from 'vitest';
+
+import { importFreshApp } from './testUtils';
+
+describe('transcripts routes (HTTP)', () => {
+    it('GET /api/transcripts validates query and forwards to transcriptService.list', async () => {
+        const list = vi.fn().mockResolvedValue({
+            items: [],
+            total: 0,
+            limit: 10,
+            offset: 5,
+            nextOffset: null,
+        });
+        const app = await importFreshApp({
+            sessionServiceMock: {},
+            transcriptServiceMock: { list },
+        });
+
+        const res = await request(app)
+            .get(
+                [
+                    '/api/transcripts',
+                    '?limit=10',
+                    '&offset=5',
+                    '&sort=asc',
+                    '&agentId=507f1f77bcf86cd799439011',
+                    '&sessionId=00000000-0000-4000-8000-000000000000',
+                    '&from=2026-01-15',
+                    '&to=2026-01-16',
+                ].join('')
+            )
+            .set('x-api-key', 'dev')
+            .expect(200);
+
+        expect(list).toHaveBeenCalledTimes(1);
+        expect(list).toHaveBeenCalledWith(
+            {
+                orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                agentId: '507f1f77bcf86cd799439011',
+                sessionId: '00000000-0000-4000-8000-000000000000',
+                from: '2026-01-15',
+                to: '2026-01-16',
+            },
+            { limit: 10, offset: 5, sort: 'asc' }
+        );
+
+        expect(res.body).toEqual({
+            items: [],
+            total: 0,
+            limit: 10,
+            offset: 5,
+            nextOffset: null,
+        });
+    });
+
+    it('GET /api/transcripts rejects invalid agentId', async () => {
+        const app = await importFreshApp({ sessionServiceMock: {}, transcriptServiceMock: {} });
+        const res = await request(app)
+            .get('/api/transcripts?agentId=not-a-mongo-id')
+            .set('x-api-key', 'dev')
+            .expect(400);
+        expect(res.body.error).toBeTruthy();
+        expect(res.body.issues).toBeTruthy();
+    });
+
+    it('GET /api/transcripts/:sessionId returns 404 when not found', async () => {
+        const getBySessionId = vi.fn().mockResolvedValue(null);
+        const app = await importFreshApp({
+            sessionServiceMock: {},
+            transcriptServiceMock: { getBySessionId },
+        });
+
+        await request(app)
+            .get('/api/transcripts/00000000-0000-4000-8000-000000000000')
+            .set('x-api-key', 'dev')
+            .expect(404);
+        expect(getBySessionId).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000000');
+    });
+
+    it('GET /api/transcripts/:sessionId returns transcript when found', async () => {
+        const transcript = {
+            id: 't1',
+            sessionId: '00000000-0000-4000-8000-000000000000',
+            orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+            createdByUserId: 'mem_any',
+        };
+        const getBySessionId = vi.fn().mockResolvedValue(transcript);
+        const app = await importFreshApp({
+            sessionServiceMock: {},
+            transcriptServiceMock: { getBySessionId },
+        });
+
+        const res = await request(app)
+            .get('/api/transcripts/00000000-0000-4000-8000-000000000000')
+            .set('x-api-key', 'dev')
+            .expect(200);
+        expect(res.body).toEqual({ transcript });
+    });
+
+    it('GET /api/transcripts/agent/:agentId forwards pagination to listByAgentId', async () => {
+        const listByAgentId = vi.fn().mockResolvedValue({
+            items: [],
+            total: 0,
+            limit: 2,
+            offset: 0,
+            nextOffset: null,
+        });
+        const app = await importFreshApp({
+            sessionServiceMock: {},
+            transcriptServiceMock: { listByAgentId },
+        });
+
+        await request(app)
+            .get('/api/transcripts/agent/507f1f77bcf86cd799439011?limit=2&offset=0&sort=desc')
+            .set('x-api-key', 'dev')
+            .expect(200);
+
+        expect(listByAgentId).toHaveBeenCalledWith(
+            {
+                orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                agentId: '507f1f77bcf86cd799439011',
+            },
+            {
+                limit: 2,
+                offset: 0,
+                sort: 'desc',
+            }
+        );
+    });
+
+    it('GET /api/transcripts/agent/:agentId/stats returns stats payload', async () => {
+        const getAgentStats = vi.fn().mockResolvedValue({
+            totalCalls: 3,
+            browserCalls: 3,
+            phoneCalls: 0,
+            avgMessages: 8.0,
+        });
+        const app = await importFreshApp({
+            sessionServiceMock: {},
+            transcriptServiceMock: { getAgentStats },
+        });
+
+        const res = await request(app)
+            .get('/api/transcripts/agent/507f1f77bcf86cd799439011/stats')
+            .set('x-api-key', 'dev')
+            .expect(200);
+
+        expect(res.body).toEqual({
+            totalCalls: 3,
+            browserCalls: 3,
+            phoneCalls: 0,
+            avgMessages: 8.0,
+        });
+    });
+});
+

@@ -6,10 +6,16 @@ import { createRoomService } from './services/roomService.js';
 import { createSessionService } from './services/sessionService.js';
 import { createAgentRegistryService } from './services/agentRegistryService.js';
 import { createAgentConfigResolverService } from './services/agentConfigResolverService.js';
+import { createTranscriptService } from './services/transcriptService.js';
+import { createPagosAuthService } from './services/pagosAuthService.js';
 import { MongooseAgentStore } from './adapters/mongoose/mongooseAgentStore.js';
+import { MongooseTranscriptStore } from './adapters/mongoose/mongooseTranscriptStore.js';
 import { InMemorySessionStore } from './lib/storage.js';
 
 const agentStore = new MongooseAgentStore();
+const transcriptStore = new MongooseTranscriptStore({
+    phoneRoomPrefix: config.telephony.management.livekitProvisioning.dispatchRoomPrefix,
+});
 const sessionStore = new InMemorySessionStore();
 
 const tokenService = createTokenService({
@@ -42,8 +48,18 @@ const sessionService = createSessionService({
     livekitUrl: config.livekit.url,
 });
 
+const pagosAuthService = createPagosAuthService({
+    pagosApiUrl: config.pagos.apiUrl,
+    pagosAdminToken: config.pagos.adminToken,
+});
+
+const transcriptService = createTranscriptService({
+    store: transcriptStore,
+});
+
 export const services = {
     agentStore,
+    transcriptStore,
     sessionStore,
     tokenService,
     agentService,
@@ -51,4 +67,6 @@ export const services = {
     agentConfigResolver,
     agentRegistryService,
     sessionService,
+    pagosAuthService,
+    transcriptService,
 };

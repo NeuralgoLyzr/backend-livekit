@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { AgentConfigSchema } from '../../types/index.js';
 
 const E164Schema = z
     .string()
@@ -26,16 +25,14 @@ export const CreateIntegrationRequestSchema = z
 export const TwilioVerifyCredentialsRequestSchema = z
     .object({
         accountSid: z.string().min(1, 'accountSid is required'),
-        apiKeySid: z.string().min(1, 'apiKeySid is required'),
-        apiKeySecret: z.string().min(1, 'apiKeySecret is required'),
+        authToken: z.string().min(1, 'authToken is required'),
     })
     .strict();
 
 export const TwilioCreateIntegrationRequestSchema = z
     .object({
         accountSid: z.string().min(1, 'accountSid is required'),
-        apiKeySid: z.string().min(1, 'apiKeySid is required'),
-        apiKeySecret: z.string().min(1, 'apiKeySecret is required'),
+        authToken: z.string().min(1, 'authToken is required'),
         name: z.string().optional(),
     })
     .strict();
@@ -43,7 +40,6 @@ export const TwilioCreateIntegrationRequestSchema = z
 export const ConnectNumberRequestSchema = z
     .object({
         agentId: z.string().optional(),
-        agentConfig: AgentConfigSchema.optional(),
         e164: E164Schema,
     })
     .strict();

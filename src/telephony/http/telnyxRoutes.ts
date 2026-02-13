@@ -55,14 +55,15 @@ export function createTelnyxRouter(deps: TelnyxRouterDeps): Router {
         })
     );
 
-    router.delete(
-        '/credentials/:integrationId',
-        asyncHandler(async (req, res) => {
-            const integrationId = req.params.integrationId as string;
-            await integrationStore.disable(integrationId);
-            return res.json({ ok: true });
-        })
-    );
+    const deleteIntegrationHandler = asyncHandler(async (req, res) => {
+        const integrationId = req.params.integrationId as string;
+        const result = await onboardingService.deleteIntegration(integrationId);
+        return res.json({ ok: true, ...result });
+    });
+
+    router.delete('/integrations/:integrationId', deleteIntegrationHandler);
+    // Backward-compatible alias
+    router.delete('/credentials/:integrationId', deleteIntegrationHandler);
 
     router.get(
         '/numbers',
@@ -132,12 +133,11 @@ export function createTelnyxRouter(deps: TelnyxRouterDeps): Router {
                 return res.status(400).json(formatZodError(parsed.error));
             }
             const providerNumberId = req.params.providerNumberId as string;
-            const { e164, agentId, agentConfig } = parsed.data;
+            const { e164, agentId } = parsed.data;
             const binding = await onboardingService.connectNumber(integrationId, {
                 providerNumberId,
                 e164,
                 agentId,
-                agentConfig,
             });
             return res.json(binding);
         })

@@ -28,6 +28,8 @@ export interface LiveKitSipClientPort {
         sipDispatchRuleId: string,
         fields: { trunkIds?: ListUpdate }
     ): Promise<SIPDispatchRuleInfo>;
+    deleteSipDispatchRule(sipDispatchRuleId: string): Promise<SIPDispatchRuleInfo>;
+    deleteSipTrunk(sipTrunkId: string): Promise<void>;
 }
 
 export interface LiveKitTelephonyProvisioningPort {
@@ -35,6 +37,13 @@ export interface LiveKitTelephonyProvisioningPort {
         normalizedDid: string;
         inboundTrunkId: string;
         dispatchRuleId: string;
+    }>;
+    removeInboundSetupForDid(e164: string): Promise<{
+        normalizedDid: string;
+        inboundTrunkId: string | null;
+        trunkDeleted: boolean;
+        dispatchRuleUpdated: boolean;
+        dispatchRuleDeleted: boolean;
     }>;
 }
 
@@ -71,6 +80,90 @@ export class LiveKitTelephonyProvisioningService {
             inboundTrunkId,
             dispatchRuleId: getDispatchRuleIdOrThrow(rule),
         };
+    }
+
+    async removeInboundSetupForDid(e164: string): Promise<{
+        normalizedDid: string;
+        inboundTrunkId: string | null;
+        trunkDeleted: boolean;
+        dispatchRuleUpdated: boolean;
+        dispatchRuleDeleted: boolean;
+    }> {
+        const normalizedDid = normalizeE164(e164);
+
+        try {
+            const trunks = await this.deps.sipClient.listSipInboundTrunk();
+            const existingTrunk = trunks.find((t) => t.name === this.deps.inboundTrunkName);
+            if (!existingTrunk) {
+                return {
+                    normalizedDid,
+                    inboundTrunkId: null,
+                    trunkDeleted: false,
+                    dispatchRuleUpdated: false,
+                    dispatchRuleDeleted: false,
+                };
+            }
+
+            const inboundTrunkId = getTrunkIdOrThrow(existingTrunk);
+            const existingNumbers = existingTrunk.numbers ?? [];
+            if (!existingNumbers.includes(normalizedDid)) {
+                return {
+                    normalizedDid,
+                    inboundTrunkId,
+                    trunkDeleted: false,
+                    dispatchRuleUpdated: false,
+                    dispatchRuleDeleted: false,
+                };
+            }
+
+            const nextNumbers = existingNumbers.filter((n) => n !== normalizedDid);
+            if (nextNumbers.length > 0) {
+                await this.deps.sipClient.updateSipInboundTrunkFields(inboundTrunkId, {
+                    numbers: new ListUpdate({ set: nextNumbers }),
+                });
+
+                logger.info(
+                    {
+                        event: 'livekit.telephony.inbound_trunk_updated',
+                        name: this.deps.inboundTrunkName,
+                        didRemoved: normalizedDid,
+                        inboundTrunkId,
+                    },
+                    'Removed DID from LiveKit SIP inbound trunk'
+                );
+
+                return {
+                    normalizedDid,
+                    inboundTrunkId,
+                    trunkDeleted: false,
+                    dispatchRuleUpdated: false,
+                    dispatchRuleDeleted: false,
+                };
+            }
+
+            await this.deps.sipClient.deleteSipTrunk(inboundTrunkId);
+            logger.info(
+                {
+                    event: 'livekit.telephony.inbound_trunk_deleted',
+                    name: this.deps.inboundTrunkName,
+                    inboundTrunkId,
+                    didRemoved: normalizedDid,
+                },
+                'Deleted empty LiveKit SIP inbound trunk'
+            );
+
+            const dispatchCleanup = await this.removeTrunkFromDispatchRule(inboundTrunkId);
+
+            return {
+                normalizedDid,
+                inboundTrunkId,
+                trunkDeleted: true,
+                dispatchRuleUpdated: dispatchCleanup.dispatchRuleUpdated,
+                dispatchRuleDeleted: dispatchCleanup.dispatchRuleDeleted,
+            };
+        } catch (err) {
+            throw mapLiveKitTelephonyError(err);
+        }
     }
 
     async ensureDispatchRule(inboundTrunkId: string): Promise<SIPDispatchRuleInfo> {
@@ -172,6 +265,64 @@ export class LiveKitTelephonyProvisioningService {
         } catch (err) {
             throw mapLiveKitTelephonyError(err);
         }
+    }
+
+    private async removeTrunkFromDispatchRule(inboundTrunkId: string): Promise<{
+        dispatchRuleUpdated: boolean;
+        dispatchRuleDeleted: boolean;
+    }> {
+        const rules = await this.deps.sipClient.listSipDispatchRule();
+        const existing = rules.find((r) => r.name === this.deps.dispatchRuleName);
+        if (!existing) {
+            return {
+                dispatchRuleUpdated: false,
+                dispatchRuleDeleted: false,
+            };
+        }
+
+        const dispatchRuleId = getDispatchRuleIdOrThrow(existing);
+        const existingTrunkIds = existing.trunkIds ?? [];
+        if (!existingTrunkIds.includes(inboundTrunkId)) {
+            return {
+                dispatchRuleUpdated: false,
+                dispatchRuleDeleted: false,
+            };
+        }
+
+        if (existingTrunkIds.length <= 1) {
+            await this.deps.sipClient.deleteSipDispatchRule(dispatchRuleId);
+            logger.info(
+                {
+                    event: 'livekit.telephony.dispatch_rule_deleted',
+                    name: this.deps.dispatchRuleName,
+                    dispatchRuleId,
+                    removedTrunkId: inboundTrunkId,
+                },
+                'Deleted LiveKit SIP dispatch rule after last trunk removal'
+            );
+            return {
+                dispatchRuleUpdated: false,
+                dispatchRuleDeleted: true,
+            };
+        }
+
+        await this.deps.sipClient.updateSipDispatchRuleFields(dispatchRuleId, {
+            trunkIds: new ListUpdate({ remove: [inboundTrunkId] }),
+        });
+        logger.info(
+            {
+                event: 'livekit.telephony.dispatch_rule_updated',
+                name: this.deps.dispatchRuleName,
+                dispatchRuleId,
+                removedTrunkId: inboundTrunkId,
+            },
+            'Removed trunk from LiveKit SIP dispatch rule'
+        );
+
+        return {
+            dispatchRuleUpdated: true,
+            dispatchRuleDeleted: false,
+        };
     }
 }
 

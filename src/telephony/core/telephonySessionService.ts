@@ -1,9 +1,11 @@
+import { randomUUID } from 'crypto';
 import type { TelephonyStorePort } from '../ports/telephonyStorePort.js';
 import type { CallRoutingPort } from '../ports/callRoutingPort.js';
 import type { AgentDispatchPort } from '../ports/agentDispatchPort.js';
 import type { NormalizedLiveKitEvent, TelephonyCall } from '../types.js';
 import { extractSipFromTo } from './sipAttributes.js';
 import { logger } from '../../lib/logger.js';
+import type { AgentConfig } from '../../types/index.js';
 
 export interface TelephonySessionServiceDeps {
     store: TelephonyStorePort;
@@ -11,6 +13,11 @@ export interface TelephonySessionServiceDeps {
     agentDispatch: AgentDispatchPort;
     sipIdentityPrefix: string;
     dispatchOnAnyParticipantJoin: boolean;
+    onAgentDispatched?: (input: {
+        roomName: string;
+        sessionId: string;
+        agentConfig: AgentConfig;
+    }) => Promise<void>;
 }
 
 function isSipParticipant(
@@ -180,7 +187,36 @@ export class TelephonySessionService {
             participant: call.sipParticipant,
         });
 
-        await this.deps.agentDispatch.dispatchAgent(call.roomName, routing.agentConfig);
+        const sessionId =
+            typeof routing.agentConfig.session_id === 'string' && routing.agentConfig.session_id.trim()
+                ? routing.agentConfig.session_id
+                : randomUUID();
+
+        const agentConfig = {
+            ...routing.agentConfig,
+            session_id: sessionId,
+        };
+
+        await this.deps.agentDispatch.dispatchAgent(call.roomName, agentConfig);
         await this.deps.store.markAgentDispatched(call.callId);
+
+        if (this.deps.onAgentDispatched) {
+            try {
+                await this.deps.onAgentDispatched({
+                    roomName: call.roomName,
+                    sessionId,
+                    agentConfig,
+                });
+            } catch (err) {
+                logger.warn(
+                    {
+                        event: 'telephony.session_metadata_hook_failed',
+                        roomName: call.roomName,
+                        err,
+                    },
+                    'Failed to persist telephony session metadata'
+                );
+            }
+        }
     }
 }

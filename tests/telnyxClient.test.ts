@@ -156,6 +156,39 @@ describe('TelnyxClient', () => {
         });
     });
 
+    it('unassignPhoneNumberFromConnection sends null connection_id', async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ data: { id: 'pn_1' } }));
+
+        const client = new TelnyxClient('key_test');
+        await client.unassignPhoneNumberFromConnection('pn_1');
+
+        const [url, opts] = fetchMock.mock.calls[0] as [string, RequestInit];
+        expect(url).toBe('https://api.telnyx.com/v2/phone_numbers/pn_1');
+        expect(opts.method).toBe('PATCH');
+        expect(JSON.parse(String(opts.body))).toEqual({ connection_id: null });
+    });
+
+    it('deleteFqdn and deleteFqdnConnection issue DELETE calls', async () => {
+        fetchMock
+            .mockResolvedValueOnce(jsonResponse({ ok: true }))
+            .mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+        const client = new TelnyxClient('key_test');
+        await client.deleteFqdn('fqdn_1');
+        await client.deleteFqdnConnection('conn_1');
+
+        expect(fetchMock).toHaveBeenNthCalledWith(
+            1,
+            'https://api.telnyx.com/v2/fqdns/fqdn_1',
+            expect.objectContaining({ method: 'DELETE' })
+        );
+        expect(fetchMock).toHaveBeenNthCalledWith(
+            2,
+            'https://api.telnyx.com/v2/fqdn_connections/conn_1',
+            expect.objectContaining({ method: 'DELETE' })
+        );
+    });
+
     // ── error mapping ─────────────────────────────────────────────────
 
     it('maps 429 to RATE_LIMITED', async () => {

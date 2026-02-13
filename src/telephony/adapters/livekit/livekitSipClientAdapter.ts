@@ -48,4 +48,12 @@ export class LiveKitSipClientAdapter implements LiveKitSipClientPort {
     ): Promise<SIPDispatchRuleInfo> {
         return await this.client.updateSipDispatchRuleFields(sipDispatchRuleId, fields);
     }
+
+    async deleteSipDispatchRule(sipDispatchRuleId: string): Promise<SIPDispatchRuleInfo> {
+        return await this.client.deleteSipDispatchRule(sipDispatchRuleId);
+    }
+
+    async deleteSipTrunk(sipTrunkId: string): Promise<void> {
+        await this.client.deleteSipTrunk(sipTrunkId);
+    }
 }

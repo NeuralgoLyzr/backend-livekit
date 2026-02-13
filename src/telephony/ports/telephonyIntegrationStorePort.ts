@@ -25,6 +25,6 @@ export interface TelephonyIntegrationStorePort {
         id: string,
         resources: Record<string, unknown>
     ): Promise<StoredIntegration | null>;
-    disable(id: string): Promise<boolean>;
+    deleteById(id: string): Promise<boolean>;
     listByProvider(provider: TelephonyProvider): Promise<StoredIntegration[]>;
 }

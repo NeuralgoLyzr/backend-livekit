@@ -13,7 +13,6 @@ import type {
     TelephonyBindingStorePort,
     StoredBinding,
 } from '../ports/telephonyBindingStorePort.js';
-import type { AgentConfig } from '../../types/index.js';
 import { encryptString, decryptString, fingerprintSecret } from '../../lib/crypto/secretBox.js';
 import { HttpError } from '../../lib/httpErrors.js';
 import { logger } from '../../lib/logger.js';
@@ -190,7 +189,6 @@ export class TelnyxOnboardingService {
             providerNumberId: string;
             e164: string;
             agentId?: string;
-            agentConfig?: AgentConfig;
         }
     ): Promise<StoredBinding> {
         const integration = await this.getIntegrationOrThrow(integrationId);
@@ -227,7 +225,6 @@ export class TelnyxOnboardingService {
             providerNumberId: input.providerNumberId,
             e164: normalizedDid,
             agentId: input.agentId,
-            agentConfig: input.agentConfig,
         });
 
         logger.info(
@@ -238,11 +235,55 @@ export class TelnyxOnboardingService {
     }
 
     async disconnectNumber(bindingId: string): Promise<void> {
-        await this.deps.bindingStore.disableBinding(bindingId);
+        const binding = await this.getBindingOrThrow(bindingId);
+        const integration = await this.getIntegrationOrThrow(binding.integrationId);
+        const apiKey = this.decryptApiKeyFromIntegration(integration);
+        const client = new TelnyxClient(apiKey);
+
+        await this.disconnectBinding(binding, integration, client);
+    }
+
+    async deleteIntegration(integrationId: string): Promise<{ deletedBindings: number }> {
+        const integration = await this.getIntegrationOrThrow(integrationId);
+        const apiKey = this.decryptApiKeyFromIntegration(integration);
+        const client = new TelnyxClient(apiKey);
+
+        const bindings = await this.deps.bindingStore.listBindingsByIntegrationId(integrationId);
+        for (const binding of bindings) {
+            if (binding.provider !== 'telnyx') continue;
+            await this.disconnectBinding(binding, integration, client);
+        }
+
+        const resources = parseTelnyxProviderResources(integration.providerResources);
+        if (resources?.fqdnId) {
+            try {
+                await client.deleteFqdn(resources.fqdnId);
+            } catch (err) {
+                if (!isTelnyxNotFoundError(err)) {
+                    throw mapTelnyxError(err);
+                }
+            }
+        }
+        if (resources?.fqdnConnectionId) {
+            try {
+                await client.deleteFqdnConnection(resources.fqdnConnectionId);
+            } catch (err) {
+                if (!isTelnyxNotFoundError(err)) {
+                    throw mapTelnyxError(err);
+                }
+            }
+        }
+
+        const deleted = await this.deps.integrationStore.deleteById(integrationId);
+        if (!deleted) {
+            throw new HttpError(404, `Integration ${integrationId} not found`);
+        }
+
         logger.info(
-            { event: 'telnyx.number.disconnected', bindingId },
-            'Number disconnected'
+            { event: 'telnyx.integration.deleted', integrationId, deletedBindings: bindings.length },
+            'Telnyx integration deleted'
         );
+        return { deletedBindings: bindings.length };
     }
 
     // ── private helpers ───────────────────────────────────────────────────
@@ -382,6 +423,46 @@ export class TelnyxOnboardingService {
         return normalizedProvider;
     }
 
+    private async disconnectBinding(
+        binding: StoredBinding,
+        integration: StoredIntegration & { encryptedApiKey: string },
+        client: TelnyxClient
+    ): Promise<void> {
+        await this.deps.livekitProvisioning.removeInboundSetupForDid(binding.e164);
+
+        try {
+            await client.unassignPhoneNumberFromConnection(binding.providerNumberId);
+        } catch (err) {
+            throw mapTelnyxError(err);
+        }
+
+        const deleted = await this.deps.bindingStore.deleteBinding(binding.id);
+        if (!deleted) {
+            throw new HttpError(404, `Binding ${binding.id} not found`);
+        }
+
+        logger.info(
+            {
+                event: 'telnyx.number.disconnected',
+                bindingId: binding.id,
+                integrationId: integration.id,
+                e164: binding.e164,
+            },
+            'Number disconnected'
+        );
+    }
+
+    private async getBindingOrThrow(bindingId: string): Promise<StoredBinding> {
+        const binding = await this.deps.bindingStore.getBindingById(bindingId);
+        if (!binding) {
+            throw new HttpError(404, `Binding ${bindingId} not found`);
+        }
+        if (binding.provider !== 'telnyx') {
+            throw new HttpError(400, `Binding ${bindingId} is not a Telnyx binding`);
+        }
+        return binding;
+    }
+
     private async getIntegrationOrThrow(
         integrationId: string
     ): Promise<StoredIntegration & { encryptedApiKey: string }> {
@@ -391,6 +472,9 @@ export class TelnyxOnboardingService {
         }
         if (integration.status !== 'active') {
             throw new HttpError(403, `Integration ${integrationId} is disabled`);
+        }
+        if (integration.provider !== 'telnyx') {
+            throw new HttpError(400, `Integration ${integrationId} is not a Telnyx integration`);
         }
         return integration;
     }
@@ -435,4 +519,17 @@ function mapTelnyxError(err: unknown): HttpError {
     }
     if (err instanceof HttpError) return err;
     return new HttpError(500, 'Unexpected error communicating with Telnyx');
+}
+
+function parseTelnyxProviderResources(resources: unknown): {
+    fqdnConnectionId?: string;
+    fqdnId?: string;
+} | null {
+    const parsed = TelnyxProviderResourcesSchema.safeParse(resources);
+    if (!parsed.success) return null;
+    return parsed.data;
+}
+
+function isTelnyxNotFoundError(err: unknown): boolean {
+    return isTelnyxClientError(err) && err.status === 404;
 }

@@ -1,21 +1,39 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
+import { randomUUID } from 'crypto';
 import {
     SessionRequestSchema,
     EndSessionRequestSchema,
     SessionObservabilityIngestSchema,
 } from '../types/index.js';
 import type { SessionService } from '../services/sessionService.js';
+import type { TranscriptService } from '../services/transcriptService.js';
+import type { SessionStorePort } from '../ports/sessionStorePort.js';
+import type { PagosAuthService } from '../services/pagosAuthService.js';
 import { AGENT_DEFAULTS } from '../CONSTS.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { formatZodError } from '../lib/zod.js';
 import { logger } from '../lib/logger.js';
 import type { HttpWideEvent } from '../middleware/requestLogging.js';
+import { apiKeyAuthMiddleware } from '../middleware/apiKeyAuth.js';
+import type { RequestAuthLocals } from '../middleware/apiKeyAuth.js';
+import { HttpError } from '../lib/httpErrors.js';
 
-export function createSessionRouter(sessionService: SessionService): Router {
+export function createSessionRouter(
+    sessionService: SessionService,
+    deps?: {
+        transcriptService?: TranscriptService;
+        sessionStore?: SessionStorePort;
+        pagosAuthService?: PagosAuthService;
+    }
+): Router {
     const router: Router = Router();
+    const requireApiKey: RequestHandler = deps?.pagosAuthService
+        ? apiKeyAuthMiddleware(deps.pagosAuthService)
+        : (_req, _res, next) => next(new HttpError(500, 'Pagos auth is not configured'));
 
     router.post(
         '/',
+        requireApiKey,
         asyncHandler(async (req, res) => {
             const parseResult = SessionRequestSchema.safeParse(req.body);
             if (!parseResult.success) {
@@ -76,7 +94,12 @@ export function createSessionRouter(sessionService: SessionService): Router {
                 });
             }
 
-            const response = await sessionService.createSession(parseResult.data);
+            const auth = (res.locals as RequestAuthLocals).auth;
+            const response = await sessionService.createSession({
+                ...parseResult.data,
+                orgId: auth?.orgId,
+                createdByUserId: auth?.userId,
+            });
 
             const wideEvent = res.locals.wideEvent as HttpWideEvent | undefined;
             if (wideEvent) {
@@ -91,6 +114,7 @@ export function createSessionRouter(sessionService: SessionService): Router {
 
     router.post(
         '/end',
+        requireApiKey,
         asyncHandler(async (req, res) => {
             const parseResult = EndSessionRequestSchema.safeParse(req.body);
             if (!parseResult.success) {
@@ -137,6 +161,54 @@ export function createSessionRouter(sessionService: SessionService): Router {
             );
 
             if (payload.sessionReport) {
+                if (deps?.transcriptService && deps?.sessionStore) {
+                    try {
+                        const sessionData = deps.sessionStore.get(payload.roomName);
+                        const sessionId = payload.sessionId || sessionData?.sessionId || randomUUID();
+                        const agentId = sessionData?.agentConfig?.agent_id ?? null;
+                        const orgId = sessionData?.orgId || payload.orgId || null;
+                        const createdByUserId = sessionData?.createdByUserId ?? null;
+
+                        if (!orgId) {
+                            logger.warn(
+                                {
+                                    event: 'transcript_persist_missing_org_id',
+                                    roomName: payload.roomName,
+                                    sessionId,
+                                },
+                                'Missing orgId; skipping transcript persistence'
+                            );
+                        } else {
+                            if (!payload.sessionId && !sessionData?.sessionId) {
+                                logger.warn(
+                                    {
+                                        event: 'transcript_persist_derived_session_id',
+                                        roomName: payload.roomName,
+                                        derivedSessionId: sessionId,
+                                    },
+                                    'No sessionId provided/resolved; generated a random UUID for transcript persistence'
+                                );
+                            }
+
+                            await deps.transcriptService.saveFromObservability({
+                                roomName: payload.roomName,
+                                sessionId,
+                                agentId,
+                                orgId,
+                                createdByUserId,
+                                rawSessionReport: payload.sessionReport,
+                                closeReason: payload.closeReason ?? null,
+                            });
+                        }
+                    } catch (error) {
+                        logger.error({
+                            err: error,
+                            event: 'transcript_persist_failed',
+                            roomName: payload.roomName,
+                        });
+                    }
+                }
+
                 try {
                     await sessionService.cleanupSession(payload.roomName);
                 } catch (error) {

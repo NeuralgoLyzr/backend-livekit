@@ -28,8 +28,7 @@ export function isTwilioClientError(err: unknown): err is TwilioClientError {
 
 export interface TwilioCredentials {
     accountSid: string;
-    apiKeySid: string;
-    apiKeySecret: string;
+    authToken: string;
 }
 
 export interface TwilioIncomingPhoneNumber {
@@ -66,15 +65,15 @@ export class TwilioClient {
     private readonly authHeaderValue: string;
 
     constructor(private readonly creds: TwilioCredentials) {
-        // Twilio API keys use HTTP Basic auth:
-        // username = apiKeySid, password = apiKeySecret
-        const raw = `${creds.apiKeySid}:${creds.apiKeySecret}`;
+        // Twilio account credentials use HTTP Basic auth:
+        // username = accountSid, password = authToken
+        const raw = `${creds.accountSid}:${creds.authToken}`;
         this.authHeaderValue = `Basic ${Buffer.from(raw, 'utf8').toString('base64')}`;
     }
 
     async verifyCredentials(): Promise<{ valid: true }> {
         // Verify both:
-        // - API key is valid (auth),
+        // - auth token is valid (auth),
         // - accountSid is valid (path scoping)
         await this.requestJson(
             'GET',
@@ -306,6 +305,22 @@ export class TwilioClient {
             `/v1/Trunks/${encodeURIComponent(trunkSid)}/PhoneNumbers`,
             new URLSearchParams({ PhoneNumberSid: phoneNumberSid })
         );
+    }
+
+    async detachPhoneNumberFromTrunk(trunkSid: string, phoneNumberSid: string): Promise<void> {
+        const existing = await this.listTrunkPhoneNumbers(trunkSid);
+        const ref = existing.find((p) => p.phoneNumberSid === phoneNumberSid);
+        if (!ref) return;
+
+        await this.requestJson(
+            'DELETE',
+            TRUNKING_BASE_URL,
+            `/v1/Trunks/${encodeURIComponent(trunkSid)}/PhoneNumbers/${encodeURIComponent(ref.sid)}`
+        );
+    }
+
+    async deleteTrunk(trunkSid: string): Promise<void> {
+        await this.requestJson('DELETE', TRUNKING_BASE_URL, `/v1/Trunks/${encodeURIComponent(trunkSid)}`);
     }
 
     // ── internal ──────────────────────────────────────────────────────────

@@ -235,6 +235,20 @@ export class TelnyxClient {
         });
     }
 
+    async unassignPhoneNumberFromConnection(phoneNumberId: string): Promise<void> {
+        await this.request('PATCH', `/v2/phone_numbers/${encodeURIComponent(phoneNumberId)}`, {
+            connection_id: null,
+        });
+    }
+
+    async deleteFqdn(fqdnId: string): Promise<void> {
+        await this.request('DELETE', `/v2/fqdns/${encodeURIComponent(fqdnId)}`);
+    }
+
+    async deleteFqdnConnection(connectionId: string): Promise<void> {
+        await this.request('DELETE', `/v2/fqdn_connections/${encodeURIComponent(connectionId)}`);
+    }
+
     // ── internal ──────────────────────────────────────────────────────────
 
     private async request(

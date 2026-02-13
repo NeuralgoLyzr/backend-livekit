@@ -4,6 +4,8 @@
 
 import { z } from 'zod';
 
+import { SessionReportSchema, ChatHistorySchema } from './sessionReport.js';
+
 // Validation constants
 const MAX_IDENTITY_LENGTH = 128;
 const MAX_ROOM_NAME_LENGTH = 128;
@@ -449,6 +451,17 @@ export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 export const SessionDataSchema = z.object({
     userIdentity: z.string(),
     sessionId: z.string(),
+    /**
+     * Tenant identifier for transcript persistence and filtering.
+     *
+     * Note: this is derived server-side from `x-api-key` (Pagos) and is not
+     * tied to LiveKit participant identity.
+     */
+    orgId: z.string().uuid().optional(),
+    /**
+     * Agent Studio user id that initiated/owns the session (Phase 2 RBAC).
+     */
+    createdByUserId: z.string().optional(),
     agentConfig: AgentConfigSchema.optional(),
     createdAt: z.string(),
     endedAt: z.string().optional(),
@@ -522,14 +535,12 @@ export const SessionObservabilityIngestSchema = z
             ),
         sessionId: SessionIdSchema.optional(),
         /**
-         * `session.history` serialized on close (optional).
-         * Shape depends on LiveKit Agents SDK version.
+         * Optional org identifier for transcript persistence and filtering.
+         * If omitted, the backend will attempt to derive it from the session store.
          */
-        conversationHistory: z.unknown().optional(),
-        /**
-         * `ctx.make_session_report().to_dict()` serialized on session end (optional).
-         */
-        sessionReport: z.unknown().optional(),
+        orgId: z.string().uuid().optional(),
+        conversationHistory: ChatHistorySchema.optional(),
+        sessionReport: SessionReportSchema.optional(),
         closeReason: z.string().nullable().optional(),
         receivedAt: z.string().nullable().optional(),
     })

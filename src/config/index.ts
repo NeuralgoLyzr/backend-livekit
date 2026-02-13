@@ -3,7 +3,14 @@
  * Loads and validates environment variables
  */
 
-const requiredEnvVars = ['LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET'] as const;
+const requiredEnvVars = [
+    'LIVEKIT_URL',
+    'LIVEKIT_API_KEY',
+    'LIVEKIT_API_SECRET',
+    // Used to resolve { orgId, userId, role } from `x-api-key` for transcripts scoping.
+    'PAGOS_API_URL',
+    'PAGOS_ADMIN_TOKEN',
+] as const;
 
 for (const envVar of requiredEnvVars) {
     if (!process.env[envVar]) {
@@ -16,6 +23,10 @@ export const config = {
         url: process.env.LIVEKIT_URL!,
         apiKey: process.env.LIVEKIT_API_KEY!,
         apiSecret: process.env.LIVEKIT_API_SECRET!,
+    },
+    pagos: {
+        apiUrl: process.env.PAGOS_API_URL!,
+        adminToken: process.env.PAGOS_ADMIN_TOKEN!,
     },
     server: {
         port: parseInt(process.env.PORT || '4000', 10),

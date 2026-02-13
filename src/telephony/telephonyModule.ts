@@ -14,6 +14,7 @@ import { SipClient } from 'livekit-server-sdk';
 import { toLiveKitHttpUrl } from './adapters/livekit/livekitHttpUrl.js';
 import { LiveKitSipClientAdapter } from './adapters/livekit/livekitSipClientAdapter.js';
 import { LiveKitTelephonyProvisioningService } from './management/livekitTelephonyProvisioningService.js';
+import { logger } from '../lib/logger.js';
 
 const store = new InMemoryTelephonyStore();
 
@@ -22,7 +23,7 @@ const integrationStore = new MongooseTelephonyIntegrationStore();
 const bindingStore = new MongooseTelephonyBindingStore();
 
 // Routing: use binding-based routing to resolve agent config from phone number bindings
-const routing = new BindingBasedCallRouting(bindingStore);
+const routing = new BindingBasedCallRouting(bindingStore, services.agentConfigResolver);
 
 const agentDispatch = new AgentDispatchAdapter(services.agentService);
 const webhookVerifier = new LiveKitWebhookVerifier(
@@ -75,6 +76,27 @@ const sessionService = new TelephonySessionService({
     agentDispatch,
     sipIdentityPrefix: config.telephony.sipIdentityPrefix,
     dispatchOnAnyParticipantJoin: config.telephony.dispatchOnAnyParticipantJoin,
+    onAgentDispatched: async ({ roomName, sessionId, agentConfig }) => {
+        const apiKey =
+            typeof agentConfig.api_key === 'string' ? agentConfig.api_key.trim() : '';
+        if (!apiKey) {
+            logger.warn(
+                { event: 'telephony.session_metadata_missing_api_key', roomName },
+                'Missing agentConfig.api_key; cannot resolve org for transcripts'
+            );
+            return;
+        }
+
+        const ctx = await services.pagosAuthService.resolveAuthContext(apiKey);
+        services.sessionStore.set(roomName, {
+            userIdentity: `sip_${roomName}`,
+            sessionId,
+            orgId: ctx.orgId,
+            createdByUserId: ctx.userId,
+            agentConfig,
+            createdAt: new Date().toISOString(),
+        });
+    },
 });
 
 export const telephonyModule = {

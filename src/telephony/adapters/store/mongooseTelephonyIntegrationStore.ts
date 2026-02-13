@@ -55,6 +55,7 @@ export class MongooseTelephonyIntegrationStore implements TelephonyIntegrationSt
         const row = await Integration.findOne({
             _id,
             deletedAt: null,
+            status: 'active',
         }).lean<TelephonyIntegrationDocument>();
         if (!row) return null;
 
@@ -84,25 +85,22 @@ export class MongooseTelephonyIntegrationStore implements TelephonyIntegrationSt
         return toStoredIntegration(updated);
     }
 
-    async disable(id: string): Promise<boolean> {
+    async deleteById(id: string): Promise<boolean> {
         await connectMongo();
         const Integration = getIntegrationModel();
 
         if (!mongoose.Types.ObjectId.isValid(id)) return false;
         const _id = new mongoose.Types.ObjectId(id);
 
-        const res = await Integration.updateOne(
-            { _id, deletedAt: null },
-            { $set: { status: 'disabled' } }
-        );
-        return res.modifiedCount > 0;
+        const res = await Integration.deleteOne({ _id, deletedAt: null });
+        return res.deletedCount > 0;
     }
 
     async listByProvider(provider: TelephonyProvider): Promise<StoredIntegration[]> {
         await connectMongo();
         const Integration = getIntegrationModel();
 
-        const rows = await Integration.find({ provider, deletedAt: null })
+        const rows = await Integration.find({ provider, deletedAt: null, status: 'active' })
             .sort({ updatedAt: -1 })
             .lean<TelephonyIntegrationDocument[]>();
 

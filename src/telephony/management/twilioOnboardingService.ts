@@ -14,7 +14,6 @@ import type {
     TelephonyBindingStorePort,
     StoredBinding,
 } from '../ports/telephonyBindingStorePort.js';
-import type { AgentConfig } from '../../types/index.js';
 import { encryptString, decryptString, fingerprintSecret } from '../../lib/crypto/secretBox.js';
 import { HttpError } from '../../lib/httpErrors.js';
 import { logger } from '../../lib/logger.js';
@@ -30,8 +29,7 @@ const TwilioProviderResourcesSchema = z
 
 const TwilioEncryptedCredentialsSchema = z.object({
     accountSid: z.string().min(1),
-    apiKeySid: z.string().min(1),
-    apiKeySecret: z.string().min(1),
+    authToken: z.string().min(1),
 });
 
 export interface TwilioOnboardingDeps {
@@ -58,20 +56,18 @@ export class TwilioOnboardingService {
 
     async createIntegration(input: {
         accountSid: string;
-        apiKeySid: string;
-        apiKeySecret: string;
+        authToken: string;
         name?: string;
     }): Promise<StoredIntegration> {
         const creds: TwilioCredentials = {
             accountSid: input.accountSid,
-            apiKeySid: input.apiKeySid,
-            apiKeySecret: input.apiKeySecret,
+            authToken: input.authToken,
         };
 
         await this.verifyCredentials(creds);
 
         const encrypted = encryptString(JSON.stringify(creds), this.deps.encryptionKey);
-        const fingerprint = fingerprintSecret(`${creds.accountSid}:${creds.apiKeySid}`);
+        const fingerprint = fingerprintSecret(`twilio:${creds.accountSid}`);
 
         const integration = await this.deps.integrationStore.create({
             provider: 'twilio',
@@ -112,7 +108,6 @@ export class TwilioOnboardingService {
             providerNumberId: string; // Twilio IncomingPhoneNumber SID
             e164: string;
             agentId?: string;
-            agentConfig?: AgentConfig;
         }
     ): Promise<StoredBinding> {
         const integration = await this.getIntegrationOrThrow(integrationId);
@@ -146,7 +141,6 @@ export class TwilioOnboardingService {
             providerNumberId: input.providerNumberId,
             e164: normalizedDid,
             agentId: input.agentId,
-            agentConfig: input.agentConfig,
         });
 
         logger.info(
@@ -157,8 +151,46 @@ export class TwilioOnboardingService {
     }
 
     async disconnectNumber(bindingId: string): Promise<void> {
-        await this.deps.bindingStore.disableBinding(bindingId);
-        logger.info({ event: 'twilio.number.disconnected', bindingId }, 'Number disconnected');
+        const binding = await this.getBindingOrThrow(bindingId);
+        const integration = await this.getIntegrationOrThrow(binding.integrationId);
+        const creds = this.decryptCredentialsFromIntegration(integration);
+        const client = new TwilioClient(creds);
+
+        await this.disconnectBinding(binding, integration, client);
+    }
+
+    async deleteIntegration(integrationId: string): Promise<{ deletedBindings: number }> {
+        const integration = await this.getIntegrationOrThrow(integrationId);
+        const creds = this.decryptCredentialsFromIntegration(integration);
+        const client = new TwilioClient(creds);
+
+        const bindings = await this.deps.bindingStore.listBindingsByIntegrationId(integrationId);
+        for (const binding of bindings) {
+            if (binding.provider !== 'twilio') continue;
+            await this.disconnectBinding(binding, integration, client);
+        }
+
+        const resources = parseTwilioProviderResources(integration.providerResources);
+        if (resources?.trunkSid) {
+            try {
+                await client.deleteTrunk(resources.trunkSid);
+            } catch (err) {
+                if (!isTwilioNotFoundError(err)) {
+                    throw mapTwilioError(err);
+                }
+            }
+        }
+
+        const deleted = await this.deps.integrationStore.deleteById(integrationId);
+        if (!deleted) {
+            throw new HttpError(404, `Integration ${integrationId} not found`);
+        }
+
+        logger.info(
+            { event: 'twilio.integration.deleted', integrationId, deletedBindings: bindings.length },
+            'Twilio integration deleted'
+        );
+        return { deletedBindings: bindings.length };
     }
 
     // ── private helpers ───────────────────────────────────────────────────
@@ -249,6 +281,49 @@ export class TwilioOnboardingService {
         return normalizedProvider;
     }
 
+    private async disconnectBinding(
+        binding: StoredBinding,
+        integration: StoredIntegration & { encryptedApiKey: string },
+        client: TwilioClient
+    ): Promise<void> {
+        await this.deps.livekitProvisioning.removeInboundSetupForDid(binding.e164);
+
+        const resources = parseTwilioProviderResources(integration.providerResources);
+        if (resources?.trunkSid) {
+            try {
+                await client.detachPhoneNumberFromTrunk(resources.trunkSid, binding.providerNumberId);
+            } catch (err) {
+                throw mapTwilioError(err);
+            }
+        }
+
+        const deleted = await this.deps.bindingStore.deleteBinding(binding.id);
+        if (!deleted) {
+            throw new HttpError(404, `Binding ${binding.id} not found`);
+        }
+
+        logger.info(
+            {
+                event: 'twilio.number.disconnected',
+                bindingId: binding.id,
+                integrationId: integration.id,
+                e164: binding.e164,
+            },
+            'Number disconnected'
+        );
+    }
+
+    private async getBindingOrThrow(bindingId: string): Promise<StoredBinding> {
+        const binding = await this.deps.bindingStore.getBindingById(bindingId);
+        if (!binding) {
+            throw new HttpError(404, `Binding ${bindingId} not found`);
+        }
+        if (binding.provider !== 'twilio') {
+            throw new HttpError(400, `Binding ${bindingId} is not a Twilio binding`);
+        }
+        return binding;
+    }
+
     private async getIntegrationOrThrow(
         integrationId: string
     ): Promise<StoredIntegration & { encryptedApiKey: string }> {
@@ -320,4 +395,17 @@ function mapTwilioError(err: unknown): HttpError {
     }
     if (err instanceof HttpError) return err;
     return new HttpError(500, 'Unexpected error communicating with Twilio');
+}
+
+function parseTwilioProviderResources(resources: unknown): {
+    trunkSid?: string;
+    originationUrlSid?: string;
+} | null {
+    const parsed = TwilioProviderResourcesSchema.safeParse(resources);
+    if (!parsed.success) return null;
+    return parsed.data;
+}
+
+function isTwilioNotFoundError(err: unknown): boolean {
+    return isTwilioClientError(err) && err.status === 404;
 }

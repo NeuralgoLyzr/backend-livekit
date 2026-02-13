@@ -23,6 +23,8 @@ vi.mock('../dist/telephony/adapters/twilio/twilioClient.js', () => {
     MockTwilioClient.prototype.createOriginationUrl = vi.fn();
     MockTwilioClient.prototype.listTrunkPhoneNumbers = vi.fn();
     MockTwilioClient.prototype.attachPhoneNumberToTrunk = vi.fn();
+    MockTwilioClient.prototype.detachPhoneNumberFromTrunk = vi.fn();
+    MockTwilioClient.prototype.deleteTrunk = vi.fn();
 
     return {
         TwilioClient: MockTwilioClient,
@@ -55,6 +57,10 @@ function setupDefaultClientMocks() {
     (TwilioClient.prototype.attachPhoneNumberToTrunk as ReturnType<typeof vi.fn>).mockResolvedValue(
         undefined
     );
+    (TwilioClient.prototype.detachPhoneNumberFromTrunk as ReturnType<typeof vi.fn>).mockResolvedValue(
+        undefined
+    );
+    (TwilioClient.prototype.deleteTrunk as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
 }
 
 function makeIntegration(
@@ -82,7 +88,6 @@ function makeBinding(overrides?: Partial<StoredBinding>): StoredBinding {
         providerNumberId: 'PN_1',
         e164: '+15551234567',
         agentId: null,
-        agentConfig: null,
         enabled: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -104,7 +109,7 @@ function stubIntegrationStore(): TelephonyIntegrationStorePort {
             ...stored,
             providerResources: resources,
         })),
-        disable: vi.fn(async () => true),
+        deleteById: vi.fn(async () => true),
         listByProvider: vi.fn(async () => [stored]),
     };
 }
@@ -116,12 +121,12 @@ function stubBindingStore(): TelephonyBindingStorePort {
             ...binding,
             ...input,
             agentId: input.agentId ?? null,
-            agentConfig: input.agentConfig ?? null,
         })),
         getBindingByE164: vi.fn(async () => binding),
         getBindingById: vi.fn(async () => binding),
         listBindings: vi.fn(async () => [binding]),
-        disableBinding: vi.fn(async () => true),
+        listBindingsByIntegrationId: vi.fn(async () => [binding]),
+        deleteBinding: vi.fn(async () => true),
     };
 }
 
@@ -140,6 +145,13 @@ function createService(overrides?: {
                 inboundTrunkId: 'trunk_1',
                 dispatchRuleId: 'rule_1',
             }),
+            removeInboundSetupForDid: vi.fn().mockResolvedValue({
+                normalizedDid: '+15551234567',
+                inboundTrunkId: 'trunk_1',
+                trunkDeleted: false,
+                dispatchRuleUpdated: false,
+                dispatchRuleDeleted: false,
+            }),
         },
     });
 }
@@ -154,15 +166,13 @@ describe('TwilioOnboardingService', () => {
 
         const result = await service.verifyCredentials({
             accountSid: 'AC123',
-            apiKeySid: 'SK123',
-            apiKeySecret: 'secret',
+            authToken: 'secret',
         });
 
         expect(result).toEqual({ valid: true });
         expect(TwilioClient).toHaveBeenCalledWith({
             accountSid: 'AC123',
-            apiKeySid: 'SK123',
-            apiKeySecret: 'secret',
+            authToken: 'secret',
         });
         expect(TwilioClient.prototype.verifyCredentials).toHaveBeenCalledOnce();
     });
@@ -173,8 +183,7 @@ describe('TwilioOnboardingService', () => {
 
         const result = await service.createIntegration({
             accountSid: 'AC123',
-            apiKeySid: 'SK123',
-            apiKeySecret: 'secret',
+            authToken: 'secret',
             name: 'My Twilio',
         });
 
@@ -221,8 +230,7 @@ describe('TwilioOnboardingService', () => {
         const encrypted = encryptString(
             JSON.stringify({
                 accountSid: 'AC123',
-                apiKeySid: 'SK_list',
-                apiKeySecret: 'secret',
+                authToken: 'secret',
             }),
             ENCRYPTION_KEY
         );
@@ -251,8 +259,7 @@ describe('TwilioOnboardingService', () => {
         const encrypted = encryptString(
             JSON.stringify({
                 accountSid: 'AC123',
-                apiKeySid: 'SK_connect',
-                apiKeySecret: 'secret',
+                authToken: 'secret',
             }),
             ENCRYPTION_KEY
         );
@@ -293,8 +300,7 @@ describe('TwilioOnboardingService', () => {
         const encrypted = encryptString(
             JSON.stringify({
                 accountSid: 'AC123',
-                apiKeySid: 'SK_connect',
-                apiKeySecret: 'secret',
+                authToken: 'secret',
             }),
             ENCRYPTION_KEY
         );
@@ -321,11 +327,97 @@ describe('TwilioOnboardingService', () => {
         expect(bindingStore.upsertBinding).not.toHaveBeenCalled();
     });
 
-    it('disconnectNumber disables binding', async () => {
+    it('connectNumber stores the provided agentId on the binding', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString(
+            JSON.stringify({
+                accountSid: 'AC123',
+                authToken: 'secret',
+            }),
+            ENCRYPTION_KEY
+        );
+
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: { trunkSid: 'TRUNK_EXISTING' },
+            })
+        );
+
         const bindingStore = stubBindingStore();
-        const service = createService({ bindingStore });
+        const service = createService({ integrationStore, bindingStore });
+
+        await service.connectNumber('int_1', {
+            providerNumberId: 'PN_1',
+            e164: '+15551234567',
+            agentId: 'agent-1',
+        });
+
+        expect(bindingStore.upsertBinding).toHaveBeenCalledWith(
+            expect.objectContaining({
+                integrationId: 'int_1',
+                provider: 'twilio',
+                providerNumberId: 'PN_1',
+                e164: '+15551234567',
+                agentId: 'agent-1',
+            })
+        );
+    });
+
+    it('disconnectNumber deprovisions and deletes binding', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString(
+            JSON.stringify({
+                accountSid: 'AC123',
+                authToken: 'secret',
+            }),
+            ENCRYPTION_KEY
+        );
+
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: { trunkSid: 'TRUNK_1' },
+            })
+        );
+        const bindingStore = stubBindingStore();
+        const service = createService({ integrationStore, bindingStore });
 
         await service.disconnectNumber('bind_1');
-        expect(bindingStore.disableBinding).toHaveBeenCalledWith('bind_1');
+        expect(TwilioClient.prototype.detachPhoneNumberFromTrunk).toHaveBeenCalledWith(
+            'TRUNK_1',
+            'PN_1'
+        );
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
+    });
+
+    it('deleteIntegration cascades number disconnects then deletes integration', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString(
+            JSON.stringify({
+                accountSid: 'AC123',
+                authToken: 'secret',
+            }),
+            ENCRYPTION_KEY
+        );
+
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: { trunkSid: 'TRUNK_1' },
+            })
+        );
+
+        const bindingStore = stubBindingStore();
+        const service = createService({ integrationStore, bindingStore });
+
+        const result = await service.deleteIntegration('int_1');
+        expect(result).toEqual({ deletedBindings: 1 });
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
+        expect(TwilioClient.prototype.deleteTrunk).toHaveBeenCalledWith('TRUNK_1');
+        expect(integrationStore.deleteById).toHaveBeenCalledWith('int_1');
     });
 });

@@ -5,16 +5,23 @@ import healthRouter from './routes/health.js';
 import configRouter from './routes/config.js';
 import telephonyRouter from './routes/telephony.js';
 import { createAgentsRouter } from './routes/agents.js';
+import { createTranscriptsRouter } from './routes/transcripts.js';
 import { config } from './config/index.js';
 import { services } from './composition.js';
 import { formatErrorResponse, getErrorStatus } from './lib/httpErrors.js';
 import { requestLoggingMiddleware } from './middleware/requestLogging.js';
 import { logger } from './lib/logger.js';
+import { apiKeyAuthMiddleware } from './middleware/apiKeyAuth.js';
 
 export const app: Express = express();
 
 // Middleware
-app.use(cors());
+app.use(
+    cors({
+        origin: true,
+        allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
+    })
+);
 
 // LiveKit webhooks require raw body access for signature validation.
 // IMPORTANT: This must be registered before `express.json()` consumes the body.
@@ -29,11 +36,23 @@ app.use(express.json({ limit: '10mb' }));
 app.use(requestLoggingMiddleware);
 
 // Routes
-app.use('/session', createSessionRouter(services.sessionService));
+app.use(
+    '/session',
+    createSessionRouter(services.sessionService, {
+        transcriptService: services.transcriptService,
+        sessionStore: services.sessionStore,
+        pagosAuthService: services.pagosAuthService,
+    })
+);
 app.use('/health', healthRouter);
 app.use('/config', configRouter);
 app.use('/telephony', telephonyRouter);
 app.use('/agents', createAgentsRouter(services.agentRegistryService));
+app.use(
+    '/api/transcripts',
+    apiKeyAuthMiddleware(services.pagosAuthService),
+    createTranscriptsRouter(services.transcriptService)
+);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -46,6 +65,10 @@ app.get('/', (req: Request, res: Response) => {
             endSession: 'POST /session/end',
             sessionObservability: 'POST /session/observability',
             agents: 'GET /agents',
+            transcripts: 'GET /api/transcripts',
+            transcriptBySession: 'GET /api/transcripts/:sessionId',
+            transcriptsByAgent: 'GET /api/transcripts/agent/:agentId',
+            transcriptAgentStats: 'GET /api/transcripts/agent/:agentId/stats',
             ...(config.telephony.enabled
                 ? { telephonyWebhook: 'POST /telephony/livekit-webhook' }
                 : {}),

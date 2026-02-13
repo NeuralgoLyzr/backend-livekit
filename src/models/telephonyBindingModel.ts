@@ -7,7 +7,6 @@ export interface TelephonyBindingDocument {
     providerNumberId: string;
     e164: string;
     agentId: string | null;
-    agentConfig: unknown;
     enabled: boolean;
     deletedAt: Date | null;
     createdAt: Date;
@@ -21,7 +20,6 @@ const TelephonyBindingSchema = new mongoose.Schema<TelephonyBindingDocument>(
         providerNumberId: { type: String, required: true },
         e164: { type: String, required: true },
         agentId: { type: String, default: null },
-        agentConfig: { type: mongoose.Schema.Types.Mixed, default: null },
         enabled: { type: Boolean, default: true },
         deletedAt: { type: Date, default: null },
     },

@@ -18,6 +18,14 @@ export interface CreateSessionInput {
     sessionId?: string;
     agentId?: string;
     agentConfig?: AgentConfig;
+    /**
+     * Tenant id derived from `x-api-key` (Pagos). Used for transcript scoping.
+     */
+    orgId?: string;
+    /**
+     * Agent Studio user id derived from Pagos policy. Used for Phase 2 RBAC.
+     */
+    createdByUserId?: string;
 }
 
 export interface CreateSessionResponse {
@@ -117,6 +125,8 @@ export function createSessionService(deps: SessionServiceDeps) {
             deps.store.set(roomName, {
                 userIdentity,
                 sessionId,
+                orgId: input.orgId,
+                createdByUserId: input.createdByUserId,
                 agentConfig: agentConfigWithIds,
                 createdAt: new Date().toISOString(),
             });

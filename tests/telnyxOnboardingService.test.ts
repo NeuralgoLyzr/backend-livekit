@@ -19,9 +19,14 @@ vi.mock('../dist/telephony/adapters/telnyx/telnyxClient.js', () => {
     MockTelnyxClient.prototype.getPhoneNumber = vi.fn();
     MockTelnyxClient.prototype.listFqdnConnections = vi.fn();
     MockTelnyxClient.prototype.createFqdnConnection = vi.fn();
+    MockTelnyxClient.prototype.getFqdnConnection = vi.fn();
+    MockTelnyxClient.prototype.updateFqdnConnectionTransport = vi.fn();
     MockTelnyxClient.prototype.listFqdns = vi.fn();
     MockTelnyxClient.prototype.createFqdn = vi.fn();
     MockTelnyxClient.prototype.assignPhoneNumberToConnection = vi.fn();
+    MockTelnyxClient.prototype.unassignPhoneNumberFromConnection = vi.fn();
+    MockTelnyxClient.prototype.deleteFqdn = vi.fn();
+    MockTelnyxClient.prototype.deleteFqdnConnection = vi.fn();
 
     return {
         TelnyxClient: MockTelnyxClient,
@@ -52,6 +57,15 @@ function setupDefaultClientMocks() {
         id: 'conn_1',
         connection_name: 'livekit-inbound-int_1',
     });
+    (TelnyxClient.prototype.getFqdnConnection as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: 'conn_1',
+        connection_name: 'livekit-inbound-int_1',
+        transport_protocol: 'TCP',
+        encrypted_media: null,
+    });
+    (
+        TelnyxClient.prototype.updateFqdnConnectionTransport as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(undefined);
     (TelnyxClient.prototype.listFqdns as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     (TelnyxClient.prototype.createFqdn as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: 'fqdn_1',
@@ -61,6 +75,13 @@ function setupDefaultClientMocks() {
     (
         TelnyxClient.prototype.assignPhoneNumberToConnection as ReturnType<typeof vi.fn>
     ).mockResolvedValue(undefined);
+    (
+        TelnyxClient.prototype.unassignPhoneNumberFromConnection as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(undefined);
+    (TelnyxClient.prototype.deleteFqdn as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    (TelnyxClient.prototype.deleteFqdnConnection as ReturnType<typeof vi.fn>).mockResolvedValue(
+        undefined
+    );
 }
 
 function makeIntegration(
@@ -88,7 +109,6 @@ function makeBinding(overrides?: Partial<StoredBinding>): StoredBinding {
         providerNumberId: 'pn_1',
         e164: '+15551234567',
         agentId: null,
-        agentConfig: null,
         enabled: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -110,7 +130,7 @@ function stubIntegrationStore(): TelephonyIntegrationStorePort {
             ...stored,
             providerResources: resources,
         })),
-        disable: vi.fn(async () => true),
+        deleteById: vi.fn(async () => true),
         listByProvider: vi.fn(async () => [stored]),
     };
 }
@@ -122,12 +142,12 @@ function stubBindingStore(): TelephonyBindingStorePort {
             ...binding,
             ...input,
             agentId: input.agentId ?? null,
-            agentConfig: input.agentConfig ?? null,
         })),
         getBindingByE164: vi.fn(async () => binding),
         getBindingById: vi.fn(async () => binding),
         listBindings: vi.fn(async () => [binding]),
-        disableBinding: vi.fn(async () => true),
+        listBindingsByIntegrationId: vi.fn(async () => [binding]),
+        deleteBinding: vi.fn(async () => true),
     };
 }
 
@@ -145,6 +165,13 @@ function createService(overrides?: {
                 normalizedDid: '+15551234567',
                 inboundTrunkId: 'trunk_1',
                 dispatchRuleId: 'rule_1',
+            }),
+            removeInboundSetupForDid: vi.fn().mockResolvedValue({
+                normalizedDid: '+15551234567',
+                inboundTrunkId: 'trunk_1',
+                trunkDeleted: false,
+                dispatchRuleUpdated: false,
+                dispatchRuleDeleted: false,
             }),
         },
     });
@@ -287,14 +314,82 @@ describe('TelnyxOnboardingService', () => {
         expect(bindingStore.upsertBinding).not.toHaveBeenCalled();
     });
 
+    it('connectNumber stores the provided agentId on the binding', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString('key_connect_test', ENCRYPTION_KEY);
+
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: { fqdnConnectionId: 'conn_existing' },
+            })
+        );
+
+        const bindingStore = stubBindingStore();
+        const service = createService({ integrationStore, bindingStore });
+
+        await service.connectNumber('int_1', {
+            providerNumberId: 'pn_1',
+            e164: '+15551234567',
+            agentId: 'agent-1',
+        });
+
+        expect(bindingStore.upsertBinding).toHaveBeenCalledWith(
+            expect.objectContaining({
+                integrationId: 'int_1',
+                provider: 'telnyx',
+                providerNumberId: 'pn_1',
+                e164: '+15551234567',
+                agentId: 'agent-1',
+            })
+        );
+    });
+
     // ── disconnectNumber ──────────────────────────────────────────────
 
-    it('disconnectNumber disables binding', async () => {
-        const bindingStore = stubBindingStore();
-        const service = createService({ bindingStore });
+    it('disconnectNumber deprovisions and deletes binding', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString('key_disconnect_test', ENCRYPTION_KEY);
 
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: { fqdnConnectionId: 'conn_1', fqdnId: 'fqdn_1' },
+            })
+        );
+
+        const bindingStore = stubBindingStore();
+        const service = createService({ integrationStore, bindingStore });
         await service.disconnectNumber('bind_1');
 
-        expect(bindingStore.disableBinding).toHaveBeenCalledWith('bind_1');
+        expect(TelnyxClient.prototype.unassignPhoneNumberFromConnection).toHaveBeenCalledWith(
+            'pn_1'
+        );
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
+    });
+
+    it('deleteIntegration cascades number disconnects then deletes integration', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString('key_delete_test', ENCRYPTION_KEY);
+
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: { fqdnConnectionId: 'conn_1', fqdnId: 'fqdn_1' },
+            })
+        );
+
+        const bindingStore = stubBindingStore();
+        const service = createService({ integrationStore, bindingStore });
+
+        const result = await service.deleteIntegration('int_1');
+        expect(result).toEqual({ deletedBindings: 1 });
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
+        expect(TelnyxClient.prototype.deleteFqdn).toHaveBeenCalledWith('fqdn_1');
+        expect(TelnyxClient.prototype.deleteFqdnConnection).toHaveBeenCalledWith('conn_1');
+        expect(integrationStore.deleteById).toHaveBeenCalledWith('int_1');
     });
 });

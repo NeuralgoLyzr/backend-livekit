@@ -55,6 +55,7 @@ export async function importFreshApp(options?: {
     pagosAuthServiceMock?: PagosAuthServiceMock;
 }): Promise<Express> {
     vi.resetModules();
+    vi.doUnmock('../dist/composition.js');
     setRequiredEnv(options?.env);
 
     if (options?.sessionServiceMock || options?.transcriptServiceMock || options?.sessionStoreMock) {

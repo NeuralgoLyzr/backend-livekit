@@ -121,11 +121,27 @@ export function createSessionRouter(
                 return res.status(400).json(formatZodError(parseResult.error));
             }
 
+            const auth = (res.locals as RequestAuthLocals).auth;
+            if (!auth) {
+                throw new HttpError(401, 'Missing auth context');
+            }
+            const endSessionAuth = {
+                orgId: auth.orgId,
+                userId: auth.userId,
+                isAdmin: auth.isAdmin,
+            };
+
             const payload = parseResult.data;
             await sessionService.endSession(
                 'roomName' in payload
-                    ? { roomName: payload.roomName }
-                    : { sessionId: payload.sessionId }
+                    ? {
+                          roomName: payload.roomName,
+                          auth: endSessionAuth,
+                      }
+                    : {
+                          sessionId: payload.sessionId,
+                          auth: endSessionAuth,
+                      }
             );
 
             const wideEvent = res.locals.wideEvent as HttpWideEvent | undefined;

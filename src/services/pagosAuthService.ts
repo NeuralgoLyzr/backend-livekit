@@ -76,12 +76,45 @@ export interface CreatePagosAuthServiceDeps {
      * Request timeout (includes DNS + connect + response body).
      */
     timeoutMs?: number;
+    /**
+     * Maximum number of cached apiKey -> auth context entries (process-local).
+     */
+    maxCacheEntries?: number;
 }
 
 export function createPagosAuthService(deps: CreatePagosAuthServiceDeps): PagosAuthService {
     const cache = new Map<string, CacheEntry>();
     const cacheTtlMs = Math.max(deps.cacheTtlMs ?? 10 * 60 * 1000, 5_000);
     const timeoutMs = Math.max(deps.timeoutMs ?? 5_000, 500);
+    const maxCacheEntries = Math.max(Math.floor(deps.maxCacheEntries ?? 2_000), 100);
+
+    function pruneExpiredEntries(maxToScan: number): void {
+        if (cache.size === 0 || maxToScan <= 0) return;
+
+        let scanned = 0;
+        const now = nowMs();
+        for (const [key, entry] of cache.entries()) {
+            if (scanned >= maxToScan) break;
+            scanned += 1;
+            if (entry.expiresAtMs <= now) {
+                cache.delete(key);
+            }
+        }
+    }
+
+    function ensureCacheCapacity(): void {
+        if (cache.size < maxCacheEntries) return;
+
+        // Opportunistically prune a bounded sample first; if still over capacity,
+        // evict oldest entries (Map preserves insertion order).
+        pruneExpiredEntries(Math.min(cache.size, 256));
+
+        while (cache.size >= maxCacheEntries) {
+            const oldestKey = cache.keys().next().value as string | undefined;
+            if (!oldestKey) break;
+            cache.delete(oldestKey);
+        }
+    }
 
     async function resolveAuthContext(apiKey: string): Promise<AuthContext> {
         const normalizedKey = (apiKey || '').trim();
@@ -90,8 +123,14 @@ export function createPagosAuthService(deps: CreatePagosAuthServiceDeps): PagosA
         }
 
         const cached = cache.get(normalizedKey);
-        if (cached && cached.expiresAtMs > nowMs()) {
-            return cached.value;
+        if (cached) {
+            if (cached.expiresAtMs > nowMs()) {
+                // Keep hot keys at the end (LRU-style on reads).
+                cache.delete(normalizedKey);
+                cache.set(normalizedKey, cached);
+                return cached.value;
+            }
+            cache.delete(normalizedKey);
         }
 
         const url = buildKeysUserUrl(deps.pagosApiUrl, normalizedKey);
@@ -135,6 +174,7 @@ export function createPagosAuthService(deps: CreatePagosAuthServiceDeps): PagosA
                 isAdmin: isAdminRole(parsed.role),
             };
 
+            ensureCacheCapacity();
             cache.set(normalizedKey, { value: ctx, expiresAtMs: nowMs() + cacheTtlMs });
             return ctx;
         } catch (err) {
@@ -149,4 +189,3 @@ export function createPagosAuthService(deps: CreatePagosAuthServiceDeps): PagosA
 
     return { resolveAuthContext };
 }
-

@@ -46,11 +46,22 @@ app.use(
 );
 app.use('/health', healthRouter);
 app.use('/config', configRouter);
-app.use('/telephony', telephonyRouter);
-app.use('/agents', createAgentsRouter(services.agentRegistryService));
+const requireApiKey = apiKeyAuthMiddleware(services.pagosAuthService);
+app.use(
+    '/telephony',
+    (req, res, next) => {
+        // Keep LiveKit webhook auth on signature verification, not x-api-key.
+        if (req.path === '/livekit-webhook' || req.path === '/livekit-webhook/') {
+            return next();
+        }
+        return requireApiKey(req, res, next);
+    },
+    telephonyRouter
+);
+app.use('/agents', requireApiKey, createAgentsRouter(services.agentRegistryService));
 app.use(
     '/api/transcripts',
-    apiKeyAuthMiddleware(services.pagosAuthService),
+    requireApiKey,
     createTranscriptsRouter(services.transcriptService)
 );
 

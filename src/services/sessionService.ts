@@ -68,6 +68,31 @@ export interface SessionServiceDeps {
     livekitUrl: string;
 }
 
+export interface EndSessionAuthContext {
+    orgId: string;
+    userId: string;
+    isAdmin: boolean;
+}
+
+export interface EndSessionInput {
+    roomName?: string;
+    sessionId?: string;
+    auth: EndSessionAuthContext;
+}
+
+function canAccessSession(
+    auth: EndSessionAuthContext,
+    session: { orgId?: string; createdByUserId?: string }
+): boolean {
+    if (session.orgId !== auth.orgId) {
+        return false;
+    }
+    if (!auth.isAdmin && session.createdByUserId !== auth.userId) {
+        return false;
+    }
+    return true;
+}
+
 export function createSessionService(deps: SessionServiceDeps) {
     return {
         async createSession(input: CreateSessionInput): Promise<CreateSessionResponse> {
@@ -141,27 +166,39 @@ export function createSessionService(deps: SessionServiceDeps) {
             };
         },
 
-        async endSession(input: { roomName?: string; sessionId?: string }): Promise<void> {
+        async endSession(input: EndSessionInput): Promise<void> {
             const normalizedRoomName = input.roomName?.trim() ?? '';
             const normalizedSessionId = input.sessionId?.trim() ?? '';
+            const { auth } = input;
 
-            let roomName = normalizedRoomName;
-            if (!roomName && normalizedSessionId) {
-                const match = deps.store
-                    .entries()
-                    .find(([, data]) => data.sessionId === normalizedSessionId);
-                roomName = match?.[0] ?? '';
-            }
-
-            if (!roomName) {
-                if (normalizedSessionId) {
-                    throw new HttpError(404, 'Session not found for sessionId');
-                }
+            if (!normalizedRoomName && !normalizedSessionId) {
                 throw new HttpError(400, 'Must provide roomName or sessionId');
             }
 
-            if (!deps.store.has(roomName)) {
-                throw new HttpError(404, 'Session not found for room');
+            let roomName = normalizedRoomName;
+            let existing = roomName ? deps.store.get(roomName) : undefined;
+
+            if (roomName) {
+                if (!existing) {
+                    throw new HttpError(404, 'Session not found for room');
+                }
+                if (!canAccessSession(auth, existing)) {
+                    throw new HttpError(404, 'Session not found for room');
+                }
+            } else {
+                const match = deps.store.entries().find(([, data]) => {
+                    if (data.sessionId !== normalizedSessionId) {
+                        return false;
+                    }
+                    return canAccessSession(auth, data);
+                });
+
+                if (!match) {
+                    throw new HttpError(404, 'Session not found for sessionId');
+                }
+
+                roomName = match[0];
+                existing = match[1];
             }
 
             // IMPORTANT:
@@ -173,7 +210,6 @@ export function createSessionService(deps: SessionServiceDeps) {
             // Instead, mark the session as ended and let a later step (e.g.
             // `/session/observability`) perform cleanup once transcripts/reports
             // have been received.
-            const existing = deps.store.get(roomName);
             if (existing) {
                 deps.store.set(roomName, {
                     ...existing,

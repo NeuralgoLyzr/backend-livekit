@@ -108,6 +108,13 @@ describe('backend HTTP contract', () => {
             .set('x-api-key', 'dev')
             .send({ roomName: 'room-123' })
             .expect(204);
-        expect(endSession).toHaveBeenCalledWith({ roomName: 'room-123' });
+        expect(endSession).toHaveBeenCalledWith({
+            roomName: 'room-123',
+            auth: {
+                orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                userId: 'mem_test_user',
+                isAdmin: true,
+            },
+        });
     });
 });

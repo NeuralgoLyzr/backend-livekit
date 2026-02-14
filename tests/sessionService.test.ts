@@ -2,6 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { setRequiredEnv } from './testUtils';
 
+const ORG_ID_A = '96f0cee4-bb87-4477-8eff-577ef2780614';
+const ORG_ID_B = 'f1a1e7aa-12b5-4ad7-bec6-fb2db2c3f3fa';
+
+const MEMBER_AUTH = { orgId: ORG_ID_A, userId: 'member_user_1', isAdmin: false };
+const ADMIN_AUTH = { orgId: ORG_ID_A, userId: 'admin_user_1', isAdmin: true };
+
 function createStore() {
     const map = new Map<string, unknown>();
     return {
@@ -107,11 +113,13 @@ describe('sessionService (unit)', () => {
         deps.store.set('room-1', {
             userIdentity: 'u',
             sessionId: 's',
+            orgId: ORG_ID_A,
+            createdByUserId: 'member_user_1',
             createdAt: new Date().toISOString(),
         });
         const svc = createSessionService(deps);
 
-        await svc.endSession({ roomName: 'room-1' });
+        await svc.endSession({ roomName: 'room-1', auth: MEMBER_AUTH });
         const stored = deps.store.get('room-1') as Record<string, unknown>;
         expect(stored.endedAt).toBeDefined();
     });
@@ -126,12 +134,78 @@ describe('sessionService (unit)', () => {
         const svc = createSessionService(deps);
 
         try {
-            await svc.endSession({ roomName: 'room-x' });
+            await svc.endSession({ roomName: 'room-x', auth: MEMBER_AUTH });
             throw new Error('expected endSession to throw');
         } catch (err) {
             expect(err).toBeInstanceOf(HttpError);
             expect((err as { status?: number }).status).toBe(404);
         }
+    });
+
+    it('endSession denies cross-user access for non-admin in same org', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { HttpError } = await import('../dist/lib/httpErrors.js');
+        const deps = buildDeps();
+        deps.store.set('room-1', {
+            userIdentity: 'u',
+            sessionId: 's',
+            orgId: ORG_ID_A,
+            createdByUserId: 'different_user',
+            createdAt: new Date().toISOString(),
+        });
+        const svc = createSessionService(deps);
+
+        await expect(svc.endSession({ roomName: 'room-1', auth: MEMBER_AUTH })).rejects.toBeInstanceOf(
+            HttpError
+        );
+        const stored = deps.store.get('room-1') as Record<string, unknown>;
+        expect(stored.endedAt).toBeUndefined();
+    });
+
+    it('endSession denies cross-org access by sessionId', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { HttpError } = await import('../dist/lib/httpErrors.js');
+        const deps = buildDeps();
+        deps.store.set('room-1', {
+            userIdentity: 'u',
+            sessionId: 'session-1',
+            orgId: ORG_ID_B,
+            createdByUserId: 'member_user_1',
+            createdAt: new Date().toISOString(),
+        });
+        const svc = createSessionService(deps);
+
+        await expect(
+            svc.endSession({ sessionId: 'session-1', auth: MEMBER_AUTH })
+        ).rejects.toBeInstanceOf(HttpError);
+        const stored = deps.store.get('room-1') as Record<string, unknown>;
+        expect(stored.endedAt).toBeUndefined();
+    });
+
+    it('endSession allows same-org admins to end another user session by sessionId', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const deps = buildDeps();
+        deps.store.set('room-1', {
+            userIdentity: 'u',
+            sessionId: 'session-1',
+            orgId: ORG_ID_A,
+            createdByUserId: 'member_user_2',
+            createdAt: new Date().toISOString(),
+        });
+        const svc = createSessionService(deps);
+
+        await svc.endSession({ sessionId: 'session-1', auth: ADMIN_AUTH });
+        const stored = deps.store.get('room-1') as Record<string, unknown>;
+        expect(stored.endedAt).toBeDefined();
     });
 
     it('cleanupSession deletes the room and clears the store entry', async () => {

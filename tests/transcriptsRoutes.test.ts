@@ -153,5 +153,66 @@ describe('transcripts routes (HTTP)', () => {
             avgMessages: 8.0,
         });
     });
-});
 
+    it('GET /api/transcripts applies createdByUserId filter for non-admin users', async () => {
+        const list = vi.fn().mockResolvedValue({
+            items: [],
+            total: 0,
+            limit: 50,
+            offset: 0,
+            nextOffset: null,
+        });
+        const app = await importFreshApp({
+            sessionServiceMock: {},
+            transcriptServiceMock: { list },
+            pagosAuthServiceMock: {
+                resolveAuthContext: vi.fn().mockResolvedValue({
+                    orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                    userId: 'member_user_1',
+                    role: 'member',
+                    isAdmin: false,
+                }),
+            },
+        });
+
+        await request(app).get('/api/transcripts').set('x-api-key', 'dev').expect(200);
+
+        expect(list).toHaveBeenCalledTimes(1);
+        expect(list).toHaveBeenCalledWith(
+            {
+                orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                createdByUserId: 'member_user_1',
+            },
+            { limit: undefined, offset: undefined, sort: undefined }
+        );
+    });
+
+    it('GET /api/transcripts/:sessionId returns 404 for non-admin user mismatch', async () => {
+        const getBySessionId = vi.fn().mockResolvedValue({
+            id: 't1',
+            sessionId: '00000000-0000-4000-8000-000000000000',
+            orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+            createdByUserId: 'different_user',
+        });
+        const app = await importFreshApp({
+            sessionServiceMock: {},
+            transcriptServiceMock: { getBySessionId },
+            pagosAuthServiceMock: {
+                resolveAuthContext: vi.fn().mockResolvedValue({
+                    orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                    userId: 'member_user_1',
+                    role: 'member',
+                    isAdmin: false,
+                }),
+            },
+        });
+
+        const res = await request(app)
+            .get('/api/transcripts/00000000-0000-4000-8000-000000000000')
+            .set('x-api-key', 'dev')
+            .expect(404);
+
+        expect(res.body).toEqual({ error: 'Transcript not found' });
+        expect(getBySessionId).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000000');
+    });
+});

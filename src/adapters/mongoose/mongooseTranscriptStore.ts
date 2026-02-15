@@ -92,7 +92,7 @@ export class MongooseTranscriptStore implements TranscriptStorePort {
             { upsert: true, new: true, runValidators: true }
         ).lean<TranscriptDocument>();
 
-        return toStoredTranscript(doc!);
+        return toStoredTranscript(doc);
     }
 
     async findBySessionId(sessionId: string): Promise<StoredTranscript | null> {

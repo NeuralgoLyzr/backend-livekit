@@ -47,7 +47,7 @@ export class MongooseTelephonyBindingStore implements TelephonyBindingStorePort 
             { new: true, upsert: true, runValidators: true }
         ).lean<TelephonyBindingDocument>();
 
-        return toStoredBinding(row!);
+        return toStoredBinding(row);
     }
 
     async getBindingByE164(e164: string): Promise<StoredBinding | null> {

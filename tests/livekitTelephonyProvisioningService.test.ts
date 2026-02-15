@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ListUpdate } from '@livekit/protocol';
+import type { SIPDispatchRuleInfo, SIPInboundTrunkInfo } from 'livekit-server-sdk';
 
 import { LiveKitTelephonyProvisioningService } from '../dist/telephony/management/livekitTelephonyProvisioningService.js';
 
@@ -11,7 +12,7 @@ function makeTrunk(
         name: 'byoc-inbound',
         numbers: [],
         ...overrides,
-    } as unknown as import('livekit-server-sdk').SIPInboundTrunkInfo;
+    } as SIPInboundTrunkInfo;
 }
 
 function makeRule(
@@ -22,7 +23,7 @@ function makeRule(
         name: 'byoc-dispatch',
         rule: undefined,
         ...overrides,
-    } as unknown as import('livekit-server-sdk').SIPDispatchRuleInfo;
+    } as SIPDispatchRuleInfo;
 }
 
 describe('LiveKitTelephonyProvisioningService', () => {

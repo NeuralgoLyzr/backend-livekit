@@ -19,7 +19,7 @@ function toStoredIntegration(row: TelephonyIntegrationDocument): StoredIntegrati
         name: row.name,
         apiKeyFingerprint: row.apiKeyFingerprint,
         status: row.status,
-        providerResources: (row.providerResources ?? {}) as Record<string, unknown>,
+        providerResources: row.providerResources,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
     };

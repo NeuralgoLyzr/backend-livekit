@@ -1,5 +1,6 @@
 import type { SipClient } from 'livekit-server-sdk';
 import type { SIPDispatchRuleInfo, SIPInboundTrunkInfo } from 'livekit-server-sdk';
+import type { ListUpdate } from '@livekit/protocol';
 import type {
     LiveKitSipClientPort,
     SipDispatchRuleIndividualInput,
@@ -18,7 +19,7 @@ export class LiveKitSipClientAdapter implements LiveKitSipClientPort {
 
     async updateSipInboundTrunkFields(
         sipTrunkId: string,
-        fields: { numbers?: import('@livekit/protocol').ListUpdate }
+        fields: { numbers?: ListUpdate }
     ): Promise<SIPInboundTrunkInfo> {
         return await this.client.updateSipInboundTrunkFields(sipTrunkId, fields);
     }
@@ -44,7 +45,7 @@ export class LiveKitSipClientAdapter implements LiveKitSipClientPort {
 
     async updateSipDispatchRuleFields(
         sipDispatchRuleId: string,
-        fields: { trunkIds?: import('@livekit/protocol').ListUpdate }
+        fields: { trunkIds?: ListUpdate }
     ): Promise<SIPDispatchRuleInfo> {
         return await this.client.updateSipDispatchRuleFields(sipDispatchRuleId, fields);
     }

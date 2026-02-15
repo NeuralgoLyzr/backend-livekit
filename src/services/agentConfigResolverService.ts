@@ -17,7 +17,7 @@ function deepMerge(base: unknown, patch: unknown): unknown {
     const out: Record<string, unknown> = { ...base };
     for (const [k, vPatch] of Object.entries(patch)) {
         if (vPatch === undefined) continue;
-        out[k] = deepMerge((base as Record<string, unknown>)[k], vPatch);
+        out[k] = deepMerge(base[k], vPatch);
     }
     return out;
 }

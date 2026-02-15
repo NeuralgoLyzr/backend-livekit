@@ -15,7 +15,7 @@ function toStoredAgent(row: AgentConfigDocument): StoredAgent {
     return {
         id: row._id.toString(),
         // Stored as a JSON blob, validated at boundaries (route/service).
-        config: row.config as unknown as AgentConfig,
+        config: row.config as AgentConfig,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
     };

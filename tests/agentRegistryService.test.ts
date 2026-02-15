@@ -80,8 +80,11 @@ describe('agentRegistryService (unit)', () => {
 
         await svc.createAgent({ config: { agent_name: '  My Agent  ', tools: [] } });
         expect(store.create).toHaveBeenCalledTimes(1);
-        const passedConfig = (store.create as ReturnType<typeof vi.fn>).mock.calls[0][0].config;
-        expect(passedConfig.agent_name).toBe('My Agent');
+        expect(store.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                config: expect.objectContaining({ agent_name: 'My Agent' }),
+            })
+        );
     });
 
     it('createAgent throws 400 when agent_name is empty', async () => {
@@ -123,8 +126,12 @@ describe('agentRegistryService (unit)', () => {
             config: { agent_name: '  Updated  ', tools: [] },
         });
         expect(result).toEqual(updated);
-        const passedConfig = (store.update as ReturnType<typeof vi.fn>).mock.calls[0][1].config;
-        expect(passedConfig.agent_name).toBe('Updated');
+        expect(store.update).toHaveBeenCalledWith(
+            '507f1f77bcf86cd799439011',
+            expect.objectContaining({
+                config: expect.objectContaining({ agent_name: 'Updated' }),
+            })
+        );
     });
 
     it('updateAgent throws 400 when agent_name is empty', async () => {

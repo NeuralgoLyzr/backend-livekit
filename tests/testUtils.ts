@@ -110,5 +110,5 @@ export async function importFreshApp(options?: {
     }
 
     const mod = await import('../dist/app.js');
-    return mod.app as Express;
+    return mod.app;
 }

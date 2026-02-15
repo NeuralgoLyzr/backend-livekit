@@ -1,12 +1,13 @@
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
+import type * as Crypto from 'crypto';
 
 import { importFreshApp } from './testUtils';
 
 describe('POST /session/observability (transcripts)', () => {
     it('generates a random UUID sessionId when missing and persists transcript', async () => {
         vi.doMock('crypto', async () => {
-            const actual = (await vi.importActual('crypto')) as Record<string, unknown>;
+            const actual = await vi.importActual<Crypto>('crypto');
             return {
                 ...actual,
                 randomUUID: () => '00000000-0000-4000-8000-000000000000',

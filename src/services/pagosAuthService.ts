@@ -110,9 +110,9 @@ export function createPagosAuthService(deps: CreatePagosAuthServiceDeps): PagosA
         pruneExpiredEntries(Math.min(cache.size, 256));
 
         while (cache.size >= maxCacheEntries) {
-            const oldestKey = cache.keys().next().value as string | undefined;
-            if (!oldestKey) break;
-            cache.delete(oldestKey);
+            const it = cache.keys().next();
+            if (it.done) break;
+            cache.delete(it.value);
         }
     }
 
@@ -165,7 +165,7 @@ export function createPagosAuthService(deps: CreatePagosAuthServiceDeps): PagosA
                 throw new HttpError(502, 'Failed to resolve org from Pagos');
             }
 
-            const payload = (await res.json().catch(() => null)) as unknown;
+            const payload: unknown = await res.json().catch(() => null);
             const parsed = parsePagosAuthContext(payload);
             const ctx: AuthContext = {
                 orgId: parsed.orgId,

@@ -389,6 +389,8 @@ function mapTwilioError(err: unknown): HttpError {
                 return new HttpError(422, err.message);
             case 'PROVIDER_UNREACHABLE':
                 return new HttpError(502, 'Unable to reach Twilio API');
+            case 'PROVIDER_ERROR':
+                return new HttpError(502, `Twilio error: ${err.message}`);
             default:
                 return new HttpError(502, `Twilio error: ${err.message}`);
         }

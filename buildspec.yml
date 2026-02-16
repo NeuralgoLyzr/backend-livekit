@@ -9,35 +9,35 @@ version: 0.2
 #      action knows which image to deploy
 
 env:
-  variables:
-    AWS_ACCOUNT_ID: "555272931711"
-    AWS_DEFAULT_REGION: "us-east-1"
-    ECR_REPO_NAME: "livekit/backend-api"
-    CONTAINER_NAME: "Main"
+    variables:
+        AWS_ACCOUNT_ID: '555272931711'
+        AWS_DEFAULT_REGION: 'us-east-1'
+        ECR_REPO_NAME: 'livekit/backend-api'
+        CONTAINER_NAME: 'Main'
 
 phases:
-  pre_build:
-    commands:
-      - echo Logging in to Amazon ECR...
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-      - IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME
-      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-      - IMAGE_TAG=${COMMIT_HASH:-latest}
+    pre_build:
+        commands:
+            - echo Logging in to Amazon ECR...
+            - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+            - IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME
+            - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+            - IMAGE_TAG=${COMMIT_HASH:-latest}
 
-  build:
-    commands:
-      - echo Building Docker image...
-      - docker build -t $IMAGE_URI:latest .
-      - docker tag $IMAGE_URI:latest $IMAGE_URI:$IMAGE_TAG
+    build:
+        commands:
+            - echo Building Docker image...
+            - docker build -t $IMAGE_URI:latest .
+            - docker tag $IMAGE_URI:latest $IMAGE_URI:$IMAGE_TAG
 
-  post_build:
-    commands:
-      - echo Pushing Docker image to ECR...
-      - docker push $IMAGE_URI:latest
-      - docker push $IMAGE_URI:$IMAGE_TAG
-      - echo Forcing new ECS deployment...
-      - aws ecs update-service --cluster lyzr-voice-prod-ecs-cluster --service backend-api-7aaf --force-new-deployment
+    post_build:
+        commands:
+            - echo Pushing Docker image to ECR...
+            - docker push $IMAGE_URI:latest
+            - docker push $IMAGE_URI:$IMAGE_TAG
+            - echo Forcing new ECS deployment...
+            - aws ecs update-service --cluster lyzr-voice-prod-ecs-cluster --service backend-api-7aaf --force-new-deployment
 
 artifacts:
-  files:
-    - "**/*"
+    files:
+        - '**/*'

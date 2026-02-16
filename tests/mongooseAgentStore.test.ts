@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 type AgentRow = {
     _id: { toString(): string };
-    name: string;
-    description?: string | null;
+    orgId: string;
+    createdByUserId: string;
     config: unknown;
     createdAt: Date;
     updatedAt: Date;
@@ -46,20 +46,22 @@ const Agent: {
 };
 
 vi.mock('../dist/db/mongoose.js', () => ({ connectMongo }));
-vi.mock('../dist/models/agentModel.js', () => ({ getAgentModel: () => Agent as unknown as AgentModelStub }));
+vi.mock('../dist/models/agentModel.js', () => ({
+    getAgentModel: () => Agent as unknown as AgentModelStub,
+}));
 
 describe('MongooseAgentStore (unit)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it('lists only non-deleted agents and maps fields', async () => {
+    it('lists only scoped, non-deleted agents and maps fields', async () => {
         const now = new Date();
         const rows: AgentRow[] = [
             {
                 _id: { toString: () => '507f1f77bcf86cd799439011' },
-                name: 'A',
-                description: null,
+                orgId: 'org-a',
+                createdByUserId: 'user-a',
                 config: { tools: ['get_weather'] },
                 createdAt: now,
                 updatedAt: now,
@@ -75,12 +77,21 @@ describe('MongooseAgentStore (unit)', () => {
         };
         Agent.find.mockReturnValue(findQuery);
 
-        const { MongooseAgentStore } = await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+        const { MongooseAgentStore } =
+            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
         const store = new MongooseAgentStore();
 
-        const result = await store.list({ limit: 10, offset: 5 });
+        const result = await store.list({
+            limit: 10,
+            offset: 5,
+            scope: { orgId: 'org-a', createdByUserId: 'user-a' },
+        });
         expect(connectMongo).toHaveBeenCalledTimes(1);
-        expect(Agent.find).toHaveBeenCalledWith({ deletedAt: null });
+        expect(Agent.find).toHaveBeenCalledWith({
+            orgId: 'org-a',
+            createdByUserId: 'user-a',
+            deletedAt: null,
+        });
         expect(findQuery.sort).toHaveBeenCalledWith({ updatedAt: -1 });
         expect(findQuery.skip).toHaveBeenCalledWith(5);
         expect(findQuery.limit).toHaveBeenCalledWith(10);
@@ -88,8 +99,6 @@ describe('MongooseAgentStore (unit)', () => {
         expect(result).toEqual([
             {
                 id: '507f1f77bcf86cd799439011',
-                name: 'A',
-                description: null,
                 config: { tools: ['get_weather'] },
                 createdAt: now.toISOString(),
                 updatedAt: now.toISOString(),
@@ -97,23 +106,61 @@ describe('MongooseAgentStore (unit)', () => {
         ]);
     });
 
+    it('applies scope on getById', async () => {
+        const now = new Date();
+        const row: AgentRow = {
+            _id: { toString: () => '507f1f77bcf86cd799439011' },
+            orgId: 'org-a',
+            createdByUserId: 'user-a',
+            config: { tools: [] },
+            createdAt: now,
+            updatedAt: now,
+            deletedAt: null,
+        };
+        Agent.findOne.mockReturnValue({ lean: vi.fn(async () => row) });
+
+        const { MongooseAgentStore } =
+            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+        const store = new MongooseAgentStore();
+
+        await store.getById('507f1f77bcf86cd799439011', {
+            orgId: 'org-a',
+            createdByUserId: 'user-a',
+        });
+
+        expect(Agent.findOne).toHaveBeenCalledWith(
+            expect.objectContaining({
+                orgId: 'org-a',
+                createdByUserId: 'user-a',
+                deletedAt: null,
+            })
+        );
+    });
+
     it('returns null when updating a missing agent', async () => {
         const updateQuery = { lean: vi.fn(async () => null) };
         Agent.findOneAndUpdate.mockReturnValue(updateQuery);
 
-        const { MongooseAgentStore } = await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+        const { MongooseAgentStore } =
+            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
         const store = new MongooseAgentStore();
 
-        const result = await store.update('507f1f77bcf86cd799439011', { name: 'new' });
+        const result = await store.update(
+            '507f1f77bcf86cd799439011',
+            {
+                config: { agent_name: 'new' },
+            },
+            { orgId: 'org-a', createdByUserId: 'user-a' }
+        );
         expect(result).toBeNull();
     });
 
-    it('roundtrips config on create', async () => {
+    it('persists ownership fields on create', async () => {
         const now = new Date();
         const storedRow: AgentRow = {
             _id: { toString: () => '507f1f77bcf86cd799439011' },
-            name: 'A',
-            description: null,
+            orgId: 'org-a',
+            createdByUserId: 'user-a',
             config: { nested: { x: 1 } },
             createdAt: now,
             updatedAt: now,
@@ -121,15 +168,45 @@ describe('MongooseAgentStore (unit)', () => {
         };
         Agent.create.mockResolvedValue({ toObject: () => storedRow });
 
-        const { MongooseAgentStore } = await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+        const { MongooseAgentStore } =
+            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
         const store = new MongooseAgentStore();
 
         const created = await store.create({
-            name: 'A',
-            description: null,
+            orgId: 'org-a',
+            createdByUserId: 'user-a',
             config: { nested: { x: 1 } } as unknown as Record<string, unknown>,
         });
+
+        expect(Agent.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                orgId: 'org-a',
+                createdByUserId: 'user-a',
+            })
+        );
         expect(created.config).toEqual({ nested: { x: 1 } });
     });
-});
 
+    it('applies scope when deleting', async () => {
+        Agent.updateOne.mockResolvedValue({ modifiedCount: 1 });
+
+        const { MongooseAgentStore } =
+            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+        const store = new MongooseAgentStore();
+
+        const deleted = await store.delete('507f1f77bcf86cd799439011', {
+            orgId: 'org-a',
+            createdByUserId: 'user-a',
+        });
+
+        expect(deleted).toBe(true);
+        expect(Agent.updateOne).toHaveBeenCalledWith(
+            expect.objectContaining({
+                orgId: 'org-a',
+                createdByUserId: 'user-a',
+                deletedAt: null,
+            }),
+            expect.any(Object)
+        );
+    });
+});

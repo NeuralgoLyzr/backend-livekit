@@ -16,6 +16,7 @@ export interface TelephonyStorePort {
 
     getCallById(callId: string): Promise<TelephonyCall | null>;
     getCallByRoomName(roomName: string): Promise<TelephonyCall | null>;
+    listCalls(): Promise<TelephonyCall[]>;
 
     markAgentDispatched(callId: string): Promise<TelephonyCall | null>;
     markEnded(

@@ -69,6 +69,12 @@ export class InMemoryTelephonyStore implements TelephonyStorePort {
         return this.callsById.get(callId) ?? null;
     }
 
+    async listCalls(): Promise<TelephonyCall[]> {
+        return Array.from(this.callsById.values()).sort((a, b) =>
+            a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0
+        );
+    }
+
     async markAgentDispatched(callId: string): Promise<TelephonyCall | null> {
         const call = this.callsById.get(callId);
         if (!call) return null;

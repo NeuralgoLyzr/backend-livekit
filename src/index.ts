@@ -3,16 +3,13 @@
  * Starts the Express API server
  */
 
-import dotenv from 'dotenv';
-import type { AddressInfo } from 'node:net';
-
-// Load environment variables FIRST (before importing config)
-dotenv.config();
+import 'dotenv/config';
 
 import { app } from './app.js';
 import { config } from './config/index.js';
 import { disconnectMongo } from './db/mongoose.js';
 import { logger, shutdownLogger } from './lib/logger.js';
+import { installFatalProcessHandlers } from './lib/fatalProcessHandlers.js';
 
 const configuredPort = config.server.port;
 
@@ -21,7 +18,7 @@ const server = app.listen(configuredPort);
 server.once('listening', () => {
     const address = server.address();
     const actualPort =
-        address && typeof address !== 'string' ? (address as AddressInfo).port : configuredPort;
+        address && typeof address !== 'string' ? address.port : configuredPort;
 
     const baseUrl = `http://localhost:${actualPort}`;
 
@@ -74,8 +71,14 @@ server.on('error', (error: NodeJS.ErrnoException) => {
     })();
 });
 
-async function shutdown(signal: NodeJS.Signals): Promise<void> {
-    logger.info({ event: 'shutdown_signal', signal }, 'Closing server');
+type ShutdownReason = NodeJS.Signals | 'uncaughtException' | 'unhandledRejection';
+let shuttingDown = false;
+
+async function shutdown(reason: ShutdownReason): Promise<void> {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
+    logger.info({ event: 'shutdown', reason }, 'Closing server');
 
     // Stop accepting new connections.
     await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -92,6 +95,14 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
 
     await shutdownLogger();
 }
+
+installFatalProcessHandlers({
+    logger,
+    exitTimeoutMs: 5000,
+    onFatal: async (event) => {
+        await shutdown(event.kind);
+    },
+});
 
 process.on('SIGINT', () => {
     void shutdown('SIGINT').finally(() => process.exit(0));

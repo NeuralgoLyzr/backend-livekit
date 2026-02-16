@@ -7,4 +7,3 @@ export interface SessionStorePort {
     has(roomName: string): boolean;
     entries(): Array<[roomName: string, data: SessionData]>;
 }
-

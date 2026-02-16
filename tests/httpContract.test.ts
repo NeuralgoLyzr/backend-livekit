@@ -67,7 +67,7 @@ describe('backend HTTP contract', () => {
         const createSession = vi.fn();
         const app = await importFreshApp({ sessionServiceMock: { createSession } });
 
-        const res = await request(app).post('/session').send({}).expect(400);
+        const res = await request(app).post('/session').set('x-api-key', 'dev').send({}).expect(400);
         expect(res.body.error).toBeTruthy();
         expect(res.body.issues).toBeTruthy();
         expect(res.body.example?.userIdentity).toBeTruthy();
@@ -87,6 +87,7 @@ describe('backend HTTP contract', () => {
 
         const res = await request(app)
             .post('/session')
+            .set('x-api-key', 'dev')
             .send({ userIdentity: 'user_1', roomName: 'room-123' })
             .expect(200);
 
@@ -102,7 +103,18 @@ describe('backend HTTP contract', () => {
         const endSession = vi.fn().mockResolvedValue(undefined);
         const app = await importFreshApp({ sessionServiceMock: { endSession } });
 
-        await request(app).post('/session/end').send({ roomName: 'room-123' }).expect(204);
-        expect(endSession).toHaveBeenCalledWith('room-123');
+        await request(app)
+            .post('/session/end')
+            .set('x-api-key', 'dev')
+            .send({ roomName: 'room-123' })
+            .expect(204);
+        expect(endSession).toHaveBeenCalledWith({
+            roomName: 'room-123',
+            auth: {
+                orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                userId: 'mem_test_user',
+                isAdmin: true,
+            },
+        });
     });
 });

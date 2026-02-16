@@ -1,18 +1,16 @@
 import { randomUUID } from 'crypto';
-import { tokenService } from './tokenService.js';
-import { agentService } from './agentService.js';
-import { roomService } from './roomService.js';
 import type { SessionStorePort } from '../ports/sessionStorePort.js';
-import { sessionStore } from '../lib/storage.js';
-import { config } from '../config/index.js';
-import { deriveRagConfigFromKnowledgeBase, normalizeTools } from '../config/tools.js';
+import { finalizeAgentConfig } from '../config/tools.js';
 import type { AgentConfig } from '../types/index.js';
 import { HttpError } from '../lib/httpErrors.js';
 import { isDevelopment } from '../lib/env.js';
 import { AGENT_DEFAULTS } from '../CONSTS.js';
-import { MongooseAgentStore } from '../adapters/mongoose/mongooseAgentStore.js';
-import { createAgentConfigResolverService } from './agentConfigResolverService.js';
+import { summarizeAgentConfigForLog } from '../lib/agentConfigSummary.js';
 import { logger } from '../lib/logger.js';
+import type { AgentService } from './agentService.js';
+import type { TokenService } from './tokenService.js';
+import type { RoomService } from './roomService.js';
+import type { AgentConfigResolverService } from './agentConfigResolverService.js';
 
 export interface CreateSessionInput {
     userIdentity: string;
@@ -20,6 +18,18 @@ export interface CreateSessionInput {
     sessionId?: string;
     agentId?: string;
     agentConfig?: AgentConfig;
+    /**
+     * Tenant id derived from `x-api-key` (Pagos). Used for transcript scoping.
+     */
+    orgId?: string;
+    /**
+     * Agent Studio user id derived from Pagos policy. Used for Phase 2 RBAC.
+     */
+    createdByUserId?: string;
+    /**
+     * Whether the requester is an org admin (from Pagos role).
+     */
+    requesterIsAdmin?: boolean;
 }
 
 export interface CreateSessionResponse {
@@ -34,7 +44,9 @@ export interface CreateSessionResponse {
     };
 }
 
-function summarizeAgentConfig(agentConfig?: AgentConfig): CreateSessionResponse['agentConfig'] {
+function buildResponseAgentSummary(
+    agentConfig?: AgentConfig
+): CreateSessionResponse['agentConfig'] {
     return {
         engine: agentConfig?.engine ?? AGENT_DEFAULTS.engine,
         tools: agentConfig?.tools ?? AGENT_DEFAULTS.tools,
@@ -53,48 +65,70 @@ function applyDefaultDynamicVariables(agentConfig: AgentConfig): AgentConfig {
 
 export interface SessionServiceDeps {
     store: SessionStorePort;
+    tokenService: TokenService;
+    agentService: AgentService;
+    roomService: RoomService;
+    agentConfigResolver: AgentConfigResolverService;
+    livekitUrl: string;
+}
+
+export interface EndSessionAuthContext {
+    orgId: string;
+    userId: string;
+    isAdmin: boolean;
+}
+
+export interface EndSessionInput {
+    roomName?: string;
+    sessionId?: string;
+    auth: EndSessionAuthContext;
+}
+
+function canAccessSession(
+    auth: EndSessionAuthContext,
+    session: { orgId?: string; createdByUserId?: string }
+): boolean {
+    if (session.orgId !== auth.orgId) {
+        return false;
+    }
+    if (!auth.isAdmin && session.createdByUserId !== auth.userId) {
+        return false;
+    }
+    return true;
 }
 
 export function createSessionService(deps: SessionServiceDeps) {
-    let resolver:
-        | ReturnType<typeof createAgentConfigResolverService>
-        | null = null;
-    function getResolver() {
-        if (resolver) return resolver;
-        resolver = createAgentConfigResolverService({ agentStore: new MongooseAgentStore() });
-        return resolver;
-    }
-
     return {
         async createSession(input: CreateSessionInput): Promise<CreateSessionResponse> {
             const userIdentity = input.userIdentity.trim();
             const requestedRoomName = input.roomName?.trim() ?? '';
             const requestedSessionId = input.sessionId?.trim() ?? '';
 
-            // Generate room name if not provided
             const roomName =
                 requestedRoomName.length > 0 ? requestedRoomName : `room-${randomUUID()}`;
             const sessionId = requestedSessionId.length > 0 ? requestedSessionId : randomUUID();
 
-            const agentConfig =
-                input.agentId
-                    ? await getResolver().resolveByAgentId({
-                        agentId: input.agentId,
-                        overrides: input.agentConfig,
-                    })
-                    : (input.agentConfig ?? {});
-            const normalizedTools = normalizeTools(agentConfig);
-            const derivedRag = deriveRagConfigFromKnowledgeBase(agentConfig);
+            let resolvedConfig: AgentConfig;
+            if (input.agentId) {
+                if (!input.orgId || !input.createdByUserId) {
+                    throw new HttpError(401, 'Missing auth context');
+                }
+                resolvedConfig = await deps.agentConfigResolver.resolveByAgentId({
+                    agentId: input.agentId,
+                    overrides: input.agentConfig,
+                    accessScope: {
+                        orgId: input.orgId,
+                        userId: input.createdByUserId,
+                        isAdmin: input.requesterIsAdmin ?? false,
+                    },
+                });
+            } else {
+                resolvedConfig = input.agentConfig ?? {};
+            }
 
-            const finalAgentConfig: AgentConfig = {
-                ...agentConfig,
-                tools: normalizedTools,
-                ...derivedRag,
-            };
+            const finalAgentConfig = finalizeAgentConfig(resolvedConfig);
             const finalAgentConfigWithDefaults = applyDefaultDynamicVariables(finalAgentConfig);
 
-            // Keep legacy correlation fields (used by some tools and logs).
-            // Note: unrelated to dynamic prompt variables.
             const agentConfigWithIds: AgentConfig = {
                 ...finalAgentConfigWithDefaults,
                 ...(input.agentId ? { agent_id: input.agentId } : {}),
@@ -102,7 +136,7 @@ export function createSessionService(deps: SessionServiceDeps) {
                 session_id: sessionId,
             };
 
-            const userToken = await tokenService.createUserToken(userIdentity, roomName);
+            const userToken = await deps.tokenService.createUserToken(userIdentity, roomName);
 
             if (isDevelopment()) {
                 logger.debug(
@@ -111,7 +145,7 @@ export function createSessionService(deps: SessionServiceDeps) {
                         roomName,
                         userIdentity,
                         agentId: input.agentId,
-                        agentConfig: summarizeAgentConfig(finalAgentConfigWithDefaults),
+                        agentConfig: summarizeAgentConfigForLog(finalAgentConfigWithDefaults),
                         hasApiKey: Boolean(agentConfigWithIds.api_key),
                     },
                     'Dispatching agent (dev)'
@@ -119,7 +153,7 @@ export function createSessionService(deps: SessionServiceDeps) {
             }
 
             try {
-                await agentService.dispatchAgent(roomName, agentConfigWithIds);
+                await deps.agentService.dispatchAgent(roomName, agentConfigWithIds);
             } catch (error) {
                 throw new HttpError(
                     502,
@@ -131,6 +165,8 @@ export function createSessionService(deps: SessionServiceDeps) {
             deps.store.set(roomName, {
                 userIdentity,
                 sessionId,
+                orgId: input.orgId,
+                createdByUserId: input.createdByUserId,
                 agentConfig: agentConfigWithIds,
                 createdAt: new Date().toISOString(),
             });
@@ -139,33 +175,45 @@ export function createSessionService(deps: SessionServiceDeps) {
                 userToken,
                 roomName,
                 sessionId,
-                livekitUrl: config.livekit.url,
+                livekitUrl: deps.livekitUrl,
                 agentDispatched: true,
-                agentConfig: summarizeAgentConfig(finalAgentConfig),
+                agentConfig: buildResponseAgentSummary(finalAgentConfig),
             };
         },
 
-        async endSession(input: { roomName?: string; sessionId?: string }): Promise<void> {
+        async endSession(input: EndSessionInput): Promise<void> {
             const normalizedRoomName = input.roomName?.trim() ?? '';
             const normalizedSessionId = input.sessionId?.trim() ?? '';
+            const { auth } = input;
 
-            let roomName = normalizedRoomName;
-            if (!roomName && normalizedSessionId) {
-                const match = deps.store
-                    .entries()
-                    .find(([, data]) => data.sessionId === normalizedSessionId);
-                roomName = match?.[0] ?? '';
-            }
-
-            if (!roomName) {
-                if (normalizedSessionId) {
-                    throw new HttpError(404, 'Session not found for sessionId');
-                }
+            if (!normalizedRoomName && !normalizedSessionId) {
                 throw new HttpError(400, 'Must provide roomName or sessionId');
             }
 
-            if (!deps.store.has(roomName)) {
-                throw new HttpError(404, 'Session not found for room');
+            let roomName = normalizedRoomName;
+            let existing = roomName ? deps.store.get(roomName) : undefined;
+
+            if (roomName) {
+                if (!existing) {
+                    throw new HttpError(404, 'Session not found for room');
+                }
+                if (!canAccessSession(auth, existing)) {
+                    throw new HttpError(404, 'Session not found for room');
+                }
+            } else {
+                const match = deps.store.entries().find(([, data]) => {
+                    if (data.sessionId !== normalizedSessionId) {
+                        return false;
+                    }
+                    return canAccessSession(auth, data);
+                });
+
+                if (!match) {
+                    throw new HttpError(404, 'Session not found for sessionId');
+                }
+
+                roomName = match[0];
+                existing = match[1];
             }
 
             // IMPORTANT:
@@ -177,7 +225,6 @@ export function createSessionService(deps: SessionServiceDeps) {
             // Instead, mark the session as ended and let a later step (e.g.
             // `/session/observability`) perform cleanup once transcripts/reports
             // have been received.
-            const existing = deps.store.get(roomName);
             if (existing) {
                 deps.store.set(roomName, {
                     ...existing,
@@ -190,7 +237,7 @@ export function createSessionService(deps: SessionServiceDeps) {
             const normalizedRoomName = roomName.trim();
 
             try {
-                await roomService.deleteRoom(normalizedRoomName);
+                await deps.roomService.deleteRoom(normalizedRoomName);
             } catch (error) {
                 throw new HttpError(
                     502,
@@ -204,5 +251,4 @@ export function createSessionService(deps: SessionServiceDeps) {
     };
 }
 
-export const sessionService = createSessionService({ store: sessionStore });
-
+export type SessionService = ReturnType<typeof createSessionService>;

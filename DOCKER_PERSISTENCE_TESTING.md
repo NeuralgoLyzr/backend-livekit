@@ -96,4 +96,3 @@ Wipe data too (remove named volume):
 ```bash
 docker compose -f backend-livekit/docker-compose.persistence.yml down -v
 ```
-

@@ -14,6 +14,19 @@ export interface HttpWideEvent {
     requestId: string;
     method: string;
     path: string;
+    /**
+     * Optional correlation id for a LiveKit session lifecycle.
+     * This is populated by session routes when available.
+     */
+    sessionId?: string;
+    /**
+     * LiveKit room name (known after /session allocates it, or when explicitly provided).
+     */
+    roomName?: string;
+    /**
+     * End-user identity for the session (when available).
+     */
+    userIdentity?: string;
     statusCode?: number;
     durationMs?: number;
     outcome?: Outcome;
@@ -50,7 +63,8 @@ function isHealthCheckRequest(req: Request): boolean {
 
 export function requestLoggingMiddleware(req: Request, res: Response, next: NextFunction): void {
     const headerRequestId = req.header('x-request-id');
-    const requestId = headerRequestId && headerRequestId.trim().length > 0 ? headerRequestId : randomUUID();
+    const requestId =
+        headerRequestId && headerRequestId.trim().length > 0 ? headerRequestId : randomUUID();
 
     res.setHeader('X-Request-Id', requestId);
 
@@ -87,4 +101,3 @@ export function requestLoggingMiddleware(req: Request, res: Response, next: Next
         next();
     });
 }
-

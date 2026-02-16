@@ -41,9 +41,3 @@ export class InMemorySessionStore implements SessionStorePort {
         return this.store.size;
     }
 }
-
-// Default singleton instance (kept for runtime convenience)
-export const sessionStore: SessionStorePort = new InMemorySessionStore();
-
-// Backward-compatible alias (avoid importing this directly in new code)
-export const storage = sessionStore;

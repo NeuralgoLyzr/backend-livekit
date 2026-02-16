@@ -3,12 +3,14 @@
  * Loads and validates environment variables
  */
 
-import dotenv from 'dotenv';
-
-// Load environment variables for this module
-dotenv.config();
-
-const requiredEnvVars = ['LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET'] as const;
+const requiredEnvVars = [
+    'LIVEKIT_URL',
+    'LIVEKIT_API_KEY',
+    'LIVEKIT_API_SECRET',
+    // Used to resolve { orgId, userId, role } from `x-api-key` for transcripts scoping.
+    'PAGOS_API_URL',
+    'PAGOS_ADMIN_TOKEN',
+] as const;
 
 for (const envVar of requiredEnvVars) {
     if (!process.env[envVar]) {
@@ -21,6 +23,10 @@ export const config = {
         url: process.env.LIVEKIT_URL!,
         apiKey: process.env.LIVEKIT_API_KEY!,
         apiSecret: process.env.LIVEKIT_API_SECRET!,
+    },
+    pagos: {
+        apiUrl: process.env.PAGOS_API_URL!,
+        adminToken: process.env.PAGOS_ADMIN_TOKEN!,
     },
     server: {
         port: parseInt(process.env.PORT || '4000', 10),
@@ -42,5 +48,22 @@ export const config = {
         sipIdentityPrefix: process.env.TELEPHONY_SIP_IDENTITY_PREFIX || 'sip_',
         dispatchOnAnyParticipantJoin:
             process.env.TELEPHONY_DISPATCH_ON_ANY_PARTICIPANT_JOIN === 'true',
+        management: {
+            encryptionKey: process.env.TELEPHONY_SECRETS_KEY
+                ? Buffer.from(process.env.TELEPHONY_SECRETS_KEY, 'base64')
+                : null,
+            livekitSipHost: process.env.LIVEKIT_SIP_HOST || '',
+            livekitProvisioning: {
+                inboundTrunkName:
+                    process.env.TELEPHONY_LIVEKIT_INBOUND_TRUNK_NAME || 'byoc-inbound',
+                dispatchRuleName:
+                    process.env.TELEPHONY_LIVEKIT_DISPATCH_RULE_NAME || 'byoc-dispatch',
+                dispatchRoomPrefix:
+                    process.env.TELEPHONY_LIVEKIT_DISPATCH_ROOM_PREFIX || 'call-',
+            },
+        },
+    },
+    telnyx: {
+        devApiKey: process.env.TELNYX_API_KEY || '',
     },
 };

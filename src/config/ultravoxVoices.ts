@@ -7,7 +7,11 @@ import type { RealtimeOption } from './realtimeOptions.js';
  * Keep it in sync with the Ultravox realtime plugin / provider as voices change.
  */
 export const ULTRAVOX_VOICES: RealtimeOption[] = [
-    { id: 'Mark', name: 'Mark', description: 'Energetic, expressive man with a rapid-fire delivery' },
+    {
+        id: 'Mark',
+        name: 'Mark',
+        description: 'Energetic, expressive man with a rapid-fire delivery',
+    },
     { id: 'Jessica', name: 'Jessica', description: 'Female, Middle-Aged, Conversational' },
     { id: 'Ashley', name: 'Ashley', description: 'A warm, natural female voice' },
     {
@@ -27,7 +31,11 @@ export const ULTRAVOX_VOICES: RealtimeOption[] = [
         name: 'Clive',
         description: 'British-accented English-language male voice with a calm, cordial quality',
     },
-    { id: 'Craig', name: 'Craig', description: 'Older British male with a refined and articulate voice' },
+    {
+        id: 'Craig',
+        name: 'Craig',
+        description: 'Older British male with a refined and articulate voice',
+    },
     { id: 'Deborah', name: 'Deborah', description: 'Gentle and elegant female voice' },
     {
         id: 'Dennis',
@@ -52,14 +60,18 @@ export const ULTRAVOX_VOICES: RealtimeOption[] = [
     {
         id: 'Luna',
         name: 'Luna',
-        description:
-            'Calm, relaxing female voice, perfect for meditations, mindfulness',
+        description: 'Calm, relaxing female voice, perfect for meditations, mindfulness',
     },
-    { id: 'Olivia', name: 'Olivia', description: 'Young, British female with an upbeat, friendly tone' },
+    {
+        id: 'Olivia',
+        name: 'Olivia',
+        description: 'Young, British female with an upbeat, friendly tone',
+    },
     {
         id: 'Pixie',
         name: 'Pixie',
-        description: 'High-pitched, childlike female voice with a squeaky quality - great for a cartoon',
+        description:
+            'High-pitched, childlike female voice with a squeaky quality - great for a cartoon',
     },
     {
         id: 'Ronald',
@@ -77,6 +89,4 @@ export const ULTRAVOX_VOICES: RealtimeOption[] = [
         description: 'Friendly, dynamic male voice great for conversations',
     },
     { id: 'Timothy', name: 'Timothy', description: 'Lively, upbeat American male voice' },
-
 ];
-

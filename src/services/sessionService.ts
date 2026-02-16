@@ -26,6 +26,10 @@ export interface CreateSessionInput {
      * Agent Studio user id derived from Pagos policy. Used for Phase 2 RBAC.
      */
     createdByUserId?: string;
+    /**
+     * Whether the requester is an org admin (from Pagos role).
+     */
+    requesterIsAdmin?: boolean;
 }
 
 export interface CreateSessionResponse {
@@ -104,12 +108,23 @@ export function createSessionService(deps: SessionServiceDeps) {
                 requestedRoomName.length > 0 ? requestedRoomName : `room-${randomUUID()}`;
             const sessionId = requestedSessionId.length > 0 ? requestedSessionId : randomUUID();
 
-            const resolvedConfig = input.agentId
-                ? await deps.agentConfigResolver.resolveByAgentId({
-                      agentId: input.agentId,
-                      overrides: input.agentConfig,
-                  })
-                : (input.agentConfig ?? {});
+            let resolvedConfig: AgentConfig;
+            if (input.agentId) {
+                if (!input.orgId || !input.createdByUserId) {
+                    throw new HttpError(401, 'Missing auth context');
+                }
+                resolvedConfig = await deps.agentConfigResolver.resolveByAgentId({
+                    agentId: input.agentId,
+                    overrides: input.agentConfig,
+                    accessScope: {
+                        orgId: input.orgId,
+                        userId: input.createdByUserId,
+                        isAdmin: input.requesterIsAdmin ?? false,
+                    },
+                });
+            } else {
+                resolvedConfig = input.agentConfig ?? {};
+            }
 
             const finalAgentConfig = finalizeAgentConfig(resolvedConfig);
             const finalAgentConfigWithDefaults = applyDefaultDynamicVariables(finalAgentConfig);

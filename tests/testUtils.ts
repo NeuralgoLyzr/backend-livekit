@@ -28,6 +28,14 @@ type PagosAuthServiceMock = {
     resolveAuthContext?: Mock;
 };
 
+type AgentRegistryServiceMock = {
+    listAgents?: Mock;
+    getAgent?: Mock;
+    createAgent?: Mock;
+    updateAgent?: Mock;
+    deleteAgent?: Mock;
+};
+
 export function setRequiredEnv(overrides?: Record<string, string | undefined>) {
     process.env.LIVEKIT_URL = 'wss://example.livekit.invalid';
     process.env.LIVEKIT_API_KEY = 'test_api_key';
@@ -53,12 +61,18 @@ export async function importFreshApp(options?: {
     transcriptServiceMock?: TranscriptServiceMock;
     sessionStoreMock?: SessionStoreMock;
     pagosAuthServiceMock?: PagosAuthServiceMock;
+    agentRegistryServiceMock?: AgentRegistryServiceMock;
 }): Promise<Express> {
     vi.resetModules();
     vi.doUnmock('../dist/composition.js');
     setRequiredEnv(options?.env);
 
-    if (options?.sessionServiceMock || options?.transcriptServiceMock || options?.sessionStoreMock) {
+    if (
+        options?.sessionServiceMock ||
+        options?.transcriptServiceMock ||
+        options?.sessionStoreMock ||
+        options?.agentRegistryServiceMock
+    ) {
         const createSession = options.sessionServiceMock.createSession ?? vi.fn();
         const endSession = options.sessionServiceMock.endSession ?? vi.fn();
         const cleanupSession = options.sessionServiceMock.cleanupSession ?? vi.fn();
@@ -86,6 +100,12 @@ export async function importFreshApp(options?: {
                 isAdmin: true,
             });
 
+        const listAgents = options.agentRegistryServiceMock?.listAgents ?? vi.fn().mockResolvedValue([]);
+        const getAgent = options.agentRegistryServiceMock?.getAgent ?? vi.fn().mockResolvedValue(null);
+        const createAgent = options.agentRegistryServiceMock?.createAgent ?? vi.fn();
+        const updateAgent = options.agentRegistryServiceMock?.updateAgent ?? vi.fn();
+        const deleteAgent = options.agentRegistryServiceMock?.deleteAgent ?? vi.fn();
+
         vi.doMock('../dist/composition.js', () => ({
             services: {
                 sessionService: { createSession, endSession, cleanupSession },
@@ -99,11 +119,11 @@ export async function importFreshApp(options?: {
                 sessionStore,
                 pagosAuthService: { resolveAuthContext },
                 agentRegistryService: {
-                    listAgents: vi.fn().mockResolvedValue([]),
-                    getAgent: vi.fn().mockResolvedValue(null),
-                    createAgent: vi.fn(),
-                    updateAgent: vi.fn(),
-                    deleteAgent: vi.fn(),
+                    listAgents,
+                    getAgent,
+                    createAgent,
+                    updateAgent,
+                    deleteAgent,
                 },
             },
         }));

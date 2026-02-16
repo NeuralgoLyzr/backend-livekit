@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 import type {
+    AgentAccessScope,
     AgentStorePort,
     CreateAgentInput,
     ListAgentsInput,
@@ -21,15 +22,31 @@ function toStoredAgent(row: AgentConfigDocument): StoredAgent {
     };
 }
 
+function buildScopedQuery(scope?: AgentAccessScope): Record<string, string> {
+    if (!scope) {
+        return {};
+    }
+
+    if (scope.createdByUserId) {
+        return {
+            orgId: scope.orgId,
+            createdByUserId: scope.createdByUserId,
+        };
+    }
+
+    return { orgId: scope.orgId };
+}
+
 export class MongooseAgentStore implements AgentStorePort {
-    async list(input?: ListAgentsInput): Promise<StoredAgent[]> {
+    async list(input?: ListAgentsInput & { scope?: AgentAccessScope }): Promise<StoredAgent[]> {
         await connectMongo();
         const Agent = getAgentModel();
 
         const limit = Math.min(Math.max(input?.limit ?? 50, 1), 200);
         const offset = Math.max(input?.offset ?? 0, 0);
+        const scopedQuery = buildScopedQuery(input?.scope);
 
-        const rows = await Agent.find({ deletedAt: null })
+        const rows = await Agent.find({ ...scopedQuery, deletedAt: null })
             .sort({ updatedAt: -1 })
             .skip(offset)
             .limit(limit)
@@ -38,14 +55,15 @@ export class MongooseAgentStore implements AgentStorePort {
         return rows.map(toStoredAgent);
     }
 
-    async getById(id: string): Promise<StoredAgent | null> {
+    async getById(id: string, scope?: AgentAccessScope): Promise<StoredAgent | null> {
         await connectMongo();
         const Agent = getAgentModel();
 
         if (!mongoose.Types.ObjectId.isValid(id)) return null;
         const _id = new mongoose.Types.ObjectId(id);
+        const scopedQuery = buildScopedQuery(scope);
 
-        const row = await Agent.findOne({ _id, deletedAt: null }).lean<AgentConfigDocument>();
+        const row = await Agent.findOne({ _id, ...scopedQuery, deletedAt: null }).lean<AgentConfigDocument>();
         if (!row) return null;
         return toStoredAgent(row);
     }
@@ -55,6 +73,8 @@ export class MongooseAgentStore implements AgentStorePort {
         const Agent = getAgentModel();
 
         const created = await Agent.create({
+            orgId: input.orgId,
+            createdByUserId: input.createdByUserId,
             config: input.config as unknown,
             deletedAt: null,
         });
@@ -62,12 +82,13 @@ export class MongooseAgentStore implements AgentStorePort {
         return toStoredAgent(created.toObject() as AgentConfigDocument);
     }
 
-    async update(id: string, input: UpdateAgentInput): Promise<StoredAgent | null> {
+    async update(id: string, input: UpdateAgentInput, scope?: AgentAccessScope): Promise<StoredAgent | null> {
         await connectMongo();
         const Agent = getAgentModel();
 
         if (!mongoose.Types.ObjectId.isValid(id)) return null;
         const _id = new mongoose.Types.ObjectId(id);
+        const scopedQuery = buildScopedQuery(scope);
 
         const $set: Record<string, unknown> = {};
         if (input.config !== undefined) $set.config = input.config as unknown;
@@ -75,6 +96,7 @@ export class MongooseAgentStore implements AgentStorePort {
         if (Object.keys($set).length === 0) {
             const existing = await Agent.findOne({
                 _id,
+                ...scopedQuery,
                 deletedAt: null,
             }).lean<AgentConfigDocument>();
             if (!existing) return null;
@@ -82,7 +104,7 @@ export class MongooseAgentStore implements AgentStorePort {
         }
 
         const updated = await Agent.findOneAndUpdate(
-            { _id, deletedAt: null },
+            { _id, ...scopedQuery, deletedAt: null },
             { $set },
             { new: true, runValidators: true }
         ).lean<AgentConfigDocument>();
@@ -91,15 +113,16 @@ export class MongooseAgentStore implements AgentStorePort {
         return toStoredAgent(updated);
     }
 
-    async delete(id: string): Promise<boolean> {
+    async delete(id: string, scope?: AgentAccessScope): Promise<boolean> {
         await connectMongo();
         const Agent = getAgentModel();
 
         if (!mongoose.Types.ObjectId.isValid(id)) return false;
         const _id = new mongoose.Types.ObjectId(id);
+        const scopedQuery = buildScopedQuery(scope);
 
         const res = await Agent.updateOne(
-            { _id, deletedAt: null },
+            { _id, ...scopedQuery, deletedAt: null },
             { $set: { deletedAt: new Date() } }
         );
         return res.modifiedCount > 0;

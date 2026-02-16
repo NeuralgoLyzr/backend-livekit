@@ -99,6 +99,7 @@ export function createSessionRouter(
                 ...parseResult.data,
                 orgId: auth?.orgId,
                 createdByUserId: auth?.userId,
+                requesterIsAdmin: auth?.isAdmin,
             });
 
             const wideEvent = res.locals.wideEvent as HttpWideEvent | undefined;

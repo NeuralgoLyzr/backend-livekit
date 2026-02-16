@@ -7,7 +7,14 @@ export interface StoredAgent {
     updatedAt: string;
 }
 
+export interface AgentAccessScope {
+    orgId: string;
+    createdByUserId?: string;
+}
+
 export interface CreateAgentInput {
+    orgId: string;
+    createdByUserId: string;
     config: AgentConfig;
 }
 
@@ -21,9 +28,9 @@ export interface ListAgentsInput {
 }
 
 export interface AgentStorePort {
-    list(input?: ListAgentsInput): Promise<StoredAgent[]>;
-    getById(id: string): Promise<StoredAgent | null>;
+    list(input?: ListAgentsInput & { scope?: AgentAccessScope }): Promise<StoredAgent[]>;
+    getById(id: string, scope?: AgentAccessScope): Promise<StoredAgent | null>;
     create(input: CreateAgentInput): Promise<StoredAgent>;
-    update(id: string, input: UpdateAgentInput): Promise<StoredAgent | null>;
-    delete(id: string): Promise<boolean>;
+    update(id: string, input: UpdateAgentInput, scope?: AgentAccessScope): Promise<StoredAgent | null>;
+    delete(id: string, scope?: AgentAccessScope): Promise<boolean>;
 }

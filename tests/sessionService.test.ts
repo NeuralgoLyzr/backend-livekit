@@ -104,6 +104,63 @@ describe('sessionService (unit)', () => {
         expect(deps.store.size()).toBe(0);
     });
 
+    it('resolves agentId with tenant scope before dispatch', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const resolveByAgentId = vi.fn().mockResolvedValue({
+            prompt: 'Resolved config',
+            tools: ['get_weather'],
+        });
+        const dispatchAgent = vi.fn().mockResolvedValue(undefined);
+        const deps = buildDeps({ resolveByAgentId, dispatchAgent });
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const svc = createSessionService(deps);
+
+        await svc.createSession({
+            userIdentity: 'user_1',
+            agentId: '507f1f77bcf86cd799439011',
+            orgId: ORG_ID_A,
+            createdByUserId: 'member_user_1',
+            requesterIsAdmin: false,
+            agentConfig: {
+                prompt: 'Override prompt',
+            },
+        });
+
+        expect(resolveByAgentId).toHaveBeenCalledWith({
+            agentId: '507f1f77bcf86cd799439011',
+            overrides: { prompt: 'Override prompt' },
+            accessScope: {
+                orgId: ORG_ID_A,
+                userId: 'member_user_1',
+                isAdmin: false,
+            },
+        });
+        expect(dispatchAgent).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects agentId session creation when auth context is missing', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const resolveByAgentId = vi.fn().mockResolvedValue({});
+        const deps = buildDeps({ resolveByAgentId });
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { HttpError } = await import('../dist/lib/httpErrors.js');
+        const svc = createSessionService(deps);
+
+        await expect(
+            svc.createSession({
+                userIdentity: 'user_1',
+                agentId: '507f1f77bcf86cd799439011',
+            })
+        ).rejects.toBeInstanceOf(HttpError);
+        expect(resolveByAgentId).not.toHaveBeenCalled();
+    });
+
     it('endSession marks session as ended', async () => {
         vi.resetModules();
         setRequiredEnv();

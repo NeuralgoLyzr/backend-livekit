@@ -1,5 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
+
 import { setRequiredEnv } from './testUtils';
+
+const MEMBER_AUTH = {
+    orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+    userId: 'member_user_1',
+    isAdmin: false,
+};
+
+const ADMIN_AUTH = {
+    orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+    userId: 'admin_user_1',
+    isAdmin: true,
+};
 
 function makeStoredAgent(overrides?: Record<string, unknown>) {
     return {
@@ -30,7 +43,7 @@ function makeStore(overrides?: Record<string, unknown>) {
 }
 
 describe('agentRegistryService (unit)', () => {
-    it('listAgents delegates to store.list', async () => {
+    it('listAgents scopes members by orgId + createdByUserId', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
             await import('../dist/services/agentRegistryService.js');
@@ -39,12 +52,36 @@ describe('agentRegistryService (unit)', () => {
         const store = makeStore({ list: vi.fn().mockResolvedValue(agents) });
         const svc = createAgentRegistryService({ store });
 
-        const result = await svc.listAgents({ limit: 5, offset: 0 });
-        expect(store.list).toHaveBeenCalledWith({ limit: 5, offset: 0 });
+        const result = await svc.listAgents(MEMBER_AUTH, { limit: 5, offset: 0 });
+        expect(store.list).toHaveBeenCalledWith({
+            limit: 5,
+            offset: 0,
+            scope: {
+                orgId: MEMBER_AUTH.orgId,
+                createdByUserId: MEMBER_AUTH.userId,
+            },
+        });
         expect(result).toEqual(agents);
     });
 
-    it('getAgent delegates to store.getById', async () => {
+    it('listAgents scopes admins only by orgId', async () => {
+        setRequiredEnv();
+        const { createAgentRegistryService } =
+            await import('../dist/services/agentRegistryService.js');
+
+        const store = makeStore();
+        const svc = createAgentRegistryService({ store });
+
+        await svc.listAgents(ADMIN_AUTH, { limit: 10 });
+        expect(store.list).toHaveBeenCalledWith({
+            limit: 10,
+            scope: {
+                orgId: ADMIN_AUTH.orgId,
+            },
+        });
+    });
+
+    it('getAgent delegates to store.getById with member scope', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
             await import('../dist/services/agentRegistryService.js');
@@ -53,8 +90,11 @@ describe('agentRegistryService (unit)', () => {
         const store = makeStore({ getById: vi.fn().mockResolvedValue(agent) });
         const svc = createAgentRegistryService({ store });
 
-        const result = await svc.getAgent('507f1f77bcf86cd799439011');
-        expect(store.getById).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+        const result = await svc.getAgent(MEMBER_AUTH, '507f1f77bcf86cd799439011');
+        expect(store.getById).toHaveBeenCalledWith('507f1f77bcf86cd799439011', {
+            orgId: MEMBER_AUTH.orgId,
+            createdByUserId: MEMBER_AUTH.userId,
+        });
         expect(result).toEqual(agent);
     });
 
@@ -66,11 +106,11 @@ describe('agentRegistryService (unit)', () => {
         const store = makeStore();
         const svc = createAgentRegistryService({ store });
 
-        const result = await svc.getAgent('507f1f77bcf86cd799439011');
+        const result = await svc.getAgent(MEMBER_AUTH, '507f1f77bcf86cd799439011');
         expect(result).toBeNull();
     });
 
-    it('createAgent trims agent_name and delegates to store.create', async () => {
+    it('createAgent trims agent_name and persists org/user ownership', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
             await import('../dist/services/agentRegistryService.js');
@@ -78,10 +118,14 @@ describe('agentRegistryService (unit)', () => {
         const store = makeStore();
         const svc = createAgentRegistryService({ store });
 
-        await svc.createAgent({ config: { agent_name: '  My Agent  ', tools: [] } });
+        await svc.createAgent(MEMBER_AUTH, {
+            config: { agent_name: '  My Agent  ', tools: [] },
+        });
         expect(store.create).toHaveBeenCalledTimes(1);
         expect(store.create).toHaveBeenCalledWith(
             expect.objectContaining({
+                orgId: MEMBER_AUTH.orgId,
+                createdByUserId: MEMBER_AUTH.userId,
                 config: expect.objectContaining({ agent_name: 'My Agent' }),
             })
         );
@@ -97,7 +141,7 @@ describe('agentRegistryService (unit)', () => {
         const svc = createAgentRegistryService({ store });
 
         await expect(
-            svc.createAgent({ config: { agent_name: '   ', tools: [] } })
+            svc.createAgent(MEMBER_AUTH, { config: { agent_name: '   ', tools: [] } })
         ).rejects.toBeInstanceOf(HttpError);
     });
 
@@ -110,10 +154,12 @@ describe('agentRegistryService (unit)', () => {
         const store = makeStore();
         const svc = createAgentRegistryService({ store });
 
-        await expect(svc.createAgent({ config: { tools: [] } })).rejects.toBeInstanceOf(HttpError);
+        await expect(
+            svc.createAgent(MEMBER_AUTH, { config: { tools: [] } })
+        ).rejects.toBeInstanceOf(HttpError);
     });
 
-    it('updateAgent trims agent_name', async () => {
+    it('updateAgent trims agent_name and applies member scope', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
             await import('../dist/services/agentRegistryService.js');
@@ -122,7 +168,7 @@ describe('agentRegistryService (unit)', () => {
         const store = makeStore({ update: vi.fn().mockResolvedValue(updated) });
         const svc = createAgentRegistryService({ store });
 
-        const result = await svc.updateAgent('507f1f77bcf86cd799439011', {
+        const result = await svc.updateAgent(MEMBER_AUTH, '507f1f77bcf86cd799439011', {
             config: { agent_name: '  Updated  ', tools: [] },
         });
         expect(result).toEqual(updated);
@@ -130,7 +176,11 @@ describe('agentRegistryService (unit)', () => {
             '507f1f77bcf86cd799439011',
             expect.objectContaining({
                 config: expect.objectContaining({ agent_name: 'Updated' }),
-            })
+            }),
+            {
+                orgId: MEMBER_AUTH.orgId,
+                createdByUserId: MEMBER_AUTH.userId,
+            }
         );
     });
 
@@ -144,7 +194,9 @@ describe('agentRegistryService (unit)', () => {
         const svc = createAgentRegistryService({ store });
 
         await expect(
-            svc.updateAgent('507f1f77bcf86cd799439011', { config: { agent_name: '', tools: [] } })
+            svc.updateAgent(MEMBER_AUTH, '507f1f77bcf86cd799439011', {
+                config: { agent_name: '', tools: [] },
+            })
         ).rejects.toBeInstanceOf(HttpError);
     });
 
@@ -156,7 +208,7 @@ describe('agentRegistryService (unit)', () => {
         const store = makeStore({ delete: vi.fn().mockResolvedValue(false) });
         const svc = createAgentRegistryService({ store });
 
-        const result = await svc.deleteAgent('507f1f77bcf86cd799439011');
+        const result = await svc.deleteAgent(MEMBER_AUTH, '507f1f77bcf86cd799439011');
         expect(result).toBe(false);
     });
 
@@ -168,8 +220,11 @@ describe('agentRegistryService (unit)', () => {
         const store = makeStore({ delete: vi.fn().mockResolvedValue(true) });
         const svc = createAgentRegistryService({ store });
 
-        const result = await svc.deleteAgent('507f1f77bcf86cd799439011');
+        const result = await svc.deleteAgent(MEMBER_AUTH, '507f1f77bcf86cd799439011');
         expect(result).toBe(true);
-        expect(store.delete).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+        expect(store.delete).toHaveBeenCalledWith('507f1f77bcf86cd799439011', {
+            orgId: MEMBER_AUTH.orgId,
+            createdByUserId: MEMBER_AUTH.userId,
+        });
     });
 });

@@ -248,6 +248,12 @@ export const AgentConfigSchema = z
                      * Optional voice id override for pipeline TTS (implementation-specific).
                      */
                     voice_id: z.string().optional(),
+                    /**
+                     * Optional language hint/code for the engine (primarily used for STT and
+                     * certain realtime providers). Format is provider-specific; the UI uses
+                     * backend-provided option metadata for valid values.
+                     */
+                    language: z.string().optional(),
                 }),
                 z.object({
                     kind: z.literal('realtime'),
@@ -259,6 +265,10 @@ export const AgentConfigSchema = z
                      * Optional realtime voice preset.
                      */
                     voice: z.string().optional(),
+                    /**
+                     * Optional language hint/code for realtime providers that support it.
+                     */
+                    language: z.string().optional(),
                 }),
             ])
             .optional(),
@@ -273,6 +283,7 @@ export const AgentConfigSchema = z
                 llm: z.string(),
                 tts: z.string(),
                 voice_id: z.string().optional(),
+                language: z.string().optional(),
             })
             .optional(),
         engine_realtime: z
@@ -280,6 +291,7 @@ export const AgentConfigSchema = z
                 kind: z.literal('realtime'),
                 llm: z.string(),
                 voice: z.string().optional(),
+                language: z.string().optional(),
             })
             .optional(),
         /**

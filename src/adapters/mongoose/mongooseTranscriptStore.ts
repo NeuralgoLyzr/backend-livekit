@@ -66,7 +66,7 @@ function buildFilter(filters: TranscriptFilters): Record<string, unknown> {
 }
 
 export class MongooseTranscriptStore implements TranscriptStorePort {
-    constructor(private readonly options?: { phoneRoomPrefix?: string }) {}
+    constructor(private readonly options?: { phoneRoomPrefix?: string }) { }
 
     async save(input: SaveTranscriptInput): Promise<StoredTranscript> {
         await connectMongo();

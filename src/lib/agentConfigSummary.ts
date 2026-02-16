@@ -5,9 +5,13 @@ export function summarizeAgentConfigForLog(agentConfig: AgentConfig): Record<str
     const engineKind =
         (agentConfig.engine as { kind?: unknown } | undefined)?.kind ??
         (AGENT_DEFAULTS.engine as { kind?: unknown }).kind;
+    const engineLanguage =
+        (agentConfig.engine as { language?: unknown } | undefined)?.language ??
+        (AGENT_DEFAULTS.engine as { language?: unknown }).language;
 
     return {
         engineKind,
+        engineLanguage,
         toolsCount: agentConfig.tools?.length ?? AGENT_DEFAULTS.tools.length,
         vadEnabled: agentConfig.vad_enabled ?? AGENT_DEFAULTS.vad_enabled,
         preemptiveGeneration: agentConfig.preemptive_generation ?? false,

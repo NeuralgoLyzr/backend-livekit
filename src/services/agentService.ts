@@ -66,7 +66,7 @@ function buildMetadataObject(agentConfig: AgentConfig): Record<string, unknown> 
         apiKey: agentConfig.api_key,
         agentId: agentConfig.agent_id,
         managed_agents: agentConfig.managed_agents?.enabled
-            ? agentConfig.managed_agents.agents
+            ? agentConfig.managed_agents
             : undefined,
         user_id: agentConfig.user_id,
         session_id: agentConfig.session_id,

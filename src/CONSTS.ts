@@ -5,6 +5,7 @@ export const AGENT_DEFAULTS = {
         tts: 'cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
         llm: 'openai/gpt-4o-mini',
         voice_id: undefined as string | undefined,
+        language: 'en',
     },
     prompt: 'You are a helpful voice AI assistant. Be concise and friendly.',
     turn_detection: 'english' as const,

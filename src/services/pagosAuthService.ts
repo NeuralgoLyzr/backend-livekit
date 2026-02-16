@@ -54,8 +54,8 @@ function parsePagosAuthContext(payload: unknown): { orgId: string; userId: strin
         typeof p.policy?.user_id === 'string'
             ? p.policy.user_id.trim()
             : typeof p.user?.user_id === 'string'
-              ? p.user.user_id.trim()
-              : '';
+                ? p.user.user_id.trim()
+                : '';
     const role = typeof p.policy?.role === 'string' ? p.policy.role.trim() : '';
 
     if (!orgId) throw new HttpError(502, 'Pagos response missing org_id');

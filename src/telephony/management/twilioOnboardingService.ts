@@ -43,7 +43,7 @@ export interface TwilioOnboardingDeps {
 const TRUNK_NAME_PREFIX = 'livekit-inbound-';
 
 export class TwilioOnboardingService {
-    constructor(private readonly deps: TwilioOnboardingDeps) {}
+    constructor(private readonly deps: TwilioOnboardingDeps) { }
 
     async verifyCredentials(creds: TwilioCredentials): Promise<{ valid: true }> {
         const client = new TwilioClient(creds);

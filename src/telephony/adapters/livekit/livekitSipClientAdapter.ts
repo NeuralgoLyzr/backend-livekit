@@ -7,7 +7,7 @@ import type {
 } from '../../management/livekitTelephonyProvisioningService.js';
 
 export class LiveKitSipClientAdapter implements LiveKitSipClientPort {
-    constructor(private readonly client: SipClient) {}
+    constructor(private readonly client: SipClient) { }
 
     async listSipInboundTrunk(): Promise<SIPInboundTrunkInfo[]> {
         return await this.client.listSipInboundTrunk();

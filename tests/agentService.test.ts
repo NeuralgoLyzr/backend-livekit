@@ -156,7 +156,10 @@ describe('agentService (unit)', () => {
             },
         });
         metadata = JSON.parse(createDispatch.mock.calls[1][2].metadata);
-        expect(metadata.managed_agents).toEqual([{ id: 'a', name: 'A', usage_description: 'd' }]);
+        expect(metadata.managed_agents).toEqual({
+            enabled: true,
+            agents: [{ id: 'a', name: 'A', usage_description: 'd' }],
+        });
     });
 
     it('rethrows client errors', async () => {

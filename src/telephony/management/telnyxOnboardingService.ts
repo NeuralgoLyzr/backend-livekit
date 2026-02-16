@@ -38,7 +38,7 @@ const TRUNK_NAME_PREFIX = 'livekit-inbound-';
 const DEFAULT_TELNYX_TRANSPORT_PROTOCOL: 'TCP' | 'UDP' | 'TLS' = 'TCP';
 
 export class TelnyxOnboardingService {
-    constructor(private readonly deps: TelnyxOnboardingDeps) {}
+    constructor(private readonly deps: TelnyxOnboardingDeps) { }
 
     async verifyApiKey(apiKey: string): Promise<{ valid: true }> {
         const client = new TelnyxClient(apiKey);

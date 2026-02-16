@@ -46,7 +46,7 @@ src/
 │   ├── index.ts                # Env validation (fails fast on missing vars)
 │   ├── tools.ts                # Tool registry, normalizeTools(), finalizeAgentConfig()
 │   ├── pipelineOptions.ts      # Pipeline STT/TTS/LLM model catalog
-│   ├── realtimeOptions.ts      # Realtime provider options (OpenAI, Gemini, Ultravox)
+│   ├── realtimeOptions.ts      # Realtime provider options (OpenAI, Gemini, Ultravox, xAI Grok)
 │   └── *Voices.ts              # Voice option lists per provider
 │
 ├── routes/
@@ -133,7 +133,7 @@ src/
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `GET` | `/config/tools` | None | Returns tool registry (tool IDs, names, descriptions). |
-| `GET` | `/config/realtime-options` | None | Realtime provider options (OpenAI, Gemini, Ultravox) with models + voices. |
+| `GET` | `/config/realtime-options` | None | Realtime provider options (OpenAI, Gemini, Ultravox, xAI Grok) with models + voices. |
 | `GET` | `/config/pipeline-options` | None | Pipeline STT/TTS/LLM model catalogs. |
 
 ### Agents (CRUD)

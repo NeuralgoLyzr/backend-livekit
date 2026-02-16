@@ -1,8 +1,8 @@
 import { GEMINI_VOICES } from './geminiVoices.js';
 import { OPENAI_VOICES } from './openaiVoices.js';
 import { ULTRAVOX_VOICES } from './ultravoxVoices.js';
+import { XAI_VOICES } from './xaiVoices.js';
 // import { NOVA_SONIC_VOICES } from './novaSonicVoices.js';
-// import { XAI_VOICES } from './xaiVoices.js';
 
 export type RealtimeOption = {
     id: string;
@@ -35,10 +35,6 @@ export type RealtimeProviderOptions = {
      * Environment variables required to use this provider.
      */
     requiredEnv: string[];
-    /**
-     * Optional warning to surface in UI (e.g. missing env).
-     */
-    warning?: string;
     // /**
     //  * Whether the lists are fetched dynamically at request time.
     //  */
@@ -50,7 +46,6 @@ type RealtimeOptionsResponse = {
 };
 
 export function getRealtimeOptions(): RealtimeOptionsResponse {
-    const hasUltravoxKey = Boolean(process.env.ULTRAVOX_API_KEY?.trim());
     // Practical baseline language list for realtime providers where coverage is broadly
     // multilingual but not enumerated in their public docs.
     const REALTIME_COMMON_LANGUAGES = [
@@ -159,7 +154,19 @@ export function getRealtimeOptions(): RealtimeOptionsResponse {
                 ],
                 voices: ULTRAVOX_VOICES,
                 requiredEnv: ['ULTRAVOX_API_KEY'],
-                warning: hasUltravoxKey ? undefined : 'Missing ULTRAVOX_API_KEY',
+            },
+            {
+                providerId: 'xai',
+                displayName: 'xAI Grok',
+                models: [
+                    {
+                        id: 'grok-voice-agent-latest',
+                        name: 'Grok Voice Agent Latest',
+                        languages: REALTIME_COMMON_LANGUAGES,
+                    },
+                ],
+                voices: XAI_VOICES,
+                requiredEnv: ['XAI_API_KEY'],
             },
             // {
             //     providerId: 'aws-nova',
@@ -169,12 +176,6 @@ export function getRealtimeOptions(): RealtimeOptionsResponse {
             //         { id: 'amazon.nova-sonic-v1:0', name: 'Nova Sonic 1' },
             //     ],
             //     voices: NOVA_SONIC_VOICES,
-            // },
-            // {
-            //     providerId: 'xai',
-            //     displayName: 'xAI Grok',
-            //     models: [{ id: 'grok-voice-agent-latest', name: 'Grok Voice Agent Latest' }],
-            //     voices: XAI_VOICES,
             // },
         ],
     };

@@ -57,6 +57,42 @@ describe('backend HTTP contract', () => {
         );
     });
 
+    it('GET /config/realtime-options includes xAI Grok provider', async () => {
+        const app = await importFreshApp();
+        const res = await request(app).get('/config/realtime-options').expect(200);
+
+        const providers = res.body.providers as Array<{
+            providerId: string;
+            displayName: string;
+            requiredEnv: string[];
+            warning?: string;
+            models: Array<{ id: string; name: string; languages?: string[] }>;
+            voices: Array<{ id: string; name: string }>;
+        }>;
+
+        const xai = providers.find((provider) => provider.providerId === 'xai');
+        expect(xai).toBeDefined();
+        expect(xai).toMatchObject({
+            providerId: 'xai',
+            displayName: 'xAI Grok',
+            requiredEnv: ['XAI_API_KEY'],
+        });
+        expect(xai?.models).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    id: 'grok-voice-agent-latest',
+                    name: 'Grok Voice Agent Latest',
+                }),
+            ])
+        );
+        expect(xai?.models[0]?.languages).toEqual(expect.arrayContaining(['en']));
+        expect(xai?.voices).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ id: 'ara', name: 'Ara' }),
+            ])
+        );
+    });
+
     it('GET unknown route returns JSON 404', async () => {
         const app = await importFreshApp();
         const res = await request(app).get('/nope').expect(404);

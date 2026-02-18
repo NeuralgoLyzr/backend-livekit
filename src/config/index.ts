@@ -28,6 +28,11 @@ export const config = {
         apiUrl: process.env.PAGOS_API_URL!,
         adminToken: process.env.PAGOS_ADMIN_TOKEN!,
     },
+    langfuse: {
+        host: process.env.LANGFUSE_HOST?.trim() || '',
+        publicKey: process.env.LANGFUSE_PUBLIC_KEY?.trim() || '',
+        secretKey: process.env.LANGFUSE_SECRET_KEY?.trim() || '',
+    },
     server: {
         port: parseInt(process.env.PORT || '4000', 10),
     },

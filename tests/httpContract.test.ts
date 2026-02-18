@@ -18,6 +18,8 @@ describe('backend HTTP contract', () => {
             createSession: 'POST /session',
             endSession: 'POST /session/end',
             agents: 'GET /agents',
+            sessionTraces: 'GET /api/traces/session/:sessionId',
+            sessionTraceById: 'GET /api/traces/session/:sessionId/:traceId',
         });
         expect(res.body.endpoints.telephonyWebhook).toBeUndefined();
     });

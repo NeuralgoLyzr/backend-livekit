@@ -17,6 +17,7 @@ export function summarizeAgentConfigForLog(agentConfig: AgentConfig): Record<str
         preemptiveGeneration: agentConfig.preemptive_generation ?? false,
         pronunciationCorrection: agentConfig.pronunciation_correction ?? false,
         pronunciationRulesCount: Object.keys(agentConfig.pronunciation_rules ?? {}).length,
+        audioRecordingEnabled: agentConfig.audio_recording_enabled ?? false,
         turnDetection: agentConfig.turn_detection ?? AGENT_DEFAULTS.turn_detection,
         avatarEnabled: Boolean(agentConfig.avatar?.enabled),
         backgroundAudioEnabled: Boolean(agentConfig.background_audio?.enabled),

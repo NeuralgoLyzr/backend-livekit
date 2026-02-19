@@ -1,0 +1,112 @@
+// ─────────────────────────────────────────────────────────────
+// Documentation-only Prisma-style schema for backend-livekit.
+// This file is NOT used by any tooling — it exists purely as a
+// human-readable reference for the MongoDB collections managed
+// by Mongoose. Could be out of date. Keep it in sync when you change models.
+// ─────────────────────────────────────────────────────────────
+
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
+}
+
+// ── Agent Configs ───────────────────────────────────────────
+// Collection: lk_agent_configs
+model AgentConfig {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  orgId           String
+  createdByUserId String
+  config          Json      @default("{}")
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([updatedAt(sort: Desc)])
+  @@index([deletedAt])
+  @@index([orgId, deletedAt, updatedAt(sort: Desc)])
+  @@index([orgId, createdByUserId, deletedAt, updatedAt(sort: Desc)])
+  @@map("lk_agent_configs")
+}
+
+// ── Transcripts ─────────────────────────────────────────────
+// Collection: lk_transcripts
+model Transcript {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  sessionId       String    @unique
+  roomName        String
+  agentId         String?
+  orgId           String
+  createdByUserId String?
+  sessionReport   Json
+  chatHistory     Json[]    @default([])
+  closeReason     String?
+  durationMs      Int?
+  messageCount    Int       @default(0)
+  startedAt       DateTime
+  endedAt         DateTime
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([agentId, endedAt(sort: Desc)])
+  @@index([orgId, endedAt(sort: Desc)])
+  @@index([orgId, agentId, endedAt(sort: Desc)])
+  @@index([orgId, createdByUserId, endedAt(sort: Desc)])
+  @@index([endedAt(sort: Desc)])
+  @@index([roomName])
+  @@map("lk_transcripts")
+}
+
+// ── Telephony Bindings ──────────────────────────────────────
+// Collection: lk_telephony_bindings
+// Maps a phone number (E.164) to an agent for inbound call routing.
+model TelephonyBinding {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  integrationId    String    @db.ObjectId
+  provider         String
+  providerNumberId String
+  e164             String
+  agentId          String?
+  enabled          Boolean   @default(true)
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([e164, enabled], map: "e164_enabled_unique") // partial: where enabled=true AND deletedAt=null
+  @@index([integrationId])
+  @@index([deletedAt])
+  @@map("lk_telephony_bindings")
+}
+
+// ── Telephony Integrations ──────────────────────────────────
+// Collection: lk_telephony_integrations
+// Stores provider credentials (encrypted) for telephony providers.
+model TelephonyIntegration {
+  id                String                    @id @default(auto()) @map("_id") @db.ObjectId
+  provider          TelephonyProvider
+  name              String?
+  encryptedApiKey   String
+  apiKeyFingerprint String
+  status            TelephonyIntegrationStatus @default(active)
+  providerResources Json                       @default("{}")
+  deletedAt         DateTime?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+
+  @@index([provider, apiKeyFingerprint])
+  @@index([updatedAt(sort: Desc)])
+  @@index([deletedAt])
+  @@map("lk_telephony_integrations")
+}
+
+// ── Enums ───────────────────────────────────────────────────
+
+enum TelephonyProvider {
+  telnyx
+  twilio
+  plivo
+}
+
+enum TelephonyIntegrationStatus {
+  active
+  disabled
+}

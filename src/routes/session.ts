@@ -169,10 +169,17 @@ export function createSessionRouter(
         asyncHandler(async (req, res) => {
             // Support both JSON and multipart payloads.
             // Multipart sends the JSON in a `payload` string field.
-            const rawPayload =
-                typeof req.body.payload === 'string'
-                    ? JSON.parse(req.body.payload)
-                    : req.body;
+            let rawPayload: unknown = req.body;
+            if (typeof req.body.payload === 'string') {
+                try {
+                    rawPayload = JSON.parse(req.body.payload);
+                } catch {
+                    return res.status(400).json({
+                        error: 'Invalid payload',
+                        details: 'payload must be valid JSON when sent as multipart form-data.',
+                    });
+                }
+            }
 
             const parseResult = SessionObservabilityIngestSchema.safeParse(rawPayload);
             if (!parseResult.success) {

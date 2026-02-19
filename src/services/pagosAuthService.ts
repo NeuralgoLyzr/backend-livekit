@@ -85,7 +85,7 @@ export interface CreatePagosAuthServiceDeps {
 export function createPagosAuthService(deps: CreatePagosAuthServiceDeps): PagosAuthService {
     const cache = new Map<string, CacheEntry>();
     const cacheTtlMs = Math.max(deps.cacheTtlMs ?? 10 * 60 * 1000, 5_000);
-    const timeoutMs = Math.max(deps.timeoutMs ?? 5_000, 500);
+    const timeoutMs = Math.max(deps.timeoutMs ?? 30_000, 500);
     const maxCacheEntries = Math.max(Math.floor(deps.maxCacheEntries ?? 2_000), 100);
 
     function pruneExpiredEntries(maxToScan: number): void {

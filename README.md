@@ -314,6 +314,23 @@ pnpm -C backend-livekit exec tsc -p tsconfig.json --noEmit
 
 # Lint a single file
 pnpm -C backend-livekit exec eslint src/routes/session.ts
+
+# ── Tests ──────────────────────────────────────────────
+
+# Unit tests (no network calls)
+pnpm -C backend-livekit test
+
+# Low-level client live tests (hit real provider APIs)
+pnpm -C backend-livekit test:telnyx-live
+pnpm -C backend-livekit test:twilio-live
+
+# E2E onboarding live tests (full create→connect→disconnect→delete flow)
+pnpm -C backend-livekit test:telnyx-onboarding-live   # requires TELNYX_API_KEY, TELNYX_TEST_PHONE_NUMBER
+pnpm -C backend-livekit test:twilio-onboarding-live   # requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_TEST_PHONE_NUMBER
+pnpm -C backend-livekit test:onboarding-live          # both providers
+
+# All live tests (client + onboarding)
+pnpm -C backend-livekit test:live
 ```
 
 ---

@@ -487,6 +487,13 @@ export const AgentConfigSchema = z
          */
         prompt: z.string().optional(),
         /**
+         * Optional structured prompt fields used by voice-new-create UI.
+         * Runtime still consumes `prompt`; these are preserved for editing.
+         */
+        agent_role: z.string().optional(),
+        agent_goal: z.string().optional(),
+        agent_instructions: z.string().optional(),
+        /**
          * Per-session dynamic variables to substitute into prompts/greetings.
          * Keys must be snake_case; values must be strings.
          */

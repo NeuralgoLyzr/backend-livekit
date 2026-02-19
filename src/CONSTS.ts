@@ -22,17 +22,6 @@ export const AGENT_DEFAULTS = {
     vad_enabled: true,
 } as const;
 
-/**
- * MongoDB connection fallback for local/dev workflows.
- *
- * Set `MONGODB_URI` (and optionally `MONGODB_DATABASE`) in your `.env` file.
- * See `.env.example` for the expected format.
- */
-export const MONGO_FALLBACK = {
-    uri: 'mongodb://agentika:tempa%40401Baltimore@ec2-44-199-80-113.compute-1.amazonaws.com:58027/admin',
-    database: 'factory_dev',
-} as const;
-
 // Observability / logging
 // Tail sampling is intentionally OFF by default; enable only when log volume becomes a problem.
 export const ENABLE_TAIL_SAMPLING = false;

@@ -22,8 +22,8 @@ export function summarizeAgentConfigForLog(agentConfig: AgentConfig): Record<str
         avatarEnabled: Boolean(agentConfig.avatar?.enabled),
         backgroundAudioEnabled: Boolean(agentConfig.background_audio?.enabled),
         hasApiKey: Boolean(agentConfig.api_key),
-        hasLyzrTools: Boolean(agentConfig.lyzr_tools),
+        hasLyzrTools: (agentConfig.lyzr_tools?.length ?? 0) > 0,
         hasLyzrRag: Boolean(agentConfig.lyzr_rag),
-        hasAgenticRag: Boolean(agentConfig.agentic_rag),
+        hasAgenticRag: (agentConfig.agentic_rag?.length ?? 0) > 0,
     };
 }

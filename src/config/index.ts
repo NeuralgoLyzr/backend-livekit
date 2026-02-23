@@ -71,4 +71,28 @@ export const config = {
     telnyx: {
         devApiKey: process.env.TELNYX_API_KEY || '',
     },
+    ttsVoicesProxy: {
+        /**
+         * Optional provider API keys used by backend-livekit to proxy TTS voice lists.
+         * These are NOT required to start the server; endpoints will return 503 with
+         * requiredEnv when a provider is queried without its credentials.
+         */
+        cartesia: {
+            apiKey: process.env.CARTESIA_API_KEY?.trim() || '',
+            version: process.env.CARTESIA_VERSION?.trim() || '2025-04-16',
+        },
+        elevenlabs: {
+            apiKey: process.env.ELEVENLABS_API_KEY?.trim() || '',
+        },
+        deepgram: {
+            apiKey: process.env.DEEPGRAM_API_KEY?.trim() || '',
+        },
+        inworld: {
+            /**
+             * Base64 API credentials used for Inworld API Basic auth.
+             * Used to build `Authorization: Basic <base64>`.
+             */
+            base64: process.env.INWORLD_BASE_64?.trim() || '',
+        },
+    },
 };

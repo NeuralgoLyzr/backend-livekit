@@ -44,6 +44,20 @@ export interface CreateSessionResponse {
     };
 }
 
+export interface CreateSessionStepTimingsMs {
+    resolveConfigMs?: number;
+    finalizeConfigMs?: number;
+    tokenMintMs?: number;
+    dispatchMs?: number;
+    storeWriteMs?: number;
+    totalMs?: number;
+}
+
+export interface CreateSessionOptions {
+    timingsMs?: CreateSessionStepTimingsMs;
+    now?: () => number;
+}
+
 function buildResponseAgentSummary(
     agentConfig?: AgentConfig
 ): CreateSessionResponse['agentConfig'] {
@@ -97,9 +111,24 @@ function canAccessSession(
     return true;
 }
 
+function recordTiming(
+    timingsMs: CreateSessionStepTimingsMs | undefined,
+    key: keyof CreateSessionStepTimingsMs,
+    valueMs: number
+): void {
+    if (!timingsMs) return;
+    timingsMs[key] = Math.max(0, Math.round(valueMs));
+}
+
 export function createSessionService(deps: SessionServiceDeps) {
     return {
-        async createSession(input: CreateSessionInput): Promise<CreateSessionResponse> {
+        async createSession(
+            input: CreateSessionInput,
+            options: CreateSessionOptions = {}
+        ): Promise<CreateSessionResponse> {
+            const now = options.now ?? Date.now;
+            const timingsMs = options.timingsMs;
+            const totalStart = now();
             const userIdentity = input.userIdentity.trim();
             const requestedRoomName = input.roomName?.trim() ?? '';
             const requestedSessionId = input.sessionId?.trim() ?? '';
@@ -108,6 +137,7 @@ export function createSessionService(deps: SessionServiceDeps) {
                 requestedRoomName.length > 0 ? requestedRoomName : `room-${randomUUID()}`;
             const sessionId = requestedSessionId.length > 0 ? requestedSessionId : randomUUID();
 
+            const resolveConfigStart = now();
             let resolvedConfig: AgentConfig;
             if (input.agentId) {
                 if (!input.orgId || !input.createdByUserId) {
@@ -125,9 +155,12 @@ export function createSessionService(deps: SessionServiceDeps) {
             } else {
                 resolvedConfig = input.agentConfig ?? {};
             }
+            recordTiming(timingsMs, 'resolveConfigMs', now() - resolveConfigStart);
 
+            const finalizeConfigStart = now();
             const finalAgentConfig = finalizeAgentConfig(resolvedConfig);
             const finalAgentConfigWithDefaults = applyDefaultDynamicVariables(finalAgentConfig);
+            recordTiming(timingsMs, 'finalizeConfigMs', now() - finalizeConfigStart);
 
             const agentConfigWithIds: AgentConfig = {
                 ...finalAgentConfigWithDefaults,
@@ -136,7 +169,9 @@ export function createSessionService(deps: SessionServiceDeps) {
                 session_id: sessionId,
             };
 
+            const tokenMintStart = now();
             const userToken = await deps.tokenService.createUserToken(userIdentity, roomName);
+            recordTiming(timingsMs, 'tokenMintMs', now() - tokenMintStart);
 
             if (isDevelopment()) {
                 logger.debug(
@@ -152,16 +187,21 @@ export function createSessionService(deps: SessionServiceDeps) {
                 );
             }
 
+            const dispatchStart = now();
             try {
                 await deps.agentService.dispatchAgent(roomName, agentConfigWithIds);
             } catch (error) {
+                recordTiming(timingsMs, 'dispatchMs', now() - dispatchStart);
+                recordTiming(timingsMs, 'totalMs', now() - totalStart);
                 throw new HttpError(
                     502,
                     'Failed to dispatch agent',
                     error instanceof Error ? error.message : error
                 );
             }
+            recordTiming(timingsMs, 'dispatchMs', now() - dispatchStart);
 
+            const storeWriteStart = now();
             deps.store.set(roomName, {
                 userIdentity,
                 sessionId,
@@ -170,6 +210,8 @@ export function createSessionService(deps: SessionServiceDeps) {
                 agentConfig: agentConfigWithIds,
                 createdAt: new Date().toISOString(),
             });
+            recordTiming(timingsMs, 'storeWriteMs', now() - storeWriteStart);
+            recordTiming(timingsMs, 'totalMs', now() - totalStart);
 
             return {
                 userToken,

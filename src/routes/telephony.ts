@@ -10,6 +10,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { logger } from '../lib/logger.js';
 import { createTelnyxRouter } from '../telephony/http/telnyxRoutes.js';
 import { createTwilioRouter } from '../telephony/http/twilioRoutes.js';
+import { createPlivoRouter } from '../telephony/http/plivoRoutes.js';
 
 const router: Router = Router();
 
@@ -73,6 +74,17 @@ if (telephonyModule.twilioOnboarding) {
         '/providers/twilio',
         createTwilioRouter({
             onboardingService: telephonyModule.twilioOnboarding,
+            integrationStore: telephonyModule.integrationStore,
+        })
+    );
+}
+
+// Mount Plivo management routes
+if (telephonyModule.plivoOnboarding) {
+    router.use(
+        '/providers/plivo',
+        createPlivoRouter({
+            onboardingService: telephonyModule.plivoOnboarding,
             integrationStore: telephonyModule.integrationStore,
         })
     );

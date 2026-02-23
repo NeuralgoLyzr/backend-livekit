@@ -109,8 +109,8 @@ src/
     ├── telephonyModule.ts      # Composition root for telephony subsystem
     ├── core/                   # TelephonySessionService
     ├── adapters/               # LiveKit webhook verifier, agent dispatch, store impls
-    ├── http/                   # Telnyx/Twilio HTTP route handlers
-    ├── management/             # Telnyx/Twilio onboarding services
+    ├── http/                   # Telnyx/Twilio/Plivo HTTP route handlers
+    ├── management/             # Telnyx/Twilio/Plivo onboarding services
     ├── routing/                # Binding-based call routing
     ├── ports/                  # Telephony interface definitions
     └── types.ts                # Telephony-specific types
@@ -166,8 +166,13 @@ Requires `TELEPHONY_ENABLED=true`.
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `POST` | `/telephony/livekit-webhook` | LiveKit webhook signature | Webhook receiver for SIP/PSTN calls. |
-| `POST` | `/telephony/providers/telnyx/onboard` | `x-api-key` | Telnyx provider onboarding. |
-| `POST` | `/telephony/providers/twilio/onboard` | `x-api-key` | Twilio provider onboarding. |
+| `POST` | `/telephony/providers/telnyx/credentials` | `x-api-key` | Save Telnyx integration credentials. |
+| `POST` | `/telephony/providers/twilio/credentials` | `x-api-key` | Save Twilio integration credentials. |
+| `POST` | `/telephony/providers/plivo/credentials` | `x-api-key` | Save Plivo integration credentials. |
+| `GET` | `/telephony/providers/:provider/integrations` | `x-api-key` | List integrations for `telnyx`, `twilio`, or `plivo`. |
+| `GET` | `/telephony/providers/:provider/numbers` | `x-api-key` | List provider numbers for an integration. |
+| `POST` | `/telephony/providers/:provider/numbers/:providerNumberId/connect` | `x-api-key` | Bind provider number to an agent DID route. |
+| `DELETE` | `/telephony/providers/:provider/bindings/:bindingId` | `x-api-key` | Disconnect number binding. |
 | `GET` | `/telephony/bindings` | `x-api-key` | List phone number → agent bindings. |
 
 ### Health
@@ -287,6 +292,9 @@ Client                    Backend                       Python Agent
 | `TELEPHONY_SECRETS_KEY` | — | AES key for encrypting telephony provider secrets |
 | `LIVEKIT_SIP_HOST` | — | LiveKit SIP host for telephony management |
 | `TELNYX_API_KEY` | — | Telnyx API key for onboarding |
+| `PLIVO_AUTH_ID` | — | Plivo auth ID (live tests) |
+| `PLIVO_AUTH_TOKEN` | — | Plivo auth token (live tests) |
+| `PLIVO_TEST_PHONE_NUMBER` | — | Plivo test phone number for onboarding live tests |
 
 ---
 
@@ -323,11 +331,13 @@ pnpm -C backend-livekit test
 # Low-level client live tests (hit real provider APIs)
 pnpm -C backend-livekit test:telnyx-live
 pnpm -C backend-livekit test:twilio-live
+pnpm -C backend-livekit test:plivo-live
 
 # E2E onboarding live tests (full create→connect→disconnect→delete flow)
 pnpm -C backend-livekit test:telnyx-onboarding-live   # requires TELNYX_API_KEY, TELNYX_TEST_PHONE_NUMBER
 pnpm -C backend-livekit test:twilio-onboarding-live   # requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_TEST_PHONE_NUMBER
-pnpm -C backend-livekit test:onboarding-live          # both providers
+pnpm -C backend-livekit test:plivo-onboarding-live    # requires PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_TEST_PHONE_NUMBER
+pnpm -C backend-livekit test:onboarding-live          # all providers
 
 # All live tests (client + onboarding)
 pnpm -C backend-livekit test:live

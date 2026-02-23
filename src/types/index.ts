@@ -433,9 +433,9 @@ export const AgentConfigSchema = z
                     llm: z.string(),
                     tts: z.string(),
                     /**
-                     * Optional voice id override for pipeline TTS (implementation-specific).
+                     * Voice id for pipeline TTS (implementation-specific).
                      */
-                    voice_id: z.string().optional(),
+                    voice_id: z.string().trim().min(1),
                     /**
                      * Optional language hint/code for the engine (primarily used for STT and
                      * certain realtime providers). Format is provider-specific; the UI uses
@@ -470,7 +470,7 @@ export const AgentConfigSchema = z
                 stt: z.string(),
                 llm: z.string(),
                 tts: z.string(),
-                voice_id: z.string().optional(),
+                voice_id: z.string().trim().min(1),
                 language: z.string().optional(),
             })
             .optional(),
@@ -619,6 +619,9 @@ export const AgentIdSchema = z
     .regex(VALID_MONGO_OBJECT_ID_REGEX, 'agentId must be a valid Mongo ObjectId');
 export type AgentId = z.infer<typeof AgentIdSchema>;
 
+export const AgentVersionIdSchema = z.string().uuid('versionId must be a valid UUID');
+export type AgentVersionId = z.infer<typeof AgentVersionIdSchema>;
+
 const AgentConfigWithNameSchema = AgentConfigSchema.extend({
     agent_name: z
         .string()
@@ -651,6 +654,14 @@ export const AgentResponseSchema = z.object({
     updatedAt: z.string(),
 });
 export type AgentResponse = z.infer<typeof AgentResponseSchema>;
+
+export const AgentVersionResponseSchema = z.object({
+    version_id: AgentVersionIdSchema,
+    config: AgentConfigSchema,
+    active: z.boolean(),
+    created_at: z.string(),
+});
+export type AgentVersionResponse = z.infer<typeof AgentVersionResponseSchema>;
 
 export const ToolDefinitionSchema = z.object({
     id: z.string(),

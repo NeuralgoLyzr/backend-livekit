@@ -2,7 +2,7 @@ import express, { type Express, type Request, type Response, type NextFunction }
 import cors from 'cors';
 import { createSessionRouter } from './routes/session.js';
 import healthRouter from './routes/health.js';
-import configRouter from './routes/config.js';
+import { createConfigRouter } from './routes/config.js';
 import telephonyRouter from './routes/telephony.js';
 import { createAgentsRouter } from './routes/agents.js';
 import { createTranscriptsRouter } from './routes/transcripts.js';
@@ -47,8 +47,14 @@ app.use(
     })
 );
 app.use('/health', healthRouter);
-app.use('/config', configRouter);
 const requireApiKey = apiKeyAuthMiddleware(services.pagosAuthService);
+app.use(
+    '/config',
+    createConfigRouter({
+        ttsVoicesService: services.ttsVoicesService,
+        ttsVoicePreviewService: services.ttsVoicePreviewService,
+    })
+);
 app.use(
     '/telephony',
     (req, res, next) => {

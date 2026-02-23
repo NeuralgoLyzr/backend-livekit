@@ -1,10 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+type AgentVersionRow = {
+    versionId: string;
+    config: unknown;
+    active: boolean;
+    createdAt: Date;
+};
+
 type AgentRow = {
     _id: { toString(): string };
     orgId: string;
     createdByUserId: string;
     config: unknown;
+    versions: AgentVersionRow[];
     createdAt: Date;
     updatedAt: Date;
     deletedAt?: Date | null;
@@ -63,6 +71,7 @@ describe('MongooseAgentStore (unit)', () => {
                 orgId: 'org-a',
                 createdByUserId: 'user-a',
                 config: { tools: ['get_weather'] },
+                versions: [],
                 createdAt: now,
                 updatedAt: now,
                 deletedAt: null,
@@ -113,6 +122,7 @@ describe('MongooseAgentStore (unit)', () => {
             orgId: 'org-a',
             createdByUserId: 'user-a',
             config: { tools: [] },
+            versions: [],
             createdAt: now,
             updatedAt: now,
             deletedAt: null,
@@ -138,8 +148,7 @@ describe('MongooseAgentStore (unit)', () => {
     });
 
     it('returns null when updating a missing agent', async () => {
-        const updateQuery = { lean: vi.fn(async () => null) };
-        Agent.findOneAndUpdate.mockReturnValue(updateQuery);
+        Agent.findOne.mockReturnValue({ lean: vi.fn(async () => null) });
 
         const { MongooseAgentStore } =
             await import('../dist/adapters/mongoose/mongooseAgentStore.js');
@@ -153,6 +162,7 @@ describe('MongooseAgentStore (unit)', () => {
             { orgId: 'org-a', createdByUserId: 'user-a' }
         );
         expect(result).toBeNull();
+        expect(Agent.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
     it('persists ownership fields on create', async () => {
@@ -162,6 +172,7 @@ describe('MongooseAgentStore (unit)', () => {
             orgId: 'org-a',
             createdByUserId: 'user-a',
             config: { nested: { x: 1 } },
+            versions: [],
             createdAt: now,
             updatedAt: now,
             deletedAt: null,
@@ -182,9 +193,245 @@ describe('MongooseAgentStore (unit)', () => {
             expect.objectContaining({
                 orgId: 'org-a',
                 createdByUserId: 'user-a',
+                versions: [
+                    expect.objectContaining({
+                        versionId: expect.any(String),
+                        active: true,
+                        config: { nested: { x: 1 } },
+                    }),
+                ],
             })
         );
         expect(created.config).toEqual({ nested: { x: 1 } });
+    });
+
+    it('creates a new active snapshot on config update', async () => {
+        const now = new Date();
+        const existing: AgentRow = {
+            _id: { toString: () => '507f1f77bcf86cd799439011' },
+            orgId: 'org-a',
+            createdByUserId: 'user-a',
+            config: { agent_name: 'before' },
+            versions: [
+                {
+                    versionId: 'version-1',
+                    active: true,
+                    config: { agent_name: 'before' },
+                    createdAt: now,
+                },
+            ],
+            createdAt: now,
+            updatedAt: now,
+            deletedAt: null,
+        };
+        const updated: AgentRow = {
+            ...existing,
+            config: { agent_name: 'after' },
+            versions: [
+                {
+                    versionId: 'version-1',
+                    active: false,
+                    config: { agent_name: 'before' },
+                    createdAt: now,
+                },
+                {
+                    versionId: 'version-2',
+                    active: true,
+                    config: { agent_name: 'after' },
+                    createdAt: now,
+                },
+            ],
+        };
+        Agent.findOne.mockReturnValue({ lean: vi.fn(async () => existing) });
+        Agent.findOneAndUpdate.mockReturnValue({ lean: vi.fn(async () => updated) });
+
+        const { MongooseAgentStore } =
+            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+        const store = new MongooseAgentStore();
+
+        await store.update(
+            '507f1f77bcf86cd799439011',
+            { config: { agent_name: 'after' } as unknown as Record<string, unknown> },
+            { orgId: 'org-a', createdByUserId: 'user-a' }
+        );
+
+        expect(Agent.findOneAndUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                orgId: 'org-a',
+                createdByUserId: 'user-a',
+                deletedAt: null,
+            }),
+            {
+                $set: {
+                    config: { agent_name: 'after' },
+                    versions: [
+                        {
+                            versionId: 'version-1',
+                            active: false,
+                            config: { agent_name: 'before' },
+                            createdAt: now,
+                        },
+                        expect.objectContaining({
+                            versionId: expect.any(String),
+                            active: true,
+                            config: { agent_name: 'after' },
+                            createdAt: expect.any(Date),
+                        }),
+                    ],
+                },
+            },
+            { new: true, runValidators: true }
+        );
+    });
+
+    it('lists versions for an agent in descending createdAt order', async () => {
+        const newer = new Date('2026-02-19T09:00:00.000Z');
+        const older = new Date('2026-02-18T09:00:00.000Z');
+        Agent.findOne.mockReturnValue({
+            lean: vi.fn(async () => ({
+                _id: { toString: () => '507f1f77bcf86cd799439011' },
+                orgId: 'org-a',
+                createdByUserId: 'user-a',
+                config: { agent_name: 'latest' },
+                versions: [
+                    {
+                        versionId: 'version-older',
+                        active: false,
+                        config: { agent_name: 'older' },
+                        createdAt: older,
+                    },
+                    {
+                        versionId: 'version-newer',
+                        active: true,
+                        config: { agent_name: 'latest' },
+                        createdAt: newer,
+                    },
+                ],
+                createdAt: older,
+                updatedAt: newer,
+                deletedAt: null,
+            })),
+        });
+
+        const { MongooseAgentStore } =
+            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+        const store = new MongooseAgentStore();
+
+        const versions = await store.listVersions('507f1f77bcf86cd799439011', {
+            orgId: 'org-a',
+            createdByUserId: 'user-a',
+        });
+
+        expect(versions).toEqual([
+            {
+                versionId: 'version-newer',
+                active: true,
+                config: { agent_name: 'latest' },
+                createdAt: newer.toISOString(),
+            },
+            {
+                versionId: 'version-older',
+                active: false,
+                config: { agent_name: 'older' },
+                createdAt: older.toISOString(),
+            },
+        ]);
+    });
+
+    it('activates an existing version and updates root config', async () => {
+        const now = new Date();
+        Agent.findOne.mockReturnValue({
+            lean: vi.fn(async () => ({
+                _id: { toString: () => '507f1f77bcf86cd799439011' },
+                orgId: 'org-a',
+                createdByUserId: 'user-a',
+                config: { agent_name: 'new' },
+                versions: [
+                    {
+                        versionId: 'version-old',
+                        active: false,
+                        config: { agent_name: 'old' },
+                        createdAt: now,
+                    },
+                    {
+                        versionId: 'version-new',
+                        active: true,
+                        config: { agent_name: 'new' },
+                        createdAt: now,
+                    },
+                ],
+                createdAt: now,
+                updatedAt: now,
+                deletedAt: null,
+            })),
+        });
+        Agent.findOneAndUpdate.mockReturnValue({
+            lean: vi.fn(async () => ({
+                _id: { toString: () => '507f1f77bcf86cd799439011' },
+                orgId: 'org-a',
+                createdByUserId: 'user-a',
+                config: { agent_name: 'old' },
+                versions: [
+                    {
+                        versionId: 'version-old',
+                        active: true,
+                        config: { agent_name: 'old' },
+                        createdAt: now,
+                    },
+                    {
+                        versionId: 'version-new',
+                        active: false,
+                        config: { agent_name: 'new' },
+                        createdAt: now,
+                    },
+                ],
+                createdAt: now,
+                updatedAt: now,
+                deletedAt: null,
+            })),
+        });
+
+        const { MongooseAgentStore } =
+            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+        const store = new MongooseAgentStore();
+
+        const activated = await store.activateVersion(
+            '507f1f77bcf86cd799439011',
+            'version-old',
+            {
+                orgId: 'org-a',
+                createdByUserId: 'user-a',
+            }
+        );
+
+        expect(activated?.config).toEqual({ agent_name: 'old' });
+        expect(Agent.findOneAndUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                orgId: 'org-a',
+                createdByUserId: 'user-a',
+                deletedAt: null,
+            }),
+            {
+                $set: {
+                    config: { agent_name: 'old' },
+                    versions: [
+                        {
+                            versionId: 'version-old',
+                            active: true,
+                            config: { agent_name: 'old' },
+                            createdAt: now,
+                        },
+                        {
+                            versionId: 'version-new',
+                            active: false,
+                            config: { agent_name: 'new' },
+                            createdAt: now,
+                        },
+                    ],
+                },
+            },
+            { new: true, runValidators: true }
+        );
     });
 
     it('applies scope when deleting', async () => {

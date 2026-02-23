@@ -95,6 +95,67 @@ describe('backend HTTP contract', () => {
         );
     });
 
+    it('GET /config/pipeline-options exposes Sarvam STT and model-only TTS ids + defaultVoiceId', async () => {
+        const app = await importFreshApp();
+        const res = await request(app).get('/config/pipeline-options').expect(200);
+
+        const ttsProviders = res.body.tts as Array<{
+            providerId: string;
+            models: Array<{ id: string; defaultVoiceId?: string }>;
+        }>;
+        const sttProviders = res.body.stt as Array<{
+            providerId: string;
+            models: Array<{ id: string; languages?: string[] }>;
+        }>;
+
+        const sarvamStt = sttProviders.find((provider) => provider.providerId === 'sarvam');
+        expect(sarvamStt).toBeDefined();
+        expect(sarvamStt?.models).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    id: 'sarvam/saarika:v2.5',
+                    languages: expect.arrayContaining(['en-IN', 'hi-IN']),
+                }),
+            ])
+        );
+
+        const sarvam = ttsProviders.find((provider) => provider.providerId === 'sarvam');
+        expect(sarvam).toBeDefined();
+        expect(sarvam?.models).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    id: 'sarvam/bulbul:v3',
+                    defaultVoiceId: 'shubh',
+                }),
+            ])
+        );
+
+        const cartesia = ttsProviders.find((provider) => provider.providerId === 'cartesia');
+        expect(cartesia?.models).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    id: 'cartesia/sonic-3',
+                    defaultVoiceId: '9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
+                }),
+            ])
+        );
+        expect(cartesia?.models.some((model) => model.id.includes(':'))).toBe(false);
+    });
+
+    it('GET /config/tts-voice-providers includes Sarvam', async () => {
+        const app = await importFreshApp();
+        const res = await request(app).get('/config/tts-voice-providers').expect(200);
+        const providers = res.body.providers as Array<{ providerId: string; displayName: string }>;
+        expect(providers).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    providerId: 'sarvam',
+                    displayName: 'Sarvam',
+                }),
+            ])
+        );
+    });
+
     it('GET unknown route returns JSON 404', async () => {
         const app = await importFreshApp();
         const res = await request(app).get('/nope').expect(404);
@@ -119,7 +180,10 @@ describe('backend HTTP contract', () => {
             roomName: 'room-123',
             livekitUrl: 'wss://example.livekit.invalid',
             agentDispatched: true,
-            agentConfig: { engine: { kind: 'pipeline', stt: 's', llm: 'l', tts: 't' }, tools: [] },
+            agentConfig: {
+                engine: { kind: 'pipeline', stt: 's', llm: 'l', tts: 't', voice_id: 'voice-1' },
+                tools: [],
+            },
         });
         const app = await importFreshApp({ sessionServiceMock: { createSession } });
 

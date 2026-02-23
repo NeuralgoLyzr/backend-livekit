@@ -10,6 +10,7 @@ import { MongooseTelephonyBindingStore } from './adapters/store/mongooseTelephon
 import { TelnyxOnboardingService } from './management/telnyxOnboardingService.js';
 import { BindingBasedCallRouting } from './routing/bindingBasedCallRouting.js';
 import { TwilioOnboardingService } from './management/twilioOnboardingService.js';
+import { PlivoOnboardingService } from './management/plivoOnboardingService.js';
 import { SipClient } from 'livekit-server-sdk';
 import { toLiveKitHttpUrl } from './adapters/livekit/livekitHttpUrl.js';
 import { LiveKitSipClientAdapter } from './adapters/livekit/livekitSipClientAdapter.js';
@@ -70,6 +71,17 @@ const twilioOnboarding =
           })
         : null;
 
+const plivoOnboarding =
+    mgmtConfig.encryptionKey && mgmtConfig.livekitSipHost
+        ? new PlivoOnboardingService({
+              integrationStore,
+              bindingStore,
+              encryptionKey: mgmtConfig.encryptionKey,
+              livekitSipHost: mgmtConfig.livekitSipHost,
+              livekitProvisioning,
+          })
+        : null;
+
 const sessionService = new TelephonySessionService({
     store,
     routing,
@@ -110,4 +122,5 @@ export const telephonyModule = {
     bindingStore,
     telnyxOnboarding,
     twilioOnboarding,
+    plivoOnboarding,
 };

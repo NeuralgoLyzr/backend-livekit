@@ -208,8 +208,8 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN || !TEST_PHONE_NUMBER)(
                     // Find the test phone number
                     const testNumber = numbers.find(
                         (n) =>
-                            n.phoneNumber.replace(/\s/g, '') ===
-                            TEST_PHONE_NUMBER.replace(/\s/g, '')
+                            n.phoneNumber.replaceAll(/\s/g, '') ===
+                            TEST_PHONE_NUMBER.replaceAll(/\s/g, '')
                     );
                     expect(testNumber).toBeDefined();
 
@@ -259,8 +259,8 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN || !TEST_PHONE_NUMBER)(
                     const numbers = await service.listNumbers(integration.id);
                     const testNumber = numbers.find(
                         (n) =>
-                            n.phoneNumber.replace(/\s/g, '') ===
-                            TEST_PHONE_NUMBER.replace(/\s/g, '')
+                            n.phoneNumber.replaceAll(/\s/g, '') ===
+                            TEST_PHONE_NUMBER.replaceAll(/\s/g, '')
                     );
                     expect(testNumber).toBeDefined();
 

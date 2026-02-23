@@ -41,8 +41,10 @@ type AudioStorageServiceMock = {
 type AgentRegistryServiceMock = {
     listAgents?: Mock;
     getAgent?: Mock;
+    listAgentVersions?: Mock;
     createAgent?: Mock;
     updateAgent?: Mock;
+    activateAgentVersion?: Mock;
     deleteAgent?: Mock;
 };
 
@@ -122,8 +124,12 @@ export async function importFreshApp(options?: {
 
         const listAgents = options.agentRegistryServiceMock?.listAgents ?? vi.fn().mockResolvedValue([]);
         const getAgent = options.agentRegistryServiceMock?.getAgent ?? vi.fn().mockResolvedValue(null);
+        const listAgentVersions =
+            options.agentRegistryServiceMock?.listAgentVersions ?? vi.fn().mockResolvedValue([]);
         const createAgent = options.agentRegistryServiceMock?.createAgent ?? vi.fn();
         const updateAgent = options.agentRegistryServiceMock?.updateAgent ?? vi.fn();
+        const activateAgentVersion =
+            options.agentRegistryServiceMock?.activateAgentVersion ?? vi.fn();
         const deleteAgent = options.agentRegistryServiceMock?.deleteAgent ?? vi.fn();
 
         vi.doMock('../dist/composition.js', () => ({
@@ -143,8 +149,10 @@ export async function importFreshApp(options?: {
                 agentRegistryService: {
                     listAgents,
                     getAgent,
+                    listAgentVersions,
                     createAgent,
                     updateAgent,
+                    activateAgentVersion,
                     deleteAgent,
                 },
             },

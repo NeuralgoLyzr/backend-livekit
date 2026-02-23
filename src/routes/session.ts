@@ -6,7 +6,11 @@ import {
     EndSessionRequestSchema,
     SessionObservabilityIngestSchema,
 } from '../types/index.js';
-import type { SessionService } from '../services/sessionService.js';
+import type {
+    CreateSessionResponse,
+    CreateSessionStepTimingsMs,
+    SessionService,
+} from '../services/sessionService.js';
 import type { TranscriptService } from '../services/transcriptService.js';
 import type { AudioStorageService } from '../services/audioStorageService.js';
 import type { SessionStorePort } from '../ports/sessionStorePort.js';
@@ -21,6 +25,15 @@ import type { RequestAuthLocals } from '../middleware/apiKeyAuth.js';
 import { HttpError } from '../lib/httpErrors.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
+function toOperationTimingsMs(
+    timings: CreateSessionStepTimingsMs
+): Record<string, number> | undefined {
+    const pairs = Object.entries(timings).filter(
+        ([, value]) => typeof value === 'number' && Number.isFinite(value)
+    );
+    return pairs.length > 0 ? Object.fromEntries(pairs) : undefined;
+}
 
 export function createSessionRouter(
     sessionService: SessionService,
@@ -99,19 +112,38 @@ export function createSessionRouter(
                 });
             }
 
-            const auth = (res.locals as RequestAuthLocals).auth;
-            const response = await sessionService.createSession({
-                ...parseResult.data,
-                orgId: auth?.orgId,
-                createdByUserId: auth?.userId,
-                requesterIsAdmin: auth?.isAdmin,
-            });
-
             const wideEvent = res.locals.wideEvent as HttpWideEvent | undefined;
+            if (wideEvent) {
+                wideEvent.userIdentity = parseResult.data.userIdentity;
+            }
+            const sessionCreateTimings: CreateSessionStepTimingsMs = {};
+
+            const auth = (res.locals as RequestAuthLocals).auth;
+            let response: CreateSessionResponse;
+            try {
+                response = await sessionService.createSession(
+                    {
+                        ...parseResult.data,
+                        orgId: auth?.orgId,
+                        createdByUserId: auth?.userId,
+                        requesterIsAdmin: auth?.isAdmin,
+                    },
+                    {
+                        timingsMs: sessionCreateTimings,
+                    }
+                );
+            } finally {
+                if (wideEvent) {
+                    const operationTimingsMs = toOperationTimingsMs(sessionCreateTimings);
+                    if (operationTimingsMs) {
+                        wideEvent.operationTimingsMs = operationTimingsMs;
+                    }
+                }
+            }
+
             if (wideEvent) {
                 wideEvent.roomName = response.roomName;
                 wideEvent.sessionId = response.sessionId;
-                wideEvent.userIdentity = parseResult.data.userIdentity;
             }
 
             return res.json(response);

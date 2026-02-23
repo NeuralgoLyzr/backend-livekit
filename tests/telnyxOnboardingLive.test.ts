@@ -197,7 +197,9 @@ describe.skipIf(!API_KEY || !TEST_PHONE_NUMBER)(
 
                     // Find the test phone number
                     const testNumber = numbers.find(
-                        (n) => n.phone_number.replace(/\s/g, '') === TEST_PHONE_NUMBER.replace(/\s/g, '')
+                        (n) =>
+                            n.phone_number.replaceAll(/\s/g, '') ===
+                            TEST_PHONE_NUMBER.replaceAll(/\s/g, '')
                     );
                     expect(testNumber).toBeDefined();
 
@@ -246,7 +248,9 @@ describe.skipIf(!API_KEY || !TEST_PHONE_NUMBER)(
                     // 2. Connect a number (leave it connected)
                     const numbers = await service.listNumbers(integration.id);
                     const testNumber = numbers.find(
-                        (n) => n.phone_number.replace(/\s/g, '') === TEST_PHONE_NUMBER.replace(/\s/g, '')
+                        (n) =>
+                            n.phone_number.replaceAll(/\s/g, '') ===
+                            TEST_PHONE_NUMBER.replaceAll(/\s/g, '')
                     );
                     expect(testNumber).toBeDefined();
 

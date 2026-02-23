@@ -66,6 +66,14 @@ describe('config/tools', () => {
             expect(result).not.toContain('search_knowledge_base');
         });
 
+        it('trims wildcard values before matching', async () => {
+            setRequiredEnv();
+            const { normalizeTools } = await import('../dist/config/tools.js');
+            const result = normalizeTools({ tools: ['  all  '] });
+            expect(result.length).toBeGreaterThan(0);
+            expect(result).not.toContain('search_knowledge_base');
+        });
+
         it('wildcard with KB enabled includes search_knowledge_base', async () => {
             setRequiredEnv();
             const { normalizeTools, toolRegistry } = await import('../dist/config/tools.js');
@@ -83,6 +91,16 @@ describe('config/tools', () => {
                 tools: [42, null, 'get_weather', undefined] as unknown as string[],
             });
             expect(result).toEqual(['get_weather']);
+        });
+
+        it('does not duplicate knowledge-base tool when already requested', async () => {
+            setRequiredEnv();
+            const { normalizeTools } = await import('../dist/config/tools.js');
+            const result = normalizeTools({
+                tools: ['search_knowledge_base', 'get_weather'],
+                knowledge_base: { enabled: true },
+            });
+            expect(result).toEqual(['search_knowledge_base', 'get_weather']);
         });
     });
 

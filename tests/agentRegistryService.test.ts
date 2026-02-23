@@ -31,12 +31,14 @@ function makeStore(overrides?: Record<string, unknown>) {
     return {
         list: vi.fn().mockResolvedValue([]),
         getById: vi.fn().mockResolvedValue(null),
+        listVersions: vi.fn().mockResolvedValue([]),
         create: vi
             .fn()
             .mockImplementation(async (input: Record<string, unknown>) =>
                 makeStoredAgent({ config: input.config })
             ),
         update: vi.fn().mockResolvedValue(null),
+        activateVersion: vi.fn().mockResolvedValue(null),
         delete: vi.fn().mockResolvedValue(false),
         ...overrides,
     };
@@ -108,6 +110,30 @@ describe('agentRegistryService (unit)', () => {
 
         const result = await svc.getAgent(MEMBER_AUTH, '507f1f77bcf86cd799439011');
         expect(result).toBeNull();
+    });
+
+    it('listAgentVersions delegates to store.listVersions with member scope', async () => {
+        setRequiredEnv();
+        const { createAgentRegistryService } =
+            await import('../dist/services/agentRegistryService.js');
+
+        const versions = [
+            {
+                versionId: '6ca631d2-7f1f-4dbd-9b66-d3c0ecae0136',
+                active: true,
+                createdAt: new Date().toISOString(),
+                config: { agent_name: 'Test Agent', tools: [] },
+            },
+        ];
+        const store = makeStore({ listVersions: vi.fn().mockResolvedValue(versions) });
+        const svc = createAgentRegistryService({ store });
+
+        const result = await svc.listAgentVersions(MEMBER_AUTH, '507f1f77bcf86cd799439011');
+        expect(store.listVersions).toHaveBeenCalledWith('507f1f77bcf86cd799439011', {
+            orgId: MEMBER_AUTH.orgId,
+            createdByUserId: MEMBER_AUTH.userId,
+        });
+        expect(result).toEqual(versions);
     });
 
     it('createAgent trims agent_name and persists org/user ownership', async () => {
@@ -198,6 +224,55 @@ describe('agentRegistryService (unit)', () => {
                 config: { agent_name: '', tools: [] },
             })
         ).rejects.toBeInstanceOf(HttpError);
+    });
+
+    it('activateAgentVersion returns null when agent is not found in scope', async () => {
+        setRequiredEnv();
+        const { createAgentRegistryService } =
+            await import('../dist/services/agentRegistryService.js');
+
+        const store = makeStore({
+            getById: vi.fn().mockResolvedValue(null),
+            activateVersion: vi.fn(),
+        });
+        const svc = createAgentRegistryService({ store });
+
+        const result = await svc.activateAgentVersion(
+            MEMBER_AUTH,
+            '507f1f77bcf86cd799439011',
+            '6ca631d2-7f1f-4dbd-9b66-d3c0ecae0136'
+        );
+        expect(result).toBeNull();
+        expect(store.activateVersion).not.toHaveBeenCalled();
+    });
+
+    it('activateAgentVersion delegates to store.activateVersion with member scope', async () => {
+        setRequiredEnv();
+        const { createAgentRegistryService } =
+            await import('../dist/services/agentRegistryService.js');
+
+        const updated = makeStoredAgent({ config: { agent_name: 'Version Active', tools: [] } });
+        const store = makeStore({
+            getById: vi.fn().mockResolvedValue(makeStoredAgent()),
+            activateVersion: vi.fn().mockResolvedValue(updated),
+        });
+        const svc = createAgentRegistryService({ store });
+
+        const result = await svc.activateAgentVersion(
+            MEMBER_AUTH,
+            '507f1f77bcf86cd799439011',
+            '6ca631d2-7f1f-4dbd-9b66-d3c0ecae0136'
+        );
+
+        expect(result).toEqual(updated);
+        expect(store.activateVersion).toHaveBeenCalledWith(
+            '507f1f77bcf86cd799439011',
+            '6ca631d2-7f1f-4dbd-9b66-d3c0ecae0136',
+            {
+                orgId: MEMBER_AUTH.orgId,
+                createdByUserId: MEMBER_AUTH.userId,
+            }
+        );
     });
 
     it('deleteAgent returns false when agent not found', async () => {

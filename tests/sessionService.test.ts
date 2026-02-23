@@ -85,6 +85,41 @@ describe('sessionService (unit)', () => {
         expect(stored.userIdentity).toBe('user_1');
     });
 
+    it('normalizes userIdentity, roomName, and sessionId by trimming whitespace', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const createUserToken = vi.fn().mockResolvedValue('token-trimmed');
+        const dispatchAgent = vi.fn().mockResolvedValue(undefined);
+        const deps = buildDeps({ createUserToken, dispatchAgent });
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const svc = createSessionService(deps);
+
+        const result = await svc.createSession({
+            userIdentity: '  user_trim  ',
+            roomName: '  room-trim  ',
+            sessionId: '  00000000-0000-4000-8000-000000000000  ',
+            agentConfig: {},
+        });
+
+        expect(result.roomName).toBe('room-trim');
+        expect(result.sessionId).toBe('00000000-0000-4000-8000-000000000000');
+        expect(createUserToken).toHaveBeenCalledWith('user_trim', 'room-trim');
+
+        const [dispatchRoomName, dispatchedConfig] = dispatchAgent.mock.calls[0] as [
+            string,
+            Record<string, unknown>,
+        ];
+        expect(dispatchRoomName).toBe('room-trim');
+        expect(dispatchedConfig.user_id).toBe('user_trim');
+        expect(dispatchedConfig.session_id).toBe('00000000-0000-4000-8000-000000000000');
+
+        const stored = deps.store.get('room-trim') as Record<string, unknown>;
+        expect(stored.userIdentity).toBe('user_trim');
+        expect(stored.sessionId).toBe('00000000-0000-4000-8000-000000000000');
+    });
+
     it('wraps agent dispatch failures as 502 and does not store the session', async () => {
         vi.resetModules();
         setRequiredEnv();
@@ -181,6 +216,26 @@ describe('sessionService (unit)', () => {
         expect(stored.endedAt).toBeDefined();
     });
 
+    it('endSession trims roomName before lookup', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const deps = buildDeps();
+        deps.store.set('room-trim-end', {
+            userIdentity: 'u',
+            sessionId: 's-trim',
+            orgId: ORG_ID_A,
+            createdByUserId: 'member_user_1',
+            createdAt: new Date().toISOString(),
+        });
+        const svc = createSessionService(deps);
+
+        await svc.endSession({ roomName: '  room-trim-end  ', auth: MEMBER_AUTH });
+        const stored = deps.store.get('room-trim-end') as Record<string, unknown>;
+        expect(stored.endedAt).toBeDefined();
+    });
+
     it('endSession throws 404 when session is missing', async () => {
         vi.resetModules();
         setRequiredEnv();
@@ -215,9 +270,9 @@ describe('sessionService (unit)', () => {
         });
         const svc = createSessionService(deps);
 
-        await expect(svc.endSession({ roomName: 'room-1', auth: MEMBER_AUTH })).rejects.toBeInstanceOf(
-            HttpError
-        );
+        await expect(
+            svc.endSession({ roomName: 'room-1', auth: MEMBER_AUTH })
+        ).rejects.toBeInstanceOf(HttpError);
         const stored = deps.store.get('room-1') as Record<string, unknown>;
         expect(stored.endedAt).toBeUndefined();
     });
@@ -265,6 +320,26 @@ describe('sessionService (unit)', () => {
         expect(stored.endedAt).toBeDefined();
     });
 
+    it('endSession trims sessionId before lookup', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const deps = buildDeps();
+        deps.store.set('room-trim-sid', {
+            userIdentity: 'u',
+            sessionId: 'session-trim',
+            orgId: ORG_ID_A,
+            createdByUserId: 'member_user_1',
+            createdAt: new Date().toISOString(),
+        });
+        const svc = createSessionService(deps);
+
+        await svc.endSession({ sessionId: '  session-trim  ', auth: MEMBER_AUTH });
+        const stored = deps.store.get('room-trim-sid') as Record<string, unknown>;
+        expect(stored.endedAt).toBeDefined();
+    });
+
     it('cleanupSession deletes the room and clears the store entry', async () => {
         vi.resetModules();
         setRequiredEnv();
@@ -283,5 +358,25 @@ describe('sessionService (unit)', () => {
         await svc.cleanupSession('room-1');
         expect(deleteRoom).toHaveBeenCalledWith('room-1');
         expect(deps.store.has('room-1')).toBe(false);
+    });
+
+    it('cleanupSession trims roomName before deleting room', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const deleteRoom = vi.fn().mockResolvedValue(undefined);
+        const deps = buildDeps({ deleteRoom });
+        deps.store.set('room-trim-clean', {
+            userIdentity: 'u',
+            sessionId: 's',
+            createdAt: new Date().toISOString(),
+        });
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const svc = createSessionService(deps);
+
+        await svc.cleanupSession('  room-trim-clean  ');
+        expect(deleteRoom).toHaveBeenCalledWith('room-trim-clean');
+        expect(deps.store.has('room-trim-clean')).toBe(false);
     });
 });

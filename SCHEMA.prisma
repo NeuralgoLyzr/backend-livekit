@@ -10,6 +10,14 @@ datasource db {
   url      = env("MONGODB_URI")
 }
 
+// Embedded in AgentConfig. Mirrors Mongoose AgentVersionDocument.
+type AgentVersion {
+  versionId String
+  config    Json      @default("{}")
+  active    Boolean   @default(false)
+  createdAt DateTime
+}
+
 // ── Agent Configs ───────────────────────────────────────────
 // Collection: lk_agent_configs
 model AgentConfig {
@@ -17,12 +25,14 @@ model AgentConfig {
   orgId           String
   createdByUserId String
   config          Json      @default("{}")
+  versions        AgentVersion[]
   deletedAt       DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   @@index([updatedAt(sort: Desc)])
   @@index([deletedAt])
+  // Mongoose also indexes `versions.versionId` for version activation lookups.
   @@index([orgId, deletedAt, updatedAt(sort: Desc)])
   @@index([orgId, createdByUserId, deletedAt, updatedAt(sort: Desc)])
   @@map("lk_agent_configs")

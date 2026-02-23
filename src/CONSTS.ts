@@ -2,9 +2,9 @@ export const AGENT_DEFAULTS = {
     engine: {
         kind: 'pipeline' as const,
         stt: 'assemblyai/universal-streaming:en',
-        tts: 'cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
+        tts: 'cartesia/sonic-3',
         llm: 'openai/gpt-4o-mini',
-        voice_id: undefined as string | undefined,
+        voice_id: '9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
         language: 'en',
     },
     prompt: 'You are a helpful voice AI assistant. Be concise and friendly.',

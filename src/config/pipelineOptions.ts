@@ -3,6 +3,10 @@ export type PipelineModelOption = {
     name: string;
     description?: string;
     /**
+     * Default voice id to seed `engine.voice_id` in pipeline mode.
+     */
+    defaultVoiceId?: string;
+    /**
      * Supported language codes for this model (ISO-639-1 in most cases; some providers
      * may use provider-specific codes as documented by LiveKit Inference).
      */
@@ -27,6 +31,7 @@ export function getPipelineOptions(): PipelineOptionsResponse {
     // - https://docs.livekit.io/agents/models/stt/inference/cartesia/
     // - https://docs.livekit.io/agents/models/stt/inference/deepgram/
     // - https://docs.livekit.io/agents/models/stt/inference/elevenlabs/
+    // - https://docs.livekit.io/agents/models/stt/plugins/sarvam/
     const ASSEMBLYAI_UNIVERSAL_LANGUAGES = ['en', 'en-US'];
     const ASSEMBLYAI_MULTILINGUAL_LANGUAGES = [
         'en',
@@ -422,6 +427,19 @@ export function getPipelineOptions(): PipelineOptionsResponse {
         'cy',
         'cy-GB',
     ];
+    const SARVAM_SAARIKA_V25_LANGUAGES = [
+        'bn-IN',
+        'en-IN',
+        'gu-IN',
+        'hi-IN',
+        'kn-IN',
+        'ml-IN',
+        'mr-IN',
+        'od-IN',
+        'pa-IN',
+        'ta-IN',
+        'te-IN',
+    ];
 
     return {
         stt: [
@@ -514,6 +532,17 @@ export function getPipelineOptions(): PipelineOptionsResponse {
                     },
                 ],
             },
+            {
+                providerId: 'sarvam',
+                displayName: 'Sarvam',
+                models: [
+                    {
+                        id: 'sarvam/saarika:v2.5',
+                        name: 'Sarvam Saarika v2.5',
+                        languages: SARVAM_SAARIKA_V25_LANGUAGES,
+                    },
+                ],
+            },
         ],
         tts: [
             {
@@ -521,20 +550,24 @@ export function getPipelineOptions(): PipelineOptionsResponse {
                 displayName: 'Cartesia',
                 models: [
                     {
-                        id: 'cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
+                        id: 'cartesia/sonic-3',
                         name: 'Cartesia Sonic-3',
+                        defaultVoiceId: '9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
                     },
                     {
-                        id: 'cartesia/sonic-2:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
+                        id: 'cartesia/sonic-2',
                         name: 'Cartesia Sonic-2',
+                        defaultVoiceId: '9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
                     },
                     {
-                        id: 'cartesia/sonic-turbo:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
+                        id: 'cartesia/sonic-turbo',
                         name: 'Cartesia Sonic-Turbo',
+                        defaultVoiceId: '9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
                     },
                     {
-                        id: 'cartesia/sonic:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
+                        id: 'cartesia/sonic',
                         name: 'Cartesia Sonic',
+                        defaultVoiceId: '9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
                     },
                 ],
             },
@@ -543,12 +576,9 @@ export function getPipelineOptions(): PipelineOptionsResponse {
                 displayName: 'Deepgram',
                 models: [
                     {
-                        id: 'deepgram/aura:apollo',
-                        name: 'Deepgram Aura-1 (Apollo)',
-                    },
-                    {
-                        id: 'deepgram/aura-2:athena',
+                        id: 'deepgram/aura-2',
                         name: 'Deepgram Aura-2 (Athena)',
+                        defaultVoiceId: 'athena',
                     },
                 ],
             },
@@ -557,24 +587,29 @@ export function getPipelineOptions(): PipelineOptionsResponse {
                 displayName: 'ElevenLabs',
                 models: [
                     {
-                        id: 'elevenlabs/eleven_flash_v2:Xb7hH8MSUJpSbSDYk0k2',
+                        id: 'elevenlabs/eleven_flash_v2',
                         name: 'ElevenLabs Eleven Flash v2',
+                        defaultVoiceId: 'Xb7hH8MSUJpSbSDYk0k2',
                     },
                     {
-                        id: 'elevenlabs/eleven_flash_v2_5:Xb7hH8MSUJpSbSDYk0k2',
+                        id: 'elevenlabs/eleven_flash_v2_5',
                         name: 'ElevenLabs Eleven Flash v2.5',
+                        defaultVoiceId: 'Xb7hH8MSUJpSbSDYk0k2',
                     },
                     {
-                        id: 'elevenlabs/eleven_turbo_v2:Xb7hH8MSUJpSbSDYk0k2',
+                        id: 'elevenlabs/eleven_turbo_v2',
                         name: 'ElevenLabs Eleven Turbo v2',
+                        defaultVoiceId: 'Xb7hH8MSUJpSbSDYk0k2',
                     },
                     {
-                        id: 'elevenlabs/eleven_turbo_v2_5:Xb7hH8MSUJpSbSDYk0k2',
+                        id: 'elevenlabs/eleven_turbo_v2_5',
                         name: 'ElevenLabs Eleven Turbo v2.5',
+                        defaultVoiceId: 'Xb7hH8MSUJpSbSDYk0k2',
                     },
                     {
-                        id: 'elevenlabs/eleven_multilingual_v2:Xb7hH8MSUJpSbSDYk0k2',
+                        id: 'elevenlabs/eleven_multilingual_v2',
                         name: 'ElevenLabs Eleven Multilingual v2',
+                        defaultVoiceId: 'Xb7hH8MSUJpSbSDYk0k2',
                     },
                 ],
             },
@@ -583,20 +618,24 @@ export function getPipelineOptions(): PipelineOptionsResponse {
                 displayName: 'Inworld',
                 models: [
                     {
-                        id: 'inworld/inworld-tts-1.5-max:Ashley',
+                        id: 'inworld/inworld-tts-1.5-max',
                         name: 'Inworld TTS 1.5 Max (Ashley)',
+                        defaultVoiceId: 'Ashley',
                     },
                     {
-                        id: 'inworld/inworld-tts-1.5-mini:Ashley',
+                        id: 'inworld/inworld-tts-1.5-mini',
                         name: 'Inworld TTS 1.5 Mini (Ashley)',
+                        defaultVoiceId: 'Ashley',
                     },
                     {
-                        id: 'inworld/inworld-tts-1-max:Ashley',
+                        id: 'inworld/inworld-tts-1-max',
                         name: 'Inworld TTS-1 Max (Ashley)',
+                        defaultVoiceId: 'Ashley',
                     },
                     {
-                        id: 'inworld/inworld-tts-1:Ashley',
+                        id: 'inworld/inworld-tts-1',
                         name: 'Inworld TTS-1 (Ashley)',
+                        defaultVoiceId: 'Ashley',
                     },
                 ],
             },
@@ -605,12 +644,38 @@ export function getPipelineOptions(): PipelineOptionsResponse {
                 displayName: 'Rime',
                 models: [
                     {
-                        id: 'rime/arcana:astra',
+                        id: 'rime/arcana',
                         name: 'Rime Arcana V2 (Astra)',
+                        defaultVoiceId: 'astra',
                     },
                     {
-                        id: 'rime/mistv2:astra',
+                        id: 'rime/mistv2',
                         name: 'Rime Mist V2 (Astra)',
+                        defaultVoiceId: 'astra',
+                    },
+                ],
+            },
+            {
+                providerId: 'sarvam',
+                displayName: 'Sarvam',
+                models: [
+                    {
+                        id: 'sarvam/bulbul:v3',
+                        name: 'Sarvam Bulbul v3',
+                        defaultVoiceId: 'shubh',
+                        languages: [
+                            'bn-IN',
+                            'en-IN',
+                            'gu-IN',
+                            'hi-IN',
+                            'kn-IN',
+                            'ml-IN',
+                            'mr-IN',
+                            'od-IN',
+                            'pa-IN',
+                            'ta-IN',
+                            'te-IN',
+                        ],
                     },
                 ],
             },

@@ -11,6 +11,7 @@ import { createLangfuseTraceService } from './services/langfuseTraceService.js';
 import { createPagosAuthService } from './services/pagosAuthService.js';
 import { createSessionTraceService } from './services/sessionTraceService.js';
 import { createAudioStorageService } from './services/audioStorageService.js';
+import { createTtsVoicePreviewService, createTtsVoicesService } from './services/ttsVoices/index.js';
 import { MongooseAgentStore } from './adapters/mongoose/mongooseAgentStore.js';
 import { MongooseTranscriptStore } from './adapters/mongoose/mongooseTranscriptStore.js';
 import { InMemorySessionStore } from './lib/storage.js';
@@ -73,6 +74,17 @@ const sessionTraceService = createSessionTraceService({
 
 const audioStorageService = createAudioStorageService();
 
+const ttsVoicesService = createTtsVoicesService({
+    cartesia: config.ttsVoicesProxy.cartesia,
+    elevenlabs: config.ttsVoicesProxy.elevenlabs,
+    deepgram: config.ttsVoicesProxy.deepgram,
+    inworld: config.ttsVoicesProxy.inworld,
+});
+
+const ttsVoicePreviewService = createTtsVoicePreviewService({
+    cartesia: config.ttsVoicesProxy.cartesia,
+});
+
 export const services = {
     agentStore,
     transcriptStore,
@@ -88,4 +100,6 @@ export const services = {
     langfuseTraceService,
     sessionTraceService,
     audioStorageService,
+    ttsVoicesService,
+    ttsVoicePreviewService,
 };

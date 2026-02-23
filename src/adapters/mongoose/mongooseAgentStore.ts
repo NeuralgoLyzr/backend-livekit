@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { randomUUID } from 'node:crypto';
 
 import type {
     AgentAccessScope,
@@ -6,11 +7,16 @@ import type {
     CreateAgentInput,
     ListAgentsInput,
     StoredAgent,
+    StoredAgentVersion,
     UpdateAgentInput,
 } from '../../ports/agentStorePort.js';
 import type { AgentConfig } from '../../types/index.js';
 import { connectMongo } from '../../db/mongoose.js';
-import { getAgentModel, type AgentConfigDocument } from '../../models/agentModel.js';
+import {
+    getAgentModel,
+    type AgentConfigDocument,
+    type AgentVersionDocument,
+} from '../../models/agentModel.js';
 
 function toStoredAgent(row: AgentConfigDocument): StoredAgent {
     return {
@@ -19,6 +25,24 @@ function toStoredAgent(row: AgentConfigDocument): StoredAgent {
         config: row.config as AgentConfig,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
+    };
+}
+
+function toStoredAgentVersion(row: AgentVersionDocument): StoredAgentVersion {
+    return {
+        versionId: row.versionId,
+        config: row.config as AgentConfig,
+        active: row.active,
+        createdAt: row.createdAt.toISOString(),
+    };
+}
+
+function buildVersionSnapshot(config: AgentConfig, createdAt = new Date()): AgentVersionDocument {
+    return {
+        versionId: randomUUID(),
+        config: config as unknown,
+        active: true,
+        createdAt,
     };
 }
 
@@ -68,14 +92,34 @@ export class MongooseAgentStore implements AgentStorePort {
         return toStoredAgent(row);
     }
 
+    async listVersions(id: string, scope?: AgentAccessScope): Promise<StoredAgentVersion[] | null> {
+        await connectMongo();
+        const Agent = getAgentModel();
+
+        if (!mongoose.Types.ObjectId.isValid(id)) return null;
+        const _id = new mongoose.Types.ObjectId(id);
+        const scopedQuery = buildScopedQuery(scope);
+
+        const row = await Agent.findOne({ _id, ...scopedQuery, deletedAt: null }).lean<AgentConfigDocument>();
+        if (!row) return null;
+
+        const versions = [...(row.versions ?? [])]
+            .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+            .map(toStoredAgentVersion);
+
+        return versions;
+    }
+
     async create(input: CreateAgentInput): Promise<StoredAgent> {
         await connectMongo();
         const Agent = getAgentModel();
+        const snapshot = buildVersionSnapshot(input.config);
 
         const created = await Agent.create({
             orgId: input.orgId,
             createdByUserId: input.createdByUserId,
             config: input.config as unknown,
+            versions: [snapshot],
             deletedAt: null,
         });
 
@@ -90,10 +134,7 @@ export class MongooseAgentStore implements AgentStorePort {
         const _id = new mongoose.Types.ObjectId(id);
         const scopedQuery = buildScopedQuery(scope);
 
-        const $set: Record<string, unknown> = {};
-        if (input.config !== undefined) $set.config = input.config as unknown;
-
-        if (Object.keys($set).length === 0) {
+        if (input.config === undefined) {
             const existing = await Agent.findOne({
                 _id,
                 ...scopedQuery,
@@ -103,9 +144,65 @@ export class MongooseAgentStore implements AgentStorePort {
             return toStoredAgent(existing);
         }
 
+        const existing = await Agent.findOne({
+            _id,
+            ...scopedQuery,
+            deletedAt: null,
+        }).lean<AgentConfigDocument>();
+        if (!existing) return null;
+
+        const snapshot = buildVersionSnapshot(input.config);
+        const nextVersions: AgentVersionDocument[] = [
+            ...(existing.versions ?? []).map((version) => ({ ...version, active: false })),
+            snapshot,
+        ];
+
         const updated = await Agent.findOneAndUpdate(
             { _id, ...scopedQuery, deletedAt: null },
-            { $set },
+            {
+                $set: {
+                    config: input.config as unknown,
+                    versions: nextVersions,
+                },
+            },
+            { new: true, runValidators: true }
+        ).lean<AgentConfigDocument>();
+
+        if (!updated) return null;
+        return toStoredAgent(updated);
+    }
+
+    async activateVersion(
+        id: string,
+        versionId: string,
+        scope?: AgentAccessScope
+    ): Promise<StoredAgent | null> {
+        await connectMongo();
+        const Agent = getAgentModel();
+
+        if (!mongoose.Types.ObjectId.isValid(id)) return null;
+        const _id = new mongoose.Types.ObjectId(id);
+        const scopedQuery = buildScopedQuery(scope);
+
+        const existing = await Agent.findOne({ _id, ...scopedQuery, deletedAt: null }).lean<AgentConfigDocument>();
+        if (!existing) return null;
+
+        const targetVersion = (existing.versions ?? []).find((version) => version.versionId === versionId);
+        if (!targetVersion) return null;
+
+        const nextVersions = (existing.versions ?? []).map((version) => ({
+            ...version,
+            active: version.versionId === versionId,
+        }));
+
+        const updated = await Agent.findOneAndUpdate(
+            { _id, ...scopedQuery, deletedAt: null },
+            {
+                $set: {
+                    config: targetVersion.config,
+                    versions: nextVersions,
+                },
+            },
             { new: true, runValidators: true }
         ).lean<AgentConfigDocument>();
 

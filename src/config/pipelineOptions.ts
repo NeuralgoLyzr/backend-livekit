@@ -577,7 +577,7 @@ export function getPipelineOptions(): PipelineOptionsResponse {
                 models: [
                     {
                         id: 'deepgram/aura-2',
-                        name: 'Deepgram Aura-2 (Athena)',
+                        name: 'Deepgram Aura-2',
                         defaultVoiceId: 'athena',
                     },
                 ],
@@ -619,22 +619,22 @@ export function getPipelineOptions(): PipelineOptionsResponse {
                 models: [
                     {
                         id: 'inworld/inworld-tts-1.5-max',
-                        name: 'Inworld TTS 1.5 Max (Ashley)',
+                        name: 'Inworld TTS 1.5 Max',
                         defaultVoiceId: 'Ashley',
                     },
                     {
                         id: 'inworld/inworld-tts-1.5-mini',
-                        name: 'Inworld TTS 1.5 Mini (Ashley)',
+                        name: 'Inworld TTS 1.5 Mini',
                         defaultVoiceId: 'Ashley',
                     },
                     {
                         id: 'inworld/inworld-tts-1-max',
-                        name: 'Inworld TTS-1 Max (Ashley)',
+                        name: 'Inworld TTS-1 Max',
                         defaultVoiceId: 'Ashley',
                     },
                     {
                         id: 'inworld/inworld-tts-1',
-                        name: 'Inworld TTS-1 (Ashley)',
+                        name: 'Inworld TTS-1',
                         defaultVoiceId: 'Ashley',
                     },
                 ],
@@ -645,12 +645,12 @@ export function getPipelineOptions(): PipelineOptionsResponse {
                 models: [
                     {
                         id: 'rime/arcana',
-                        name: 'Rime Arcana V2 (Astra)',
+                        name: 'Rime Arcana V2',
                         defaultVoiceId: 'astra',
                     },
                     {
                         id: 'rime/mistv2',
-                        name: 'Rime Mist V2 (Astra)',
+                        name: 'Rime Mist V2',
                         defaultVoiceId: 'astra',
                     },
                 ],

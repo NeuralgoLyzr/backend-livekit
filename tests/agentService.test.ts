@@ -209,4 +209,19 @@ describe('agentService (unit)', () => {
         expect(metadata.pronunciation_correction).toBe(true);
         expect(metadata.pronunciation_rules).toEqual({ AI: 'A.I.' });
     });
+
+    it('forwards audio_recording_enabled flag', async () => {
+        setRequiredEnv();
+        const { createAgentService } = await import('../dist/services/agentService.js');
+
+        const createDispatch = vi.fn().mockResolvedValue({ id: 'd-9' });
+        const svc = createAgentService({
+            client: { createDispatch } as unknown as AgentDispatchClient,
+            agentName: 'test-agent',
+        });
+
+        await svc.dispatchAgent('room-11', { audio_recording_enabled: true });
+        const metadata = JSON.parse(createDispatch.mock.calls[0][2].metadata);
+        expect(metadata.audio_recording_enabled).toBe(true);
+    });
 });

@@ -50,8 +50,8 @@ export interface TwilioOriginationUrl {
 }
 
 export interface TwilioTrunkPhoneNumberRef {
+    /** The PN‑SID of the phone number associated with the trunk. */
     sid: string;
-    phoneNumberSid: string;
 }
 
 type TwilioErrorBody = {
@@ -277,7 +277,6 @@ export class TwilioClient {
             for (const item of body.phone_numbers ?? []) {
                 all.push({
                     sid: String(item.sid),
-                    phoneNumberSid: String(item.phone_number_sid),
                 });
             }
 
@@ -297,7 +296,7 @@ export class TwilioClient {
 
     async attachPhoneNumberToTrunk(trunkSid: string, phoneNumberSid: string): Promise<void> {
         const existing = await this.listTrunkPhoneNumbers(trunkSid);
-        if (existing.some((p) => p.phoneNumberSid === phoneNumberSid)) return;
+        if (existing.some((p) => p.sid === phoneNumberSid)) return;
 
         await this.requestForm(
             'POST',
@@ -308,14 +307,14 @@ export class TwilioClient {
     }
 
     async detachPhoneNumberFromTrunk(trunkSid: string, phoneNumberSid: string): Promise<void> {
+        // Idempotent: skip if the number is not currently attached.
         const existing = await this.listTrunkPhoneNumbers(trunkSid);
-        const ref = existing.find((p) => p.phoneNumberSid === phoneNumberSid);
-        if (!ref) return;
+        if (!existing.some((p) => p.sid === phoneNumberSid)) return;
 
         await this.requestJson(
             'DELETE',
             TRUNKING_BASE_URL,
-            `/v1/Trunks/${encodeURIComponent(trunkSid)}/PhoneNumbers/${encodeURIComponent(ref.sid)}`
+            `/v1/Trunks/${encodeURIComponent(trunkSid)}/PhoneNumbers/${encodeURIComponent(phoneNumberSid)}`
         );
     }
 

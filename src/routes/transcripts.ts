@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import type { TranscriptService } from '../services/transcriptService.js';
+import type { AudioStorageService } from '../services/audioStorageService.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { formatZodError } from '../lib/zod.js';
 import { AgentIdSchema } from '../types/index.js';
@@ -33,8 +34,48 @@ function requireAuth(res: { locals: unknown }): { orgId: string; userId: string;
     return auth;
 }
 
-export function createTranscriptsRouter(transcriptService: TranscriptService): Router {
+export function createTranscriptsRouter(
+    transcriptService: TranscriptService,
+    audioStorageService?: AudioStorageService
+): Router {
     const router: Router = Router();
+
+    router.get(
+        '/:sessionId/audio',
+        asyncHandler(async (req, res) => {
+            const auth = requireAuth(res);
+
+            const parseId = SessionIdParamSchema.safeParse(req.params.sessionId);
+            if (!parseId.success) {
+                return res.status(400).json(formatZodError(parseId.error));
+            }
+
+            const transcript = await transcriptService.getBySessionId(parseId.data);
+            if (!transcript) {
+                return res.status(404).json({ error: 'Transcript not found' });
+            }
+
+            if (transcript.orgId !== auth.orgId) {
+                return res.status(404).json({ error: 'Transcript not found' });
+            }
+            if (!auth.isAdmin && transcript.createdByUserId !== auth.userId) {
+                return res.status(404).json({ error: 'Transcript not found' });
+            }
+
+            if (!audioStorageService) {
+                return res.status(404).json({ error: 'Audio recordings not configured' });
+            }
+
+            const filePath = await audioStorageService.getFilePath(parseId.data);
+            if (!filePath) {
+                return res.status(404).json({ error: 'Audio recording not found' });
+            }
+
+            res.setHeader('Content-Type', 'audio/ogg');
+            res.setHeader('Content-Disposition', `inline; filename="${parseId.data}.ogg"`);
+            return res.sendFile(filePath);
+        })
+    );
 
     router.get(
         '/',

@@ -2,10 +2,11 @@ import express, { type Express, type Request, type Response, type NextFunction }
 import cors from 'cors';
 import { createSessionRouter } from './routes/session.js';
 import healthRouter from './routes/health.js';
-import configRouter from './routes/config.js';
+import { createConfigRouter } from './routes/config.js';
 import telephonyRouter from './routes/telephony.js';
 import { createAgentsRouter } from './routes/agents.js';
 import { createTranscriptsRouter } from './routes/transcripts.js';
+import { createSessionTracesRouter } from './routes/sessionTraces.js';
 import { config } from './config/index.js';
 import { services } from './composition.js';
 import { formatErrorResponse, getErrorStatus } from './lib/httpErrors.js';
@@ -42,11 +43,18 @@ app.use(
         transcriptService: services.transcriptService,
         sessionStore: services.sessionStore,
         pagosAuthService: services.pagosAuthService,
+        audioStorageService: services.audioStorageService,
     })
 );
 app.use('/health', healthRouter);
-app.use('/config', configRouter);
 const requireApiKey = apiKeyAuthMiddleware(services.pagosAuthService);
+app.use(
+    '/config',
+    createConfigRouter({
+        ttsVoicesService: services.ttsVoicesService,
+        ttsVoicePreviewService: services.ttsVoicePreviewService,
+    })
+);
 app.use(
     '/telephony',
     (req, res, next) => {
@@ -62,8 +70,9 @@ app.use('/agents', requireApiKey, createAgentsRouter(services.agentRegistryServi
 app.use(
     '/api/transcripts',
     requireApiKey,
-    createTranscriptsRouter(services.transcriptService)
+    createTranscriptsRouter(services.transcriptService, services.audioStorageService)
 );
+app.use('/api/traces', requireApiKey, createSessionTracesRouter(services.sessionTraceService));
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -78,8 +87,11 @@ app.get('/', (req: Request, res: Response) => {
             agents: 'GET /agents',
             transcripts: 'GET /api/transcripts',
             transcriptBySession: 'GET /api/transcripts/:sessionId',
+            transcriptAudio: 'GET /api/transcripts/:sessionId/audio',
             transcriptsByAgent: 'GET /api/transcripts/agent/:agentId',
             transcriptAgentStats: 'GET /api/transcripts/agent/:agentId/stats',
+            sessionTraces: 'GET /api/traces/session/:sessionId',
+            sessionTraceById: 'GET /api/traces/session/:sessionId/:traceId',
             ...(config.telephony.enabled
                 ? { telephonyWebhook: 'POST /telephony/livekit-webhook' }
                 : {}),

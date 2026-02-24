@@ -138,7 +138,7 @@ describe('TwilioClient', () => {
     it('attachPhoneNumberToTrunk is idempotent when already attached', async () => {
         fetchMock.mockResolvedValueOnce(
             jsonResponse({
-                phone_numbers: [{ sid: 'TPN1', phone_number_sid: 'PN_EXISTING' }],
+                phone_numbers: [{ sid: 'PN_EXISTING' }],
                 next_page_uri: null,
             })
         );
@@ -182,7 +182,7 @@ describe('TwilioClient', () => {
         fetchMock
             .mockResolvedValueOnce(
                 jsonResponse({
-                    phone_numbers: [{ sid: 'TPN1', phone_number_sid: 'PN_EXISTING' }],
+                    phone_numbers: [{ sid: 'PN_EXISTING' }],
                     next_page_uri: null,
                 })
             )
@@ -197,7 +197,7 @@ describe('TwilioClient', () => {
 
         expect(fetchMock).toHaveBeenCalledTimes(2);
         const [url, opts] = fetchMock.mock.calls[1] as [string, RequestInit];
-        expect(url).toBe('https://trunking.twilio.com/v1/Trunks/TRUNK1/PhoneNumbers/TPN1');
+        expect(url).toBe('https://trunking.twilio.com/v1/Trunks/TRUNK1/PhoneNumbers/PN_EXISTING');
         expect(opts.method).toBe('DELETE');
     });
 

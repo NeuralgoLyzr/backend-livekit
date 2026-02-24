@@ -36,6 +36,12 @@ const transport = axiomOptions
 
 const baseLoggerOptions: pino.LoggerOptions = {
     level: getLogLevel(),
+    formatters: {
+        level(label) {
+            // Emit textual levels (`info`, `debug`, etc.) instead of numeric values.
+            return { level: label };
+        },
+    },
     base: {
         service: 'backend-livekit',
         env: process.env.NODE_ENV ?? 'development',

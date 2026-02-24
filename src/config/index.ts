@@ -28,6 +28,11 @@ export const config = {
         apiUrl: process.env.PAGOS_API_URL!,
         adminToken: process.env.PAGOS_ADMIN_TOKEN!,
     },
+    langfuse: {
+        host: process.env.LANGFUSE_HOST?.trim() || '',
+        publicKey: process.env.LANGFUSE_PUBLIC_KEY?.trim() || '',
+        secretKey: process.env.LANGFUSE_SECRET_KEY?.trim() || '',
+    },
     server: {
         port: parseInt(process.env.PORT || '4000', 10),
     },
@@ -65,5 +70,29 @@ export const config = {
     },
     telnyx: {
         devApiKey: process.env.TELNYX_API_KEY || '',
+    },
+    ttsVoicesProxy: {
+        /**
+         * Optional provider API keys used by backend-livekit to proxy TTS voice lists.
+         * These are NOT required to start the server; endpoints will return 503 with
+         * requiredEnv when a provider is queried without its credentials.
+         */
+        cartesia: {
+            apiKey: process.env.CARTESIA_API_KEY?.trim() || '',
+            version: process.env.CARTESIA_VERSION?.trim() || '2025-04-16',
+        },
+        elevenlabs: {
+            apiKey: process.env.ELEVENLABS_API_KEY?.trim() || '',
+        },
+        deepgram: {
+            apiKey: process.env.DEEPGRAM_API_KEY?.trim() || '',
+        },
+        inworld: {
+            /**
+             * Base64 API credentials used for Inworld API Basic auth.
+             * Used to build `Authorization: Basic <base64>`.
+             */
+            base64: process.env.INWORLD_BASE_64?.trim() || '',
+        },
     },
 };

@@ -14,7 +14,17 @@ const VALID_MONGO_OBJECT_ID_REGEX = /^[a-f0-9]{24}$/i;
 const MAX_DYNAMIC_VARIABLE_KEYS = 100;
 const MAX_DYNAMIC_VARIABLE_VALUE_LENGTH = 4_096;
 
-export const AvatarProviderSchema = z.literal('anam');
+export const AvatarProviderSchema = z.enum([
+    'anam',
+    'avatario',
+    'bey',
+    'bithuman',
+    'hedra',
+    'lemonslice',
+    'liveavatar',
+    'simli',
+    'tavus',
+]);
 export type AvatarProvider = z.infer<typeof AvatarProviderSchema>;
 
 function DynamicVariablesSchema(fieldName: string) {
@@ -103,6 +113,77 @@ export const AnamAvatarConfigSchema = z.object({
 });
 export type AnamAvatarConfig = z.infer<typeof AnamAvatarConfigSchema>;
 
+export const HedraAvatarConfigSchema = z.object({
+    /**
+     * Hedra avatar asset ID (from Hedra studio/library or API upload).
+     */
+    avatar_id: z.string().optional(),
+    /**
+     * Public image URL used to generate the avatar at runtime.
+     * (The Python agent fetches + uploads to Hedra.)
+     */
+    avatar_image_url: z.string().url().optional(),
+});
+export type HedraAvatarConfig = z.infer<typeof HedraAvatarConfigSchema>;
+
+export const LemonSliceAvatarConfigSchema = z.object({
+    /**
+     * Existing LemonSlice agent ID. Mutually exclusive with agent_image_url.
+     */
+    agent_id: z.string().optional(),
+    /**
+     * Public image URL used to generate the LemonSlice agent. Mutually exclusive with agent_id.
+     */
+    agent_image_url: z.string().url().optional(),
+    /**
+     * Prompt to guide avatar movements (optional).
+     */
+    agent_prompt: z.string().optional(),
+    /**
+     * Idle timeout in seconds (optional). Negative disables timeout.
+     */
+    idle_timeout: z.number().optional(),
+});
+export type LemonSliceAvatarConfig = z.infer<typeof LemonSliceAvatarConfigSchema>;
+
+export const LiveAvatarAvatarConfigSchema = z.object({
+    /**
+     * LiveAvatar (HeyGen) avatar id.
+     */
+    avatar_id: z.string().optional(),
+});
+export type LiveAvatarAvatarConfig = z.infer<typeof LiveAvatarAvatarConfigSchema>;
+
+export const TavusAvatarConfigSchema = z.object({
+    replica_id: z.string().optional(),
+    persona_id: z.string().optional(),
+});
+export type TavusAvatarConfig = z.infer<typeof TavusAvatarConfigSchema>;
+
+export const BitHumanAvatarConfigSchema = z.object({
+    model: z.enum(['essence', 'expression']).optional(),
+    model_path: z.string().optional(),
+    avatar_id: z.string().optional(),
+    avatar_image_url: z.string().url().optional(),
+});
+export type BitHumanAvatarConfig = z.infer<typeof BitHumanAvatarConfigSchema>;
+
+export const SimliAvatarConfigSchema = z.object({
+    face_id: z.string().optional(),
+    emotion_id: z.string().optional(),
+});
+export type SimliAvatarConfig = z.infer<typeof SimliAvatarConfigSchema>;
+
+export const BeyondPresenceAvatarConfigSchema = z.object({
+    avatar_id: z.string().optional(),
+});
+export type BeyondPresenceAvatarConfig = z.infer<typeof BeyondPresenceAvatarConfigSchema>;
+
+export const AvatarioAvatarConfigSchema = z.object({
+    avatar_id: z.string().optional(),
+});
+export type AvatarioAvatarConfig = z.infer<typeof AvatarioAvatarConfigSchema>;
+
 export const AvatarConfigSchema = z
     .object({
         /**
@@ -117,6 +198,14 @@ export const AvatarConfigSchema = z
          * Provider-specific config.
          */
         anam: AnamAvatarConfigSchema.optional(),
+        hedra: HedraAvatarConfigSchema.optional(),
+        lemonslice: LemonSliceAvatarConfigSchema.optional(),
+        liveavatar: LiveAvatarAvatarConfigSchema.optional(),
+        tavus: TavusAvatarConfigSchema.optional(),
+        bithuman: BitHumanAvatarConfigSchema.optional(),
+        simli: SimliAvatarConfigSchema.optional(),
+        bey: BeyondPresenceAvatarConfigSchema.optional(),
+        avatario: AvatarioAvatarConfigSchema.optional(),
         /**
          * Optional participant name to use for the avatar worker.
          */
@@ -125,20 +214,119 @@ export const AvatarConfigSchema = z
     .superRefine((data, ctx) => {
         if (data.enabled) {
             const provider = data.provider ?? 'anam';
-            if (provider !== 'anam') {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    message: `Unsupported avatar provider: ${provider}`,
-                    path: ['provider'],
-                });
-            }
-            const avatarId = data.anam?.avatarId;
-            if (!avatarId || avatarId.trim().length === 0) {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    message: 'avatar.anam.avatarId is required when avatar.enabled is true',
-                    path: ['anam', 'avatarId'],
-                });
+
+            switch (provider) {
+                case 'anam': {
+                    const avatarId = data.anam?.avatarId;
+                    if (!avatarId || avatarId.trim().length === 0) {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            message: 'avatar.anam.avatarId is required when avatar.enabled is true',
+                            path: ['anam', 'avatarId'],
+                        });
+                    }
+                    break;
+                }
+                case 'hedra': {
+                    const avatarId = data.hedra?.avatar_id?.trim() ?? '';
+                    const imageUrl = data.hedra?.avatar_image_url?.trim() ?? '';
+                    if (!avatarId && !imageUrl) {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            message:
+                                'Provide either avatar.hedra.avatar_id or avatar.hedra.avatar_image_url when avatar.enabled is true',
+                            path: ['hedra'],
+                        });
+                    }
+                    break;
+                }
+                case 'lemonslice': {
+                    const agentId = data.lemonslice?.agent_id?.trim() ?? '';
+                    const imageUrl = data.lemonslice?.agent_image_url?.trim() ?? '';
+                    if ((agentId && imageUrl) || (!agentId && !imageUrl)) {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            message:
+                                'Provide exactly one of avatar.lemonslice.agent_id or avatar.lemonslice.agent_image_url when avatar.enabled is true',
+                            path: ['lemonslice'],
+                        });
+                    }
+                    break;
+                }
+                case 'liveavatar': {
+                    const avatarId = data.liveavatar?.avatar_id?.trim() ?? '';
+                    if (!avatarId) {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            message:
+                                'avatar.liveavatar.avatar_id is required when avatar.enabled is true',
+                            path: ['liveavatar', 'avatar_id'],
+                        });
+                    }
+                    break;
+                }
+                case 'tavus': {
+                    const replicaId = data.tavus?.replica_id?.trim() ?? '';
+                    const personaId = data.tavus?.persona_id?.trim() ?? '';
+                    if (!replicaId || !personaId) {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            message:
+                                'avatar.tavus.replica_id and avatar.tavus.persona_id are required when avatar.enabled is true',
+                            path: ['tavus'],
+                        });
+                    }
+                    break;
+                }
+                case 'bithuman': {
+                    const modelPath = data.bithuman?.model_path?.trim() ?? '';
+                    const avatarId = data.bithuman?.avatar_id?.trim() ?? '';
+                    const imageUrl = data.bithuman?.avatar_image_url?.trim() ?? '';
+                    if (!modelPath && !avatarId && !imageUrl) {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            message:
+                                'Provide one of avatar.bithuman.model_path, avatar.bithuman.avatar_id, or avatar.bithuman.avatar_image_url when avatar.enabled is true',
+                            path: ['bithuman'],
+                        });
+                    }
+                    break;
+                }
+                case 'simli': {
+                    const faceId = data.simli?.face_id?.trim() ?? '';
+                    if (!faceId) {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            message:
+                                'avatar.simli.face_id is required when avatar.enabled is true',
+                            path: ['simli', 'face_id'],
+                        });
+                    }
+                    break;
+                }
+                case 'avatario': {
+                    const avatarId = data.avatario?.avatar_id?.trim() ?? '';
+                    if (!avatarId) {
+                        ctx.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            message:
+                                'avatar.avatario.avatar_id is required when avatar.enabled is true',
+                            path: ['avatario', 'avatar_id'],
+                        });
+                    }
+                    break;
+                }
+                case 'bey': {
+                    // Avatar ID is optional for Beyond Presence.
+                    break;
+                }
+                default: {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: `Unsupported avatar provider: ${provider}`,
+                        path: ['provider'],
+                    });
+                }
             }
         }
     });
@@ -245,9 +433,9 @@ export const AgentConfigSchema = z
                     llm: z.string(),
                     tts: z.string(),
                     /**
-                     * Optional voice id override for pipeline TTS (implementation-specific).
+                     * Voice id for pipeline TTS (implementation-specific).
                      */
-                    voice_id: z.string().optional(),
+                    voice_id: z.string().trim().min(1),
                     /**
                      * Optional language hint/code for the engine (primarily used for STT and
                      * certain realtime providers). Format is provider-specific; the UI uses
@@ -282,7 +470,7 @@ export const AgentConfigSchema = z
                 stt: z.string(),
                 llm: z.string(),
                 tts: z.string(),
-                voice_id: z.string().optional(),
+                voice_id: z.string().trim().min(1),
                 language: z.string().optional(),
             })
             .optional(),
@@ -298,6 +486,13 @@ export const AgentConfigSchema = z
          * System prompt / instructions for the agent.
          */
         prompt: z.string().optional(),
+        /**
+         * Optional structured prompt fields used by voice-new-create UI.
+         * Runtime still consumes `prompt`; these are preserved for editing.
+         */
+        agent_role: z.string().optional(),
+        agent_goal: z.string().optional(),
+        agent_instructions: z.string().optional(),
         /**
          * Per-session dynamic variables to substitute into prompts/greetings.
          * Keys must be snake_case; values must be strings.
@@ -401,6 +596,10 @@ export const AgentConfigSchema = z
          * Only active when `pronunciation_correction` is true.
          */
         pronunciation_rules: z.record(z.string(), z.string()).optional(),
+        /**
+         * Enable session audio recording in the Python worker.
+         */
+        audio_recording_enabled: z.boolean().optional(),
         vad_enabled: z.boolean().optional(),
         /**
          * Optional virtual avatar config. When enabled, the Python agent may start an
@@ -419,6 +618,9 @@ export const AgentIdSchema = z
     .string()
     .regex(VALID_MONGO_OBJECT_ID_REGEX, 'agentId must be a valid Mongo ObjectId');
 export type AgentId = z.infer<typeof AgentIdSchema>;
+
+export const AgentVersionIdSchema = z.string().uuid('versionId must be a valid UUID');
+export type AgentVersionId = z.infer<typeof AgentVersionIdSchema>;
 
 const AgentConfigWithNameSchema = AgentConfigSchema.extend({
     agent_name: z
@@ -452,6 +654,14 @@ export const AgentResponseSchema = z.object({
     updatedAt: z.string(),
 });
 export type AgentResponse = z.infer<typeof AgentResponseSchema>;
+
+export const AgentVersionResponseSchema = z.object({
+    version_id: AgentVersionIdSchema,
+    config: AgentConfigSchema,
+    active: z.boolean(),
+    created_at: z.string(),
+});
+export type AgentVersionResponse = z.infer<typeof AgentVersionResponseSchema>;
 
 export const ToolDefinitionSchema = z.object({
     id: z.string(),

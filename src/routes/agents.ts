@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
     AgentIdSchema,
+    AgentVersionIdSchema,
     CreateAgentRequestSchema,
     UpdateAgentRequestSchema,
 } from '../types/index.js';
@@ -67,6 +68,29 @@ export function createAgentsRouter(agentRegistryService: AgentRegistryService): 
         })
     );
 
+    router.get(
+        '/:agentId/versions',
+        asyncHandler(async (req, res) => {
+            const auth = requireAuth(res);
+            const parseId = AgentIdSchema.safeParse(req.params.agentId);
+            if (!parseId.success) {
+                return res.status(400).json(formatZodError(parseId.error));
+            }
+
+            const versions = await agentRegistryService.listAgentVersions(auth, parseId.data);
+            if (!versions) return res.status(404).json({ error: 'Agent not found' });
+            return res.json({
+                agent_id: parseId.data,
+                versions: versions.map((version) => ({
+                    version_id: version.versionId,
+                    config: version.config,
+                    active: version.active,
+                    created_at: version.createdAt,
+                })),
+            });
+        })
+    );
+
     router.put(
         '/:agentId',
         asyncHandler(async (req, res) => {
@@ -86,6 +110,30 @@ export function createAgentsRouter(agentRegistryService: AgentRegistryService): 
             });
             if (!updated) return res.status(404).json({ error: 'Agent not found' });
             return res.json({ agent: updated });
+        })
+    );
+
+    router.post(
+        '/:agentId/versions/:versionId/activate',
+        asyncHandler(async (req, res) => {
+            const auth = requireAuth(res);
+            const parseId = AgentIdSchema.safeParse(req.params.agentId);
+            if (!parseId.success) {
+                return res.status(400).json(formatZodError(parseId.error));
+            }
+
+            const parseVersionId = AgentVersionIdSchema.safeParse(req.params.versionId);
+            if (!parseVersionId.success) {
+                return res.status(400).json(formatZodError(parseVersionId.error));
+            }
+
+            const activated = await agentRegistryService.activateAgentVersion(
+                auth,
+                parseId.data,
+                parseVersionId.data
+            );
+            if (!activated) return res.status(404).json({ error: 'Agent or version not found' });
+            return res.json({ agent: activated });
         })
     );
 

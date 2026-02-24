@@ -393,6 +393,187 @@ describe('TwilioOnboardingService', () => {
         expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
     });
 
+    it('disconnectNumber calls removeInboundSetupForDid and detaches from trunk', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString(
+            JSON.stringify({ accountSid: 'AC123', authToken: 'secret' }),
+            ENCRYPTION_KEY
+        );
+
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: { trunkSid: 'TRUNK_1' },
+            })
+        );
+
+        const bindingStore = stubBindingStore();
+        const livekitProvisioning = {
+            ensureInboundSetupForDid: vi.fn(),
+            removeInboundSetupForDid: vi.fn().mockResolvedValue({
+                normalizedDid: '+15551234567',
+                inboundTrunkId: 'trunk_1',
+                trunkDeleted: false,
+                dispatchRuleUpdated: false,
+                dispatchRuleDeleted: false,
+            }),
+        };
+
+        const service = new TwilioOnboardingService({
+            integrationStore,
+            bindingStore,
+            encryptionKey: ENCRYPTION_KEY,
+            livekitSipHost: SIP_HOST,
+            livekitProvisioning,
+        });
+
+        const callOrder: string[] = [];
+        livekitProvisioning.removeInboundSetupForDid.mockImplementation(async () => {
+            callOrder.push('removeInboundSetupForDid');
+            return {
+                normalizedDid: '+15551234567',
+                inboundTrunkId: 'trunk_1',
+                trunkDeleted: false,
+                dispatchRuleUpdated: false,
+                dispatchRuleDeleted: false,
+            };
+        });
+        (
+            TwilioClient.prototype.detachPhoneNumberFromTrunk as ReturnType<typeof vi.fn>
+        ).mockImplementation(async () => {
+            callOrder.push('detachPhoneNumberFromTrunk');
+        });
+        (bindingStore.deleteBinding as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+            callOrder.push('deleteBinding');
+            return true;
+        });
+
+        await service.disconnectNumber('bind_1');
+
+        expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledWith('+15551234567');
+        expect(TwilioClient.prototype.detachPhoneNumberFromTrunk).toHaveBeenCalledWith(
+            'TRUNK_1',
+            'PN_1'
+        );
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
+        expect(callOrder).toEqual([
+            'removeInboundSetupForDid',
+            'detachPhoneNumberFromTrunk',
+            'deleteBinding',
+        ]);
+    });
+
+    it('disconnectNumber does not delete binding when detach fails', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString(
+            JSON.stringify({ accountSid: 'AC123', authToken: 'secret' }),
+            ENCRYPTION_KEY
+        );
+
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: { trunkSid: 'TRUNK_1' },
+            })
+        );
+
+        const bindingStore = stubBindingStore();
+        const service = createService({ integrationStore, bindingStore });
+
+        (
+            TwilioClient.prototype.detachPhoneNumberFromTrunk as ReturnType<typeof vi.fn>
+        ).mockRejectedValue(new Error('Twilio unavailable'));
+
+        await expect(service.disconnectNumber('bind_1')).rejects.toThrow();
+        expect(bindingStore.deleteBinding).not.toHaveBeenCalled();
+    });
+
+    it('disconnectNumber does not detach or delete when removeInboundSetupForDid fails', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString(
+            JSON.stringify({ accountSid: 'AC123', authToken: 'secret' }),
+            ENCRYPTION_KEY
+        );
+
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: { trunkSid: 'TRUNK_1' },
+            })
+        );
+
+        const bindingStore = stubBindingStore();
+        const livekitProvisioning = {
+            ensureInboundSetupForDid: vi.fn(),
+            removeInboundSetupForDid: vi
+                .fn()
+                .mockRejectedValue(new Error('LiveKit provisioning failed')),
+        };
+
+        const service = new TwilioOnboardingService({
+            integrationStore,
+            bindingStore,
+            encryptionKey: ENCRYPTION_KEY,
+            livekitSipHost: SIP_HOST,
+            livekitProvisioning,
+        });
+
+        await expect(service.disconnectNumber('bind_1')).rejects.toThrow();
+        expect(TwilioClient.prototype.detachPhoneNumberFromTrunk).not.toHaveBeenCalled();
+        expect(bindingStore.deleteBinding).not.toHaveBeenCalled();
+    });
+
+    it('disconnectNumber skips provider detach when trunkSid missing but still deletes binding', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString(
+            JSON.stringify({ accountSid: 'AC123', authToken: 'secret' }),
+            ENCRYPTION_KEY
+        );
+
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: {},
+            })
+        );
+
+        const bindingStore = stubBindingStore();
+        const service = createService({ integrationStore, bindingStore });
+
+        await service.disconnectNumber('bind_1');
+
+        expect(TwilioClient.prototype.detachPhoneNumberFromTrunk).not.toHaveBeenCalled();
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
+    });
+
+    it('disconnectNumber throws 404 for non-existent binding', async () => {
+        const bindingStore = stubBindingStore();
+        (bindingStore.getBindingById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+        const service = createService({ bindingStore });
+
+        await expect(service.disconnectNumber('bind_missing')).rejects.toMatchObject({
+            status: 404,
+        });
+    });
+
+    it('disconnectNumber throws 400 for wrong-provider binding', async () => {
+        const bindingStore = stubBindingStore();
+        (bindingStore.getBindingById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeBinding({ provider: 'telnyx' })
+        );
+
+        const service = createService({ bindingStore });
+
+        await expect(service.disconnectNumber('bind_1')).rejects.toMatchObject({
+            status: 400,
+        });
+    });
+
     it('deleteIntegration cascades number disconnects then deletes integration', async () => {
         const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
         const encrypted = encryptString(
@@ -419,5 +600,56 @@ describe('TwilioOnboardingService', () => {
         expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
         expect(TwilioClient.prototype.deleteTrunk).toHaveBeenCalledWith('TRUNK_1');
         expect(integrationStore.deleteById).toHaveBeenCalledWith('int_1');
+    });
+
+    it('deleteIntegration calls removeInboundSetupForDid for each binding', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString(
+            JSON.stringify({ accountSid: 'AC123', authToken: 'secret' }),
+            ENCRYPTION_KEY
+        );
+
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: { trunkSid: 'TRUNK_1' },
+            })
+        );
+
+        const binding1 = makeBinding({ id: 'bind_1', e164: '+15551111111', providerNumberId: 'PN_1' });
+        const binding2 = makeBinding({ id: 'bind_2', e164: '+15552222222', providerNumberId: 'PN_2' });
+        const bindingStore = stubBindingStore();
+        (bindingStore.listBindingsByIntegrationId as ReturnType<typeof vi.fn>).mockResolvedValue([
+            binding1,
+            binding2,
+        ]);
+
+        const livekitProvisioning = {
+            ensureInboundSetupForDid: vi.fn(),
+            removeInboundSetupForDid: vi.fn().mockResolvedValue({
+                normalizedDid: '+15551111111',
+                inboundTrunkId: 'trunk_1',
+                trunkDeleted: false,
+                dispatchRuleUpdated: false,
+                dispatchRuleDeleted: false,
+            }),
+        };
+
+        const service = new TwilioOnboardingService({
+            integrationStore,
+            bindingStore,
+            encryptionKey: ENCRYPTION_KEY,
+            livekitSipHost: SIP_HOST,
+            livekitProvisioning,
+        });
+
+        const result = await service.deleteIntegration('int_1');
+        expect(result).toEqual({ deletedBindings: 2 });
+        expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledTimes(2);
+        expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledWith('+15551111111');
+        expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledWith('+15552222222');
+        expect(TwilioClient.prototype.detachPhoneNumberFromTrunk).toHaveBeenCalledTimes(2);
+        expect(bindingStore.deleteBinding).toHaveBeenCalledTimes(2);
     });
 });

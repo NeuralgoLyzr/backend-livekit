@@ -27,26 +27,57 @@ type AvatarConfigInput = NonNullable<AgentConfig['avatar']>;
 type ForwardedAvatarConfig = {
     enabled: boolean;
     provider: AvatarConfigInput['provider'];
-    anam: AvatarConfigInput['anam'];
     avatar_participant_name: AvatarConfigInput['avatar_participant_name'];
+    anam?: AvatarConfigInput['anam'];
+    hedra?: AvatarConfigInput['hedra'];
+    lemonslice?: AvatarConfigInput['lemonslice'];
+    liveavatar?: AvatarConfigInput['liveavatar'];
+    tavus?: AvatarConfigInput['tavus'];
+    bithuman?: AvatarConfigInput['bithuman'];
+    simli?: AvatarConfigInput['simli'];
+    bey?: AvatarConfigInput['bey'];
+    avatario?: AvatarConfigInput['avatario'];
 };
 
 function buildAvatarConfig(avatar?: AgentConfig['avatar']): ForwardedAvatarConfig | undefined {
     if (!avatar) return undefined;
 
-    const anam = avatar.anam
-        ? {
-              name: avatar.anam.name,
-              avatarId: avatar.anam.avatarId,
-          }
-        : undefined;
-
-    return {
+    const provider = avatar.provider ?? 'anam';
+    const base = {
         enabled: avatar.enabled ?? false,
-        provider: avatar.provider ?? 'anam',
-        anam,
+        provider,
         avatar_participant_name: avatar.avatar_participant_name,
     };
+
+    switch (provider) {
+        case 'anam': {
+            const anam = avatar.anam
+                ? {
+                      name: avatar.anam.name,
+                      avatarId: avatar.anam.avatarId,
+                  }
+                : undefined;
+            return { ...base, anam };
+        }
+        case 'hedra':
+            return { ...base, hedra: avatar.hedra };
+        case 'lemonslice':
+            return { ...base, lemonslice: avatar.lemonslice };
+        case 'liveavatar':
+            return { ...base, liveavatar: avatar.liveavatar };
+        case 'tavus':
+            return { ...base, tavus: avatar.tavus };
+        case 'bithuman':
+            return { ...base, bithuman: avatar.bithuman };
+        case 'simli':
+            return { ...base, simli: avatar.simli };
+        case 'bey':
+            return { ...base, bey: avatar.bey };
+        case 'avatario':
+            return { ...base, avatario: avatar.avatario };
+        default:
+            return base;
+    }
 }
 
 function buildMetadataObject(agentConfig: AgentConfig): Record<string, unknown> {
@@ -78,6 +109,7 @@ function buildMetadataObject(agentConfig: AgentConfig): Record<string, unknown> 
         preemptive_generation: agentConfig.preemptive_generation ?? false,
         pronunciation_correction: agentConfig.pronunciation_correction ?? false,
         pronunciation_rules: agentConfig.pronunciation_rules,
+        audio_recording_enabled: agentConfig.audio_recording_enabled ?? false,
         background_audio,
         avatar,
     };

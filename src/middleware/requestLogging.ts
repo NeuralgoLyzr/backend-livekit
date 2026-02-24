@@ -9,6 +9,10 @@ import { runWithRequestContext } from '../lib/requestContext.js';
 type Outcome = 'success' | 'error';
 type Pathname = `/${string}` | '';
 
+function getOutcome(statusCode: number): Outcome {
+    return statusCode >= 400 ? 'error' : 'success';
+}
+
 export interface HttpWideEvent {
     event: 'http_request';
     requestId: string;
@@ -30,6 +34,7 @@ export interface HttpWideEvent {
     statusCode?: number;
     durationMs?: number;
     outcome?: Outcome;
+    operationTimingsMs?: Record<string, number>;
     userAgent?: string;
     ip?: string;
 }
@@ -38,7 +43,7 @@ function shouldSample(event: HttpWideEvent, req: Request): boolean {
     if (!ENABLE_TAIL_SAMPLING) return true;
 
     const statusCode = event.statusCode ?? 0;
-    if (statusCode >= 500) return true;
+    if (statusCode >= 400) return true;
 
     const durationMs = event.durationMs ?? 0;
     if (durationMs > SLOW_REQUEST_MS) return true;
@@ -85,7 +90,7 @@ export function requestLoggingMiddleware(req: Request, res: Response, next: Next
     res.on('finish', () => {
         wideEvent.statusCode = res.statusCode;
         wideEvent.durationMs = Date.now() - start;
-        wideEvent.outcome = res.statusCode >= 500 ? 'error' : 'success';
+        wideEvent.outcome = getOutcome(res.statusCode);
 
         // Health endpoint is typically polled frequently by load balancers / uptime checks.
         // Keep logs clean by skipping successful health checks (still log 5xx).

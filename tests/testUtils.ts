@@ -28,11 +28,23 @@ type PagosAuthServiceMock = {
     resolveAuthContext?: Mock;
 };
 
+type SessionTraceServiceMock = {
+    listBySession?: Mock;
+    getBySessionAndTraceId?: Mock;
+};
+
+type AudioStorageServiceMock = {
+    save?: Mock;
+    getFilePath?: Mock;
+};
+
 type AgentRegistryServiceMock = {
     listAgents?: Mock;
     getAgent?: Mock;
+    listAgentVersions?: Mock;
     createAgent?: Mock;
     updateAgent?: Mock;
+    activateAgentVersion?: Mock;
     deleteAgent?: Mock;
 };
 
@@ -61,6 +73,8 @@ export async function importFreshApp(options?: {
     transcriptServiceMock?: TranscriptServiceMock;
     sessionStoreMock?: SessionStoreMock;
     pagosAuthServiceMock?: PagosAuthServiceMock;
+    sessionTraceServiceMock?: SessionTraceServiceMock;
+    audioStorageServiceMock?: AudioStorageServiceMock;
     agentRegistryServiceMock?: AgentRegistryServiceMock;
 }): Promise<Express> {
     vi.resetModules();
@@ -71,11 +85,13 @@ export async function importFreshApp(options?: {
         options?.sessionServiceMock ||
         options?.transcriptServiceMock ||
         options?.sessionStoreMock ||
+        options?.sessionTraceServiceMock ||
+        options?.audioStorageServiceMock ||
         options?.agentRegistryServiceMock
     ) {
-        const createSession = options.sessionServiceMock.createSession ?? vi.fn();
-        const endSession = options.sessionServiceMock.endSession ?? vi.fn();
-        const cleanupSession = options.sessionServiceMock.cleanupSession ?? vi.fn();
+        const createSession = options.sessionServiceMock?.createSession ?? vi.fn();
+        const endSession = options.sessionServiceMock?.endSession ?? vi.fn();
+        const cleanupSession = options.sessionServiceMock?.cleanupSession ?? vi.fn();
 
         const saveFromObservability = options.transcriptServiceMock?.saveFromObservability ?? vi.fn();
         const getBySessionId = options.transcriptServiceMock?.getBySessionId ?? vi.fn();
@@ -100,10 +116,20 @@ export async function importFreshApp(options?: {
                 isAdmin: true,
             });
 
+        const listBySession = options.sessionTraceServiceMock?.listBySession ?? vi.fn();
+        const getBySessionAndTraceId =
+            options.sessionTraceServiceMock?.getBySessionAndTraceId ?? vi.fn();
+        const saveAudioRecording = options.audioStorageServiceMock?.save ?? vi.fn();
+        const getAudioFilePath = options.audioStorageServiceMock?.getFilePath ?? vi.fn();
+
         const listAgents = options.agentRegistryServiceMock?.listAgents ?? vi.fn().mockResolvedValue([]);
         const getAgent = options.agentRegistryServiceMock?.getAgent ?? vi.fn().mockResolvedValue(null);
+        const listAgentVersions =
+            options.agentRegistryServiceMock?.listAgentVersions ?? vi.fn().mockResolvedValue([]);
         const createAgent = options.agentRegistryServiceMock?.createAgent ?? vi.fn();
         const updateAgent = options.agentRegistryServiceMock?.updateAgent ?? vi.fn();
+        const activateAgentVersion =
+            options.agentRegistryServiceMock?.activateAgentVersion ?? vi.fn();
         const deleteAgent = options.agentRegistryServiceMock?.deleteAgent ?? vi.fn();
 
         vi.doMock('../dist/composition.js', () => ({
@@ -118,11 +144,15 @@ export async function importFreshApp(options?: {
                 },
                 sessionStore,
                 pagosAuthService: { resolveAuthContext },
+                sessionTraceService: { listBySession, getBySessionAndTraceId },
+                audioStorageService: { save: saveAudioRecording, getFilePath: getAudioFilePath },
                 agentRegistryService: {
                     listAgents,
                     getAgent,
+                    listAgentVersions,
                     createAgent,
                     updateAgent,
+                    activateAgentVersion,
                     deleteAgent,
                 },
             },

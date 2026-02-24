@@ -3,6 +3,7 @@ import type {
     CreateAgentInput,
     ListAgentsInput,
     StoredAgent,
+    StoredAgentVersion,
     UpdateAgentInput,
 } from '../ports/agentStorePort.js';
 import { HttpError } from '../lib/httpErrors.js';
@@ -16,11 +17,20 @@ export interface AgentRegistryAuthContext {
 export interface AgentRegistryService {
     listAgents(auth: AgentRegistryAuthContext, input?: ListAgentsInput): Promise<StoredAgent[]>;
     getAgent(auth: AgentRegistryAuthContext, agentId: string): Promise<StoredAgent | null>;
+    listAgentVersions(
+        auth: AgentRegistryAuthContext,
+        agentId: string
+    ): Promise<StoredAgentVersion[] | null>;
     createAgent(auth: AgentRegistryAuthContext, input: Pick<CreateAgentInput, 'config'>): Promise<StoredAgent>;
     updateAgent(
         auth: AgentRegistryAuthContext,
         agentId: string,
         input: UpdateAgentInput
+    ): Promise<StoredAgent | null>;
+    activateAgentVersion(
+        auth: AgentRegistryAuthContext,
+        agentId: string,
+        versionId: string
     ): Promise<StoredAgent | null>;
     deleteAgent(auth: AgentRegistryAuthContext, agentId: string): Promise<boolean>;
 }
@@ -44,6 +54,13 @@ export function createAgentRegistryService(deps: { store: AgentStorePort }): Age
 
         async getAgent(auth: AgentRegistryAuthContext, agentId: string): Promise<StoredAgent | null> {
             return deps.store.getById(agentId, toReadScope(auth));
+        },
+
+        async listAgentVersions(
+            auth: AgentRegistryAuthContext,
+            agentId: string
+        ): Promise<StoredAgentVersion[] | null> {
+            return deps.store.listVersions(agentId, toReadScope(auth));
         },
 
         async createAgent(
@@ -80,6 +97,16 @@ export function createAgentRegistryService(deps: { store: AgentStorePort }): Age
             }
 
             return deps.store.update(agentId, patch, toReadScope(auth));
+        },
+
+        async activateAgentVersion(
+            auth: AgentRegistryAuthContext,
+            agentId: string,
+            versionId: string
+        ): Promise<StoredAgent | null> {
+            const agent = await deps.store.getById(agentId, toReadScope(auth));
+            if (!agent) return null;
+            return deps.store.activateVersion(agentId, versionId, toReadScope(auth));
         },
 
         async deleteAgent(auth: AgentRegistryAuthContext, agentId: string): Promise<boolean> {

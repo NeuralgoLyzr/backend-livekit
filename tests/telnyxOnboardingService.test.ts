@@ -370,6 +370,145 @@ describe('TelnyxOnboardingService', () => {
         expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
     });
 
+    it('disconnectNumber calls removeInboundSetupForDid before unassigning from provider', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString('key_order_test', ENCRYPTION_KEY);
+
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: { fqdnConnectionId: 'conn_1', fqdnId: 'fqdn_1' },
+            })
+        );
+
+        const bindingStore = stubBindingStore();
+        const livekitProvisioning = {
+            ensureInboundSetupForDid: vi.fn(),
+            removeInboundSetupForDid: vi.fn().mockResolvedValue({
+                normalizedDid: '+15551234567',
+                inboundTrunkId: 'trunk_1',
+                trunkDeleted: false,
+                dispatchRuleUpdated: false,
+                dispatchRuleDeleted: false,
+            }),
+        };
+
+        const service = new TelnyxOnboardingService({
+            integrationStore,
+            bindingStore,
+            encryptionKey: ENCRYPTION_KEY,
+            livekitSipHost: SIP_HOST,
+            livekitProvisioning,
+        });
+
+        const callOrder: string[] = [];
+        livekitProvisioning.removeInboundSetupForDid.mockImplementation(async () => {
+            callOrder.push('removeInboundSetupForDid');
+            return {
+                normalizedDid: '+15551234567',
+                inboundTrunkId: 'trunk_1',
+                trunkDeleted: false,
+                dispatchRuleUpdated: false,
+                dispatchRuleDeleted: false,
+            };
+        });
+        (
+            TelnyxClient.prototype.unassignPhoneNumberFromConnection as ReturnType<typeof vi.fn>
+        ).mockImplementation(async () => {
+            callOrder.push('unassignPhoneNumberFromConnection');
+        });
+
+        await service.disconnectNumber('bind_1');
+
+        expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledWith('+15551234567');
+        expect(TelnyxClient.prototype.unassignPhoneNumberFromConnection).toHaveBeenCalledWith(
+            'pn_1'
+        );
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
+        expect(callOrder).toEqual(['removeInboundSetupForDid', 'unassignPhoneNumberFromConnection']);
+    });
+
+    it('disconnectNumber does not delete binding when unassign fails', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString('key_unassign_fail', ENCRYPTION_KEY);
+
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: { fqdnConnectionId: 'conn_1', fqdnId: 'fqdn_1' },
+            })
+        );
+
+        const bindingStore = stubBindingStore();
+        const service = createService({ integrationStore, bindingStore });
+
+        (
+            TelnyxClient.prototype.unassignPhoneNumberFromConnection as ReturnType<typeof vi.fn>
+        ).mockRejectedValue(new Error('provider unavailable'));
+
+        await expect(service.disconnectNumber('bind_1')).rejects.toThrow();
+        expect(bindingStore.deleteBinding).not.toHaveBeenCalled();
+    });
+
+    it('disconnectNumber does not delete binding when removeInboundSetupForDid fails', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString('key_lk_fail', ENCRYPTION_KEY);
+
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: { fqdnConnectionId: 'conn_1', fqdnId: 'fqdn_1' },
+            })
+        );
+
+        const bindingStore = stubBindingStore();
+        const livekitProvisioning = {
+            ensureInboundSetupForDid: vi.fn(),
+            removeInboundSetupForDid: vi
+                .fn()
+                .mockRejectedValue(new Error('LiveKit provisioning failed')),
+        };
+
+        const service = new TelnyxOnboardingService({
+            integrationStore,
+            bindingStore,
+            encryptionKey: ENCRYPTION_KEY,
+            livekitSipHost: SIP_HOST,
+            livekitProvisioning,
+        });
+
+        await expect(service.disconnectNumber('bind_1')).rejects.toThrow();
+        expect(TelnyxClient.prototype.unassignPhoneNumberFromConnection).not.toHaveBeenCalled();
+        expect(bindingStore.deleteBinding).not.toHaveBeenCalled();
+    });
+
+    it('disconnectNumber throws 404 for non-existent binding', async () => {
+        const bindingStore = stubBindingStore();
+        (bindingStore.getBindingById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+        const service = createService({ bindingStore });
+
+        await expect(service.disconnectNumber('bind_missing')).rejects.toMatchObject({
+            status: 404,
+        });
+    });
+
+    it('disconnectNumber throws 400 for wrong-provider binding', async () => {
+        const bindingStore = stubBindingStore();
+        (bindingStore.getBindingById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeBinding({ provider: 'twilio' })
+        );
+
+        const service = createService({ bindingStore });
+
+        await expect(service.disconnectNumber('bind_1')).rejects.toMatchObject({
+            status: 400,
+        });
+    });
+
     it('deleteIntegration cascades number disconnects then deletes integration', async () => {
         const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_delete_test', ENCRYPTION_KEY);
@@ -391,5 +530,83 @@ describe('TelnyxOnboardingService', () => {
         expect(TelnyxClient.prototype.deleteFqdn).toHaveBeenCalledWith('fqdn_1');
         expect(TelnyxClient.prototype.deleteFqdnConnection).toHaveBeenCalledWith('conn_1');
         expect(integrationStore.deleteById).toHaveBeenCalledWith('int_1');
+    });
+
+    it('deleteIntegration calls removeInboundSetupForDid for each binding', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString('key_cascade_test', ENCRYPTION_KEY);
+
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: { fqdnConnectionId: 'conn_1', fqdnId: 'fqdn_1' },
+            })
+        );
+
+        const binding1 = makeBinding({ id: 'bind_1', e164: '+15551111111', providerNumberId: 'pn_1' });
+        const binding2 = makeBinding({ id: 'bind_2', e164: '+15552222222', providerNumberId: 'pn_2' });
+        const bindingStore = stubBindingStore();
+        (bindingStore.listBindingsByIntegrationId as ReturnType<typeof vi.fn>).mockResolvedValue([
+            binding1,
+            binding2,
+        ]);
+
+        const livekitProvisioning = {
+            ensureInboundSetupForDid: vi.fn(),
+            removeInboundSetupForDid: vi.fn().mockResolvedValue({
+                normalizedDid: '+15551111111',
+                inboundTrunkId: 'trunk_1',
+                trunkDeleted: false,
+                dispatchRuleUpdated: false,
+                dispatchRuleDeleted: false,
+            }),
+        };
+
+        const service = new TelnyxOnboardingService({
+            integrationStore,
+            bindingStore,
+            encryptionKey: ENCRYPTION_KEY,
+            livekitSipHost: SIP_HOST,
+            livekitProvisioning,
+        });
+
+        const result = await service.deleteIntegration('int_1');
+        expect(result).toEqual({ deletedBindings: 2 });
+        expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledTimes(2);
+        expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledWith('+15551111111');
+        expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledWith('+15552222222');
+        expect(TelnyxClient.prototype.unassignPhoneNumberFromConnection).toHaveBeenCalledTimes(2);
+        expect(bindingStore.deleteBinding).toHaveBeenCalledTimes(2);
+    });
+
+    it('deleteIntegration skips non-telnyx bindings in cascade', async () => {
+        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const encrypted = encryptString('key_skip_test', ENCRYPTION_KEY);
+
+        const integrationStore = stubIntegrationStore();
+        (integrationStore.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+            makeIntegration({
+                encryptedApiKey: encrypted,
+                providerResources: { fqdnConnectionId: 'conn_1', fqdnId: 'fqdn_1' },
+            })
+        );
+
+        const telnyxBinding = makeBinding({ id: 'bind_1', provider: 'telnyx' });
+        const twilioBinding = makeBinding({ id: 'bind_2', provider: 'twilio' });
+        const bindingStore = stubBindingStore();
+        (bindingStore.listBindingsByIntegrationId as ReturnType<typeof vi.fn>).mockResolvedValue([
+            telnyxBinding,
+            twilioBinding,
+        ]);
+
+        const service = createService({ integrationStore, bindingStore });
+
+        const result = await service.deleteIntegration('int_1');
+        // Should report 2 total bindings but only disconnect the telnyx one
+        expect(result).toEqual({ deletedBindings: 2 });
+        expect(TelnyxClient.prototype.unassignPhoneNumberFromConnection).toHaveBeenCalledTimes(1);
+        expect(bindingStore.deleteBinding).toHaveBeenCalledTimes(1);
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
     });
 });

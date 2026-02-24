@@ -1,12 +1,18 @@
 import { Router, type RequestHandler } from 'express';
 import { randomUUID } from 'crypto';
+import multer from 'multer';
 import {
     SessionRequestSchema,
     EndSessionRequestSchema,
     SessionObservabilityIngestSchema,
 } from '../types/index.js';
-import type { SessionService } from '../services/sessionService.js';
+import type {
+    CreateSessionResponse,
+    CreateSessionStepTimingsMs,
+    SessionService,
+} from '../services/sessionService.js';
 import type { TranscriptService } from '../services/transcriptService.js';
+import type { AudioStorageService } from '../services/audioStorageService.js';
 import type { SessionStorePort } from '../ports/sessionStorePort.js';
 import type { PagosAuthService } from '../services/pagosAuthService.js';
 import { AGENT_DEFAULTS } from '../CONSTS.js';
@@ -18,12 +24,24 @@ import { apiKeyAuthMiddleware } from '../middleware/apiKeyAuth.js';
 import type { RequestAuthLocals } from '../middleware/apiKeyAuth.js';
 import { HttpError } from '../lib/httpErrors.js';
 
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
+function toOperationTimingsMs(
+    timings: CreateSessionStepTimingsMs
+): Record<string, number> | undefined {
+    const pairs = Object.entries(timings).filter(
+        ([, value]) => typeof value === 'number' && Number.isFinite(value)
+    );
+    return pairs.length > 0 ? Object.fromEntries(pairs) : undefined;
+}
+
 export function createSessionRouter(
     sessionService: SessionService,
     deps?: {
         transcriptService?: TranscriptService;
         sessionStore?: SessionStorePort;
         pagosAuthService?: PagosAuthService;
+        audioStorageService?: AudioStorageService;
     }
 ): Router {
     const router: Router = Router();
@@ -94,19 +112,38 @@ export function createSessionRouter(
                 });
             }
 
-            const auth = (res.locals as RequestAuthLocals).auth;
-            const response = await sessionService.createSession({
-                ...parseResult.data,
-                orgId: auth?.orgId,
-                createdByUserId: auth?.userId,
-                requesterIsAdmin: auth?.isAdmin,
-            });
-
             const wideEvent = res.locals.wideEvent as HttpWideEvent | undefined;
+            if (wideEvent) {
+                wideEvent.userIdentity = parseResult.data.userIdentity;
+            }
+            const sessionCreateTimings: CreateSessionStepTimingsMs = {};
+
+            const auth = (res.locals as RequestAuthLocals).auth;
+            let response: CreateSessionResponse;
+            try {
+                response = await sessionService.createSession(
+                    {
+                        ...parseResult.data,
+                        orgId: auth?.orgId,
+                        createdByUserId: auth?.userId,
+                        requesterIsAdmin: auth?.isAdmin,
+                    },
+                    {
+                        timingsMs: sessionCreateTimings,
+                    }
+                );
+            } finally {
+                if (wideEvent) {
+                    const operationTimingsMs = toOperationTimingsMs(sessionCreateTimings);
+                    if (operationTimingsMs) {
+                        wideEvent.operationTimingsMs = operationTimingsMs;
+                    }
+                }
+            }
+
             if (wideEvent) {
                 wideEvent.roomName = response.roomName;
                 wideEvent.sessionId = response.sessionId;
-                wideEvent.userIdentity = parseResult.data.userIdentity;
             }
 
             return res.json(response);
@@ -160,19 +197,37 @@ export function createSessionRouter(
 
     router.post(
         '/observability',
+        upload.single('audio'),
         asyncHandler(async (req, res) => {
-            const parseResult = SessionObservabilityIngestSchema.safeParse(req.body);
+            // Support both JSON and multipart payloads.
+            // Multipart sends the JSON in a `payload` string field.
+            let rawPayload: unknown = req.body;
+            if (typeof req.body.payload === 'string') {
+                try {
+                    rawPayload = JSON.parse(req.body.payload);
+                } catch {
+                    return res.status(400).json({
+                        error: 'Invalid payload',
+                        details: 'payload must be valid JSON when sent as multipart form-data.',
+                    });
+                }
+            }
+
+            const parseResult = SessionObservabilityIngestSchema.safeParse(rawPayload);
             if (!parseResult.success) {
                 return res.status(400).json(formatZodError(parseResult.error));
             }
 
             const payload = parseResult.data;
+            const audioFile = req.file;
+
             logger.info(
                 {
                     event: 'session_observability_ingest',
                     roomName: payload.roomName,
                     hasConversationHistory: Boolean(payload.conversationHistory),
                     hasSessionReport: Boolean(payload.sessionReport),
+                    hasAudioRecording: Boolean(audioFile),
                 },
                 'Ingested session observability payload'
             );
@@ -216,6 +271,25 @@ export function createSessionRouter(
                                 rawSessionReport: payload.sessionReport,
                                 closeReason: payload.closeReason ?? null,
                             });
+
+                            // Save audio recording if present
+                            if (audioFile && deps.audioStorageService) {
+                                try {
+                                    await deps.audioStorageService.save(
+                                        sessionId,
+                                        audioFile.buffer
+                                    );
+                                } catch (error) {
+                                    logger.error(
+                                        {
+                                            err: error,
+                                            event: 'audio_recording_save_failed',
+                                            sessionId,
+                                        },
+                                        'Failed to save audio recording'
+                                    );
+                                }
+                            }
                         }
                     } catch (error) {
                         logger.error({

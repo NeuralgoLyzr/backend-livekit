@@ -1,47 +1,41 @@
-import { mkdir, writeFile, access } from 'fs/promises';
-import path from 'path';
-import { logger } from '../lib/logger.js';
+import type { AudioStoragePort } from '../ports/audioStoragePort.js';
+import { createLocalAudioStorage } from '../adapters/audioStorage/localAudioStorage.js';
+import { createS3AudioStorage } from '../adapters/audioStorage/s3AudioStorage.js';
 
-const DEFAULT_RECORDINGS_DIR = 'data/recordings';
-
-export function createAudioStorageService(recordingsDir?: string) {
-    const dir = path.resolve(recordingsDir ?? DEFAULT_RECORDINGS_DIR);
-
-    let ensured = false;
-    async function ensureDir(): Promise<void> {
-        if (ensured) return;
-        await mkdir(dir, { recursive: true });
-        ensured = true;
-    }
-
-    return {
-        async save(sessionId: string, audioBuffer: Buffer): Promise<string> {
-            await ensureDir();
-            const filename = `${sessionId}.ogg`;
-            const filePath = path.join(dir, filename);
-            await writeFile(filePath, audioBuffer);
-            logger.info(
-                {
-                    event: 'audio_recording_saved',
-                    sessionId,
-                    path: filePath,
-                    sizeBytes: audioBuffer.length,
-                },
-                'Saved audio recording'
-            );
-            return filename;
-        },
-
-        async getFilePath(sessionId: string): Promise<string | null> {
-            const filePath = path.join(dir, `${sessionId}.ogg`);
-            try {
-                await access(filePath);
-                return filePath;
-            } catch {
-                return null;
-            }
-        },
+export interface AudioStorageConfig {
+    provider: 'local' | 's3';
+    local: {
+        recordingsDir: string;
+    };
+    s3: {
+        bucket: string;
+        region: string;
+        keyPrefix: string;
+        endpoint?: string;
+        forcePathStyle?: boolean;
+        accessKeyId?: string;
+        secretAccessKey?: string;
+        sessionToken?: string;
     };
 }
 
-export type AudioStorageService = ReturnType<typeof createAudioStorageService>;
+export function createAudioStorageService(config: AudioStorageConfig): AudioStoragePort {
+    if (config.provider === 's3') {
+        return createS3AudioStorage({
+            bucket: config.s3.bucket,
+            region: config.s3.region,
+            keyPrefix: config.s3.keyPrefix,
+            endpoint: config.s3.endpoint,
+            forcePathStyle: config.s3.forcePathStyle,
+            accessKeyId: config.s3.accessKeyId,
+            secretAccessKey: config.s3.secretAccessKey,
+            sessionToken: config.s3.sessionToken,
+        });
+    }
+
+    return createLocalAudioStorage({
+        recordingsDir: config.local.recordingsDir,
+    });
+}
+
+export type AudioStorageService = AudioStoragePort;

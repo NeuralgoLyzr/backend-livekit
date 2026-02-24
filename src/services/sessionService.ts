@@ -202,7 +202,7 @@ export function createSessionService(deps: SessionServiceDeps) {
             recordTiming(timingsMs, 'dispatchMs', now() - dispatchStart);
 
             const storeWriteStart = now();
-            deps.store.set(roomName, {
+            await deps.store.set(roomName, {
                 userIdentity,
                 sessionId,
                 orgId: input.orgId,
@@ -233,7 +233,7 @@ export function createSessionService(deps: SessionServiceDeps) {
             }
 
             let roomName = normalizedRoomName;
-            let existing = roomName ? deps.store.get(roomName) : undefined;
+            let existing = roomName ? await deps.store.get(roomName) : undefined;
 
             if (roomName) {
                 if (!existing) {
@@ -243,7 +243,8 @@ export function createSessionService(deps: SessionServiceDeps) {
                     throw new HttpError(404, 'Session not found for room');
                 }
             } else {
-                const match = deps.store.entries().find(([, data]) => {
+                const allEntries = await deps.store.entries();
+                const match = allEntries.find(([, data]) => {
                     if (data.sessionId !== normalizedSessionId) {
                         return false;
                     }
@@ -268,7 +269,7 @@ export function createSessionService(deps: SessionServiceDeps) {
             // `/session/observability`) perform cleanup once transcripts/reports
             // have been received.
             if (existing) {
-                deps.store.set(roomName, {
+                await deps.store.set(roomName, {
                     ...existing,
                     endedAt: new Date().toISOString(),
                 });
@@ -288,7 +289,7 @@ export function createSessionService(deps: SessionServiceDeps) {
                 );
             }
 
-            deps.store.delete(normalizedRoomName);
+            await deps.store.delete(normalizedRoomName);
         },
     };
 }

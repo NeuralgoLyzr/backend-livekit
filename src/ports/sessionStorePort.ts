@@ -1,9 +1,9 @@
 import type { SessionData } from '../types/index.js';
 
 export interface SessionStorePort {
-    set(roomName: string, data: SessionData): void;
-    get(roomName: string): SessionData | undefined;
-    delete(roomName: string): boolean;
-    has(roomName: string): boolean;
-    entries(): Array<[roomName: string, data: SessionData]>;
+    set(roomName: string, data: SessionData): Promise<void>;
+    get(roomName: string): Promise<SessionData | undefined>;
+    delete(roomName: string): Promise<boolean>;
+    has(roomName: string): Promise<boolean>;
+    entries(): Promise<Array<[roomName: string, data: SessionData]>>;
 }

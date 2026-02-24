@@ -24,7 +24,7 @@ function buildApp(harness: Harness) {
             },
             audioStorageService: {
                 save: harness.saveAudio,
-                getFilePath: harness.getAudioFilePath,
+                get: harness.getAudio,
             },
         })
     );
@@ -55,7 +55,10 @@ function createHarness() {
     });
 
     const saveAudio = vi.fn().mockResolvedValue('audio-recording.ogg');
-    const getAudioFilePath = vi.fn().mockResolvedValue('/tmp/audio-recording.ogg');
+    const getAudio = vi.fn().mockResolvedValue({
+        data: Buffer.from('fake-ogg-data'),
+        contentType: 'audio/ogg',
+    });
 
     const savedTranscripts: Array<Record<string, unknown>> = [];
     const transcriptStore = {
@@ -125,7 +128,7 @@ function createHarness() {
         deleteRoom,
         resolveAuthContext,
         saveAudio,
-        getAudioFilePath,
+        getAudio,
         savedTranscripts,
         transcriptStore,
         agentStore,
@@ -240,7 +243,8 @@ describe('session routes (integration)', () => {
         expect(metadata.session_id).toBe(createRes.body.sessionId);
         expect(metadata.prompt).toBe('Hello there');
 
-        expect(sessionStore.get('room-int-1')).toMatchObject({
+        const storedSession = await sessionStore.get('room-int-1');
+        expect(storedSession).toMatchObject({
             orgId: ORG_ID,
             createdByUserId: USER_ID,
             userIdentity: 'user_1',
@@ -252,7 +256,7 @@ describe('session routes (integration)', () => {
             .send({ roomName: 'room-int-1' })
             .expect(204);
 
-        const endedSession = sessionStore.get('room-int-1');
+        const endedSession = await sessionStore.get('room-int-1');
         expect(endedSession?.endedAt).toBeDefined();
 
         await request(app)
@@ -279,7 +283,7 @@ describe('session routes (integration)', () => {
             createdByUserId: USER_ID,
         });
         expect(harness.deleteRoom).toHaveBeenCalledWith('room-int-1');
-        expect(sessionStore.has('room-int-1')).toBe(false);
+        expect(await sessionStore.has('room-int-1')).toBe(false);
     });
 
     it('resolves stored agent config via agentId with org/user scope before dispatch', async () => {

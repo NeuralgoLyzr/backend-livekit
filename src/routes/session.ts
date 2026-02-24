@@ -235,7 +235,7 @@ export function createSessionRouter(
             if (payload.sessionReport) {
                 if (deps?.transcriptService && deps?.sessionStore) {
                     try {
-                        const sessionData = deps.sessionStore.get(payload.roomName);
+                        const sessionData = await deps.sessionStore.get(payload.roomName);
                         const sessionId = payload.sessionId || sessionData?.sessionId || randomUUID();
                         const agentId = sessionData?.agentConfig?.agent_id ?? null;
                         const orgId = sessionData?.orgId || payload.orgId || null;

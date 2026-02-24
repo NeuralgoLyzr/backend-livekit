@@ -5,6 +5,7 @@ export interface StoredAgent {
     config: AgentConfig;
     createdAt: string;
     updatedAt: string;
+    shared?: boolean;
 }
 
 export interface StoredAgentVersion {

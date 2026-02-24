@@ -129,14 +129,45 @@ describe('sessionService (unit)', () => {
         });
 
         const { createSessionService } = await import('../dist/services/sessionService.js');
-        const { HttpError } = await import('../dist/lib/httpErrors.js');
-
         const svc = createSessionService(deps);
 
-        await expect(svc.createSession({ userIdentity: 'user_1' })).rejects.toBeInstanceOf(
-            HttpError
-        );
+        await expect(svc.createSession({ userIdentity: 'user_1' })).rejects.toMatchObject({
+            name: 'HttpError',
+            status: 502,
+            message: 'Failed to dispatch agent',
+            details: 'nope',
+        });
         expect(deps.store.size()).toBe(0);
+    });
+
+    it('logs dispatch attempt only in development mode', async () => {
+        vi.resetModules();
+        setRequiredEnv({ NODE_ENV: 'production' });
+
+        const { logger } = await import('../dist/lib/logger.js');
+        const debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => undefined);
+
+        const deps = buildDeps();
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const svc = createSessionService(deps);
+
+        await svc.createSession({ userIdentity: 'user_prod', agentConfig: {} });
+        expect(debugSpy).not.toHaveBeenCalled();
+
+        setRequiredEnv({ NODE_ENV: 'development' });
+        await svc.createSession({
+            userIdentity: 'user_dev',
+            agentConfig: { api_key: 'dev-api-key' },
+        });
+        expect(debugSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'session_create_dispatch_attempt',
+                userIdentity: 'user_dev',
+                hasApiKey: true,
+                agentConfig: expect.any(Object),
+            }),
+            'Dispatching agent (dev)'
+        );
     });
 
     it('resolves agentId with tenant scope before dispatch', async () => {
@@ -184,7 +215,6 @@ describe('sessionService (unit)', () => {
         const deps = buildDeps({ resolveByAgentId });
 
         const { createSessionService } = await import('../dist/services/sessionService.js');
-        const { HttpError } = await import('../dist/lib/httpErrors.js');
         const svc = createSessionService(deps);
 
         await expect(
@@ -192,8 +222,26 @@ describe('sessionService (unit)', () => {
                 userIdentity: 'user_1',
                 agentId: '507f1f77bcf86cd799439011',
             })
-        ).rejects.toBeInstanceOf(HttpError);
+        ).rejects.toMatchObject({
+            name: 'HttpError',
+            status: 401,
+            message: 'Missing auth context',
+        });
         expect(resolveByAgentId).not.toHaveBeenCalled();
+    });
+
+    it('endSession requires roomName or sessionId', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const deps = buildDeps();
+        const svc = createSessionService(deps);
+
+        await expect(svc.endSession({ auth: MEMBER_AUTH })).rejects.toMatchObject({
+            status: 400,
+            message: 'Must provide roomName or sessionId',
+        });
     });
 
     it('endSession marks session as ended', async () => {
@@ -241,17 +289,16 @@ describe('sessionService (unit)', () => {
         setRequiredEnv();
 
         const { createSessionService } = await import('../dist/services/sessionService.js');
-        const { HttpError } = await import('../dist/lib/httpErrors.js');
         const deps = buildDeps();
         const svc = createSessionService(deps);
 
-        try {
-            await svc.endSession({ roomName: 'room-x', auth: MEMBER_AUTH });
-            throw new Error('expected endSession to throw');
-        } catch (err) {
-            expect(err).toBeInstanceOf(HttpError);
-            expect((err as { status?: number }).status).toBe(404);
-        }
+        await expect(
+            svc.endSession({ roomName: 'room-x', auth: MEMBER_AUTH })
+        ).rejects.toMatchObject({
+            name: 'HttpError',
+            status: 404,
+            message: 'Session not found for room',
+        });
     });
 
     it('endSession denies cross-user access for non-admin in same org', async () => {
@@ -259,7 +306,6 @@ describe('sessionService (unit)', () => {
         setRequiredEnv();
 
         const { createSessionService } = await import('../dist/services/sessionService.js');
-        const { HttpError } = await import('../dist/lib/httpErrors.js');
         const deps = buildDeps();
         deps.store.set('room-1', {
             userIdentity: 'u',
@@ -272,7 +318,11 @@ describe('sessionService (unit)', () => {
 
         await expect(
             svc.endSession({ roomName: 'room-1', auth: MEMBER_AUTH })
-        ).rejects.toBeInstanceOf(HttpError);
+        ).rejects.toMatchObject({
+            name: 'HttpError',
+            status: 404,
+            message: 'Session not found for room',
+        });
         const stored = deps.store.get('room-1') as Record<string, unknown>;
         expect(stored.endedAt).toBeUndefined();
     });
@@ -282,7 +332,6 @@ describe('sessionService (unit)', () => {
         setRequiredEnv();
 
         const { createSessionService } = await import('../dist/services/sessionService.js');
-        const { HttpError } = await import('../dist/lib/httpErrors.js');
         const deps = buildDeps();
         deps.store.set('room-1', {
             userIdentity: 'u',
@@ -295,7 +344,11 @@ describe('sessionService (unit)', () => {
 
         await expect(
             svc.endSession({ sessionId: 'session-1', auth: MEMBER_AUTH })
-        ).rejects.toBeInstanceOf(HttpError);
+        ).rejects.toMatchObject({
+            name: 'HttpError',
+            status: 404,
+            message: 'Session not found for sessionId',
+        });
         const stored = deps.store.get('room-1') as Record<string, unknown>;
         expect(stored.endedAt).toBeUndefined();
     });
@@ -338,6 +391,36 @@ describe('sessionService (unit)', () => {
         await svc.endSession({ sessionId: '  session-trim  ', auth: MEMBER_AUTH });
         const stored = deps.store.get('room-trim-sid') as Record<string, unknown>;
         expect(stored.endedAt).toBeDefined();
+    });
+
+    it('endSession by sessionId updates only the matching session entry', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const deps = buildDeps();
+        deps.store.set('room-a', {
+            userIdentity: 'u',
+            sessionId: 'session-a',
+            orgId: ORG_ID_A,
+            createdByUserId: 'member_user_1',
+            createdAt: new Date().toISOString(),
+        });
+        deps.store.set('room-b', {
+            userIdentity: 'u',
+            sessionId: 'session-b',
+            orgId: ORG_ID_A,
+            createdByUserId: 'member_user_1',
+            createdAt: new Date().toISOString(),
+        });
+        const svc = createSessionService(deps);
+
+        await svc.endSession({ sessionId: 'session-b', auth: MEMBER_AUTH });
+        const roomA = deps.store.get('room-a') as Record<string, unknown>;
+        const roomB = deps.store.get('room-b') as Record<string, unknown>;
+
+        expect(roomA.endedAt).toBeUndefined();
+        expect(roomB.endedAt).toBeDefined();
     });
 
     it('cleanupSession deletes the room and clears the store entry', async () => {

@@ -647,11 +647,22 @@ export const UpdateAgentRequestSchema = z
     .strict();
 export type UpdateAgentRequest = z.infer<typeof UpdateAgentRequestSchema>;
 
+export const AgentShareRequestSchema = z
+    .object({
+        email_ids: z
+            .array(z.string().email('Each email_ids entry must be a valid email address'))
+            .min(1, 'email_ids must contain at least one email'),
+        admin_user_id: z.string().min(1).optional(),
+    })
+    .strict();
+export type AgentShareRequest = z.infer<typeof AgentShareRequestSchema>;
+
 export const AgentResponseSchema = z.object({
     id: AgentIdSchema,
     config: AgentConfigSchema,
     createdAt: z.string(),
     updatedAt: z.string(),
+    shared: z.boolean().optional(),
 });
 export type AgentResponse = z.infer<typeof AgentResponseSchema>;
 

@@ -1,11 +1,20 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { setRequiredEnv } from './testUtils';
 
 type AgentDispatchClient = {
-    createDispatch: (roomName: string, agentName: string, opts: { metadata: string }) => Promise<unknown>;
+    createDispatch: (
+        roomName: string,
+        agentName: string,
+        opts: { metadata: string }
+    ) => Promise<unknown>;
 };
 
 describe('agentService (unit)', () => {
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        vi.resetModules();
+    });
+
     it('dispatches agent with correct metadata', async () => {
         setRequiredEnv();
         const { createAgentService } = await import('../dist/services/agentService.js');
@@ -223,5 +232,146 @@ describe('agentService (unit)', () => {
         await svc.dispatchAgent('room-11', { audio_recording_enabled: true });
         const metadata = JSON.parse(createDispatch.mock.calls[0][2].metadata);
         expect(metadata.audio_recording_enabled).toBe(true);
+    });
+
+    it('logs dispatch attempt only in development mode', async () => {
+        setRequiredEnv({ NODE_ENV: 'production' });
+        const { logger } = await import('../dist/lib/logger.js');
+        const debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => undefined);
+        const { createAgentService } = await import('../dist/services/agentService.js');
+
+        const createDispatch = vi.fn().mockResolvedValue({ id: 'd-prod' });
+        const svc = createAgentService({
+            client: { createDispatch } as unknown as AgentDispatchClient,
+            agentName: 'test-agent',
+        });
+
+        await svc.dispatchAgent('room-prod', {
+            user_id: 'user-prod',
+            session_id: 'session-prod',
+        });
+        expect(debugSpy).not.toHaveBeenCalled();
+
+        setRequiredEnv({ NODE_ENV: 'development' });
+        await svc.dispatchAgent('room-dev', {
+            user_id: 'user-dev',
+            session_id: 'session-dev',
+            api_key: 'dev-key',
+        });
+        expect(debugSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'livekit_agent_dispatch_attempt',
+                roomName: 'room-dev',
+                agentName: 'test-agent',
+                userId: 'user-dev',
+                sessionId: 'session-dev',
+                agentConfig: expect.any(Object),
+            }),
+            'Dispatching agent (dev)'
+        );
+    });
+
+    it('logs successful dispatch details with dispatch id and duration', async () => {
+        setRequiredEnv();
+        const { logger } = await import('../dist/lib/logger.js');
+        const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
+        const nowSpy = vi.spyOn(Date, 'now');
+        nowSpy.mockReturnValueOnce(1000).mockReturnValueOnce(1250);
+
+        const { createAgentService } = await import('../dist/services/agentService.js');
+        const createDispatch = vi.fn().mockResolvedValue({ id: 'dispatch-42' });
+        const svc = createAgentService({
+            client: { createDispatch } as unknown as AgentDispatchClient,
+            agentName: 'test-agent',
+        });
+
+        await svc.dispatchAgent('room-log-success', {
+            user_id: 'user-42',
+            session_id: 'session-42',
+        });
+
+        expect(infoSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'livekit_agent_dispatch',
+                roomName: 'room-log-success',
+                agentName: 'test-agent',
+                userId: 'user-42',
+                sessionId: 'session-42',
+                dispatchId: 'dispatch-42',
+                durationMs: 250,
+                outcome: 'success',
+                agentConfig: expect.any(Object),
+            }),
+            'Dispatched agent to room'
+        );
+    });
+
+    it('logs fallback dispatchId when client returns undefined', async () => {
+        setRequiredEnv();
+        const { logger } = await import('../dist/lib/logger.js');
+        const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
+        const nowSpy = vi.spyOn(Date, 'now');
+        nowSpy.mockReturnValueOnce(2000).mockReturnValueOnce(2060);
+
+        const { createAgentService } = await import('../dist/services/agentService.js');
+        const createDispatch = vi.fn().mockResolvedValue(undefined);
+        const svc = createAgentService({
+            client: { createDispatch } as unknown as AgentDispatchClient,
+            agentName: 'test-agent',
+        });
+
+        await svc.dispatchAgent('room-log-unknown', {
+            user_id: 'user-u',
+            session_id: 'session-u',
+        });
+
+        expect(infoSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'livekit_agent_dispatch',
+                roomName: 'room-log-unknown',
+                dispatchId: 'unknown',
+                durationMs: 60,
+                outcome: 'success',
+            }),
+            'Dispatched agent to room'
+        );
+    });
+
+    it('logs failure details and rethrows errors from dispatch client', async () => {
+        setRequiredEnv();
+        const { logger } = await import('../dist/lib/logger.js');
+        const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+        const nowSpy = vi.spyOn(Date, 'now');
+        nowSpy.mockReturnValueOnce(3000).mockReturnValueOnce(3330);
+
+        const { createAgentService } = await import('../dist/services/agentService.js');
+        const dispatchError = new Error('network fail');
+        const createDispatch = vi.fn().mockRejectedValue(dispatchError);
+        const svc = createAgentService({
+            client: { createDispatch } as unknown as AgentDispatchClient,
+            agentName: 'test-agent',
+        });
+
+        await expect(
+            svc.dispatchAgent('room-log-error', {
+                user_id: 'user-e',
+                session_id: 'session-e',
+            })
+        ).rejects.toThrow('network fail');
+
+        expect(errorSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'livekit_agent_dispatch',
+                roomName: 'room-log-error',
+                agentName: 'test-agent',
+                userId: 'user-e',
+                sessionId: 'session-e',
+                durationMs: 330,
+                outcome: 'error',
+                agentConfig: expect.any(Object),
+                err: dispatchError,
+            }),
+            'Failed to dispatch agent to room'
+        );
     });
 });

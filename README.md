@@ -241,7 +241,7 @@ Client                    Backend                       Python Agent
   │                         │◄── POST /session/observability│
   │                         ├─ persist transcript (MongoDB) │
   │                         ├─ delete LiveKit room          │
-  │                         ├─ clear in-memory session      │
+  │                         ├─ clear session-store entry    │
   │                         │                               │
 ```
 
@@ -282,6 +282,20 @@ Client                    Backend                       Python Agent
 | `PORT` | `4000` | HTTP listen port |
 | `NODE_ENV` | — | `development` / `production` |
 | `AGENT_NAME` | `local-test` | Agent name for LiveKit dispatch (must match Python agent's `AGENT_NAME`) |
+| `SESSION_STORE_PROVIDER` | `memory` | Session storage backend (`memory` or `redis`) |
+| `REDIS_URL` | — | Required when `SESSION_STORE_PROVIDER=redis` |
+| `REDIS_SESSION_KEY_PREFIX` | `session:` | Redis key prefix for session-store entries |
+| `REDIS_SESSION_TTL_SECONDS` | — | Optional Redis TTL for session-store entries |
+| `RECORDING_STORAGE_PROVIDER` | `local` | Recording storage backend (`local` or `s3`) |
+| `RECORDINGS_DIR` | `data/recordings` | Local recording directory (when `RECORDING_STORAGE_PROVIDER=local`) |
+| `S3_RECORDINGS_BUCKET` | — | Required when `RECORDING_STORAGE_PROVIDER=s3` |
+| `S3_REGION` | — | Required when `RECORDING_STORAGE_PROVIDER=s3` |
+| `S3_RECORDINGS_KEY_PREFIX` | `recordings/` | S3 object key prefix |
+| `S3_ENDPOINT` | — | Optional custom S3 endpoint (e.g. MinIO) |
+| `S3_FORCE_PATH_STYLE` | — | Optional `true`/`false` path-style toggle |
+| `S3_ACCESS_KEY_ID` | — | Optional static credential access key |
+| `S3_SECRET_ACCESS_KEY` | — | Optional static credential secret key |
+| `S3_SESSION_TOKEN` | — | Optional static credential session token |
 | `MONGODB_URI` | — | MongoDB connection string. If unset, agent CRUD returns 503; sessions still work. |
 | `MONGODB_DATABASE` | — | MongoDB database name |
 | `TELEPHONY_ENABLED` | `false` | Enable telephony webhook processing |

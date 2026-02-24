@@ -35,7 +35,7 @@ type SessionTraceServiceMock = {
 
 type AudioStorageServiceMock = {
     save?: Mock;
-    getFilePath?: Mock;
+    get?: Mock;
 };
 
 type AgentRegistryServiceMock = {
@@ -46,6 +46,9 @@ type AgentRegistryServiceMock = {
     updateAgent?: Mock;
     activateAgentVersion?: Mock;
     deleteAgent?: Mock;
+    listAgentShares?: Mock;
+    shareAgent?: Mock;
+    unshareAgent?: Mock;
 };
 
 export function setRequiredEnv(overrides?: Record<string, string | undefined>) {
@@ -57,6 +60,20 @@ export function setRequiredEnv(overrides?: Record<string, string | undefined>) {
     process.env.PORT = '0';
     process.env.NODE_ENV = 'production';
     process.env.TELEPHONY_ENABLED = 'false';
+    process.env.SESSION_STORE_PROVIDER = 'memory';
+    delete process.env.REDIS_URL;
+    delete process.env.REDIS_SESSION_KEY_PREFIX;
+    delete process.env.REDIS_SESSION_TTL_SECONDS;
+    process.env.RECORDING_STORAGE_PROVIDER = 'local';
+    delete process.env.RECORDINGS_DIR;
+    delete process.env.S3_RECORDINGS_BUCKET;
+    delete process.env.S3_REGION;
+    delete process.env.S3_RECORDINGS_KEY_PREFIX;
+    delete process.env.S3_ENDPOINT;
+    delete process.env.S3_FORCE_PATH_STYLE;
+    delete process.env.S3_ACCESS_KEY_ID;
+    delete process.env.S3_SECRET_ACCESS_KEY;
+    delete process.env.S3_SESSION_TOKEN;
 
     for (const [k, v] of Object.entries(overrides ?? {})) {
         if (v === undefined) {
@@ -78,7 +95,7 @@ export async function importFreshApp(options?: {
     agentRegistryServiceMock?: AgentRegistryServiceMock;
 }): Promise<Express> {
     vi.resetModules();
-    vi.doUnmock('../dist/composition.js');
+    vi.doUnmock('../src/composition.ts');
     setRequiredEnv(options?.env);
 
     if (
@@ -120,7 +137,7 @@ export async function importFreshApp(options?: {
         const getBySessionAndTraceId =
             options.sessionTraceServiceMock?.getBySessionAndTraceId ?? vi.fn();
         const saveAudioRecording = options.audioStorageServiceMock?.save ?? vi.fn();
-        const getAudioFilePath = options.audioStorageServiceMock?.getFilePath ?? vi.fn();
+        const getAudio = options.audioStorageServiceMock?.get ?? vi.fn();
 
         const listAgents = options.agentRegistryServiceMock?.listAgents ?? vi.fn().mockResolvedValue([]);
         const getAgent = options.agentRegistryServiceMock?.getAgent ?? vi.fn().mockResolvedValue(null);
@@ -131,8 +148,11 @@ export async function importFreshApp(options?: {
         const activateAgentVersion =
             options.agentRegistryServiceMock?.activateAgentVersion ?? vi.fn();
         const deleteAgent = options.agentRegistryServiceMock?.deleteAgent ?? vi.fn();
+        const listAgentShares = options.agentRegistryServiceMock?.listAgentShares ?? vi.fn();
+        const shareAgent = options.agentRegistryServiceMock?.shareAgent ?? vi.fn();
+        const unshareAgent = options.agentRegistryServiceMock?.unshareAgent ?? vi.fn();
 
-        vi.doMock('../dist/composition.js', () => ({
+        vi.doMock('../src/composition.ts', () => ({
             services: {
                 sessionService: { createSession, endSession, cleanupSession },
                 transcriptService: {
@@ -145,7 +165,7 @@ export async function importFreshApp(options?: {
                 sessionStore,
                 pagosAuthService: { resolveAuthContext },
                 sessionTraceService: { listBySession, getBySessionAndTraceId },
-                audioStorageService: { save: saveAudioRecording, getFilePath: getAudioFilePath },
+                audioStorageService: { save: saveAudioRecording, get: getAudio },
                 agentRegistryService: {
                     listAgents,
                     getAgent,
@@ -154,11 +174,14 @@ export async function importFreshApp(options?: {
                     updateAgent,
                     activateAgentVersion,
                     deleteAgent,
+                    listAgentShares,
+                    shareAgent,
+                    unshareAgent,
                 },
             },
         }));
     }
 
-    const mod = await import('../dist/app.js');
+    const mod = await import('../src/app.ts');
     return mod.app;
 }

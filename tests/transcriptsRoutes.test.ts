@@ -1,8 +1,5 @@
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
-import path from 'node:path';
-import os from 'node:os';
 
 import { importFreshApp } from './testUtils';
 
@@ -89,11 +86,11 @@ describe('transcripts routes (HTTP)', () => {
             createdByUserId: 'mem_test_user',
         };
         const getBySessionId = vi.fn().mockResolvedValue(transcript);
-        const getFilePath = vi.fn().mockResolvedValue(null);
+        const get = vi.fn().mockResolvedValue(null);
         const app = await importFreshApp({
             sessionServiceMock: {},
             transcriptServiceMock: { getBySessionId },
-            audioStorageServiceMock: { getFilePath },
+            audioStorageServiceMock: { get },
         });
 
         const res = await request(app)
@@ -105,36 +102,87 @@ describe('transcripts routes (HTTP)', () => {
     });
 
     it('GET /api/transcripts/:sessionId/audio serves audio file when available', async () => {
-        const tmpDir = await mkdtemp(path.join(os.tmpdir(), 'livekit-audio-test-'));
-        const filePath = path.join(tmpDir, '00000000-0000-4000-8000-000000000000.ogg');
-        await writeFile(filePath, Buffer.from('fake-ogg-data'));
+        const transcript = {
+            id: 't1',
+            sessionId: '00000000-0000-4000-8000-000000000000',
+            orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+            createdByUserId: 'mem_test_user',
+        };
+        const getBySessionId = vi.fn().mockResolvedValue(transcript);
+        const get = vi.fn().mockResolvedValue({
+            data: Buffer.from('fake-ogg-data'),
+            contentType: 'audio/ogg',
+        });
+        const app = await importFreshApp({
+            sessionServiceMock: {},
+            transcriptServiceMock: { getBySessionId },
+            audioStorageServiceMock: { get },
+        });
 
-        try {
-            const transcript = {
-                id: 't1',
-                sessionId: '00000000-0000-4000-8000-000000000000',
-                orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
-                createdByUserId: 'mem_test_user',
-            };
-            const getBySessionId = vi.fn().mockResolvedValue(transcript);
-            const getFilePath = vi.fn().mockResolvedValue(filePath);
-            const app = await importFreshApp({
-                sessionServiceMock: {},
-                transcriptServiceMock: { getBySessionId },
-                audioStorageServiceMock: { getFilePath },
-            });
+        const res = await request(app)
+            .get('/api/transcripts/00000000-0000-4000-8000-000000000000/audio')
+            .set('x-api-key', 'dev')
+            .expect(200);
 
-            const res = await request(app)
-                .get('/api/transcripts/00000000-0000-4000-8000-000000000000/audio')
-                .set('x-api-key', 'dev')
-                .expect(200);
+        expect(res.headers['content-type']).toContain('audio/ogg');
+        const bodyText = Buffer.isBuffer(res.body) ? res.body.toString('utf8') : res.text;
+        expect(bodyText).toBe('fake-ogg-data');
+    });
 
-            expect(res.headers['content-type']).toContain('audio/ogg');
-            const bodyText = Buffer.isBuffer(res.body) ? res.body.toString('utf8') : res.text;
-            expect(bodyText).toBe('fake-ogg-data');
-        } finally {
-            await rm(tmpDir, { recursive: true, force: true });
-        }
+    it('GET /api/transcripts/:sessionId/audio returns 404 for org mismatch', async () => {
+        const transcript = {
+            id: 't1',
+            sessionId: '00000000-0000-4000-8000-000000000000',
+            orgId: 'f1a1e7aa-12b5-4ad7-bec6-fb2db2c3f3fa',
+            createdByUserId: 'mem_test_user',
+        };
+        const getBySessionId = vi.fn().mockResolvedValue(transcript);
+        const get = vi.fn();
+        const app = await importFreshApp({
+            sessionServiceMock: {},
+            transcriptServiceMock: { getBySessionId },
+            audioStorageServiceMock: { get },
+        });
+
+        const res = await request(app)
+            .get('/api/transcripts/00000000-0000-4000-8000-000000000000/audio')
+            .set('x-api-key', 'dev')
+            .expect(404);
+
+        expect(res.body).toEqual({ error: 'Transcript not found' });
+        expect(get).not.toHaveBeenCalled();
+    });
+
+    it('GET /api/transcripts/:sessionId/audio returns 404 for non-admin user mismatch', async () => {
+        const transcript = {
+            id: 't1',
+            sessionId: '00000000-0000-4000-8000-000000000000',
+            orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+            createdByUserId: 'different_user',
+        };
+        const getBySessionId = vi.fn().mockResolvedValue(transcript);
+        const get = vi.fn();
+        const app = await importFreshApp({
+            sessionServiceMock: {},
+            transcriptServiceMock: { getBySessionId },
+            audioStorageServiceMock: { get },
+            pagosAuthServiceMock: {
+                resolveAuthContext: vi.fn().mockResolvedValue({
+                    orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                    userId: 'member_user_1',
+                    role: 'member',
+                    isAdmin: false,
+                }),
+            },
+        });
+
+        const res = await request(app)
+            .get('/api/transcripts/00000000-0000-4000-8000-000000000000/audio')
+            .set('x-api-key', 'dev')
+            .expect(404);
+
+        expect(res.body).toEqual({ error: 'Transcript not found' });
+        expect(get).not.toHaveBeenCalled();
     });
 
     it('GET /api/transcripts/:sessionId returns transcript when found', async () => {

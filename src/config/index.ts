@@ -12,6 +12,70 @@ const requiredEnvVars = [
     'PAGOS_ADMIN_TOKEN',
 ] as const;
 
+function parseOptionalPositiveInt(name: string, value: string | undefined): number | undefined {
+    if (!value || value.trim() === '') {
+        return undefined;
+    }
+
+    const parsed = Number.parseInt(value.trim(), 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+        throw new Error(`${name} must be a positive integer when set`);
+    }
+    return parsed;
+}
+
+function parseOptionalBoolean(name: string, value: string | undefined): boolean | undefined {
+    if (!value || value.trim() === '') {
+        return undefined;
+    }
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') {
+        return true;
+    }
+    if (normalized === 'false') {
+        return false;
+    }
+    throw new Error(`${name} must be "true" or "false" when set`);
+}
+
+const sessionStoreProvider = (
+    process.env.SESSION_STORE_PROVIDER?.trim().toLowerCase() || 'memory'
+) as 'memory' | 'redis';
+if (sessionStoreProvider !== 'memory' && sessionStoreProvider !== 'redis') {
+    throw new Error('SESSION_STORE_PROVIDER must be "memory" or "redis"');
+}
+
+const recordingStorageProvider = (
+    process.env.RECORDING_STORAGE_PROVIDER?.trim().toLowerCase() || 'local'
+) as 'local' | 's3';
+if (recordingStorageProvider !== 'local' && recordingStorageProvider !== 's3') {
+    throw new Error('RECORDING_STORAGE_PROVIDER must be "local" or "s3"');
+}
+
+const redisUrl = process.env.REDIS_URL?.trim() || '';
+if (sessionStoreProvider === 'redis' && !redisUrl) {
+    throw new Error('REDIS_URL is required when SESSION_STORE_PROVIDER=redis');
+}
+
+const s3Bucket = process.env.S3_RECORDINGS_BUCKET?.trim() || '';
+const s3Region = process.env.S3_REGION?.trim() || '';
+if (recordingStorageProvider === 's3') {
+    if (!s3Bucket) {
+        throw new Error('S3_RECORDINGS_BUCKET is required when RECORDING_STORAGE_PROVIDER=s3');
+    }
+    if (!s3Region) {
+        throw new Error('S3_REGION is required when RECORDING_STORAGE_PROVIDER=s3');
+    }
+}
+
+const s3AccessKeyId = process.env.S3_ACCESS_KEY_ID?.trim() || '';
+const s3SecretAccessKey = process.env.S3_SECRET_ACCESS_KEY?.trim() || '';
+if ((s3AccessKeyId && !s3SecretAccessKey) || (!s3AccessKeyId && s3SecretAccessKey)) {
+    throw new Error(
+        'S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY must both be set when using static S3 credentials'
+    );
+}
+
 for (const envVar of requiredEnvVars) {
     if (!process.env[envVar]) {
         throw new Error(`Missing required environment variable: ${envVar}`);
@@ -41,6 +105,36 @@ export const config = {
     },
     agent: {
         name: process.env.AGENT_NAME || 'local-test', // Agent name for explicit dispatch  ('custom-agent' init name)
+    },
+    sessionStore: {
+        provider: sessionStoreProvider,
+        redis: {
+            url: redisUrl,
+            keyPrefix: process.env.REDIS_SESSION_KEY_PREFIX?.trim() || 'session:',
+            ttlSeconds: parseOptionalPositiveInt(
+                'REDIS_SESSION_TTL_SECONDS',
+                process.env.REDIS_SESSION_TTL_SECONDS
+            ),
+        },
+    },
+    recordingStorage: {
+        provider: recordingStorageProvider,
+        local: {
+            recordingsDir: process.env.RECORDINGS_DIR?.trim() || 'data/recordings',
+        },
+        s3: {
+            bucket: s3Bucket,
+            region: s3Region,
+            keyPrefix: process.env.S3_RECORDINGS_KEY_PREFIX?.trim() || 'recordings/',
+            endpoint: process.env.S3_ENDPOINT?.trim() || undefined,
+            forcePathStyle: parseOptionalBoolean(
+                'S3_FORCE_PATH_STYLE',
+                process.env.S3_FORCE_PATH_STYLE
+            ),
+            accessKeyId: s3AccessKeyId || undefined,
+            secretAccessKey: s3SecretAccessKey || undefined,
+            sessionToken: process.env.S3_SESSION_TOKEN?.trim() || undefined,
+        },
     },
     telephony: {
         enabled: process.env.TELEPHONY_ENABLED === 'true',

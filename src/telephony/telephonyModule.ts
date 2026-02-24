@@ -100,7 +100,7 @@ const sessionService = new TelephonySessionService({
         }
 
         const ctx = await services.pagosAuthService.resolveAuthContext(apiKey);
-        services.sessionStore.set(roomName, {
+        await services.sessionStore.set(roomName, {
             userIdentity: `sip_${roomName}`,
             sessionId,
             orgId: ctx.orgId,

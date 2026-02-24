@@ -33,3 +33,4 @@ coverage/
 
 # Runtime data (recordings, etc.)
 data/
+.stryker-tmp/

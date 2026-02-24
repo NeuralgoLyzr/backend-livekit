@@ -48,7 +48,7 @@ describe('agentRegistryService (unit)', () => {
     it('listAgents scopes members by orgId + createdByUserId', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
-            await import('../dist/services/agentRegistryService.js');
+            await import('../src/services/agentRegistryService.ts');
 
         const agents = [makeStoredAgent()];
         const store = makeStore({ list: vi.fn().mockResolvedValue(agents) });
@@ -69,7 +69,7 @@ describe('agentRegistryService (unit)', () => {
     it('listAgents scopes admins only by orgId', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
-            await import('../dist/services/agentRegistryService.js');
+            await import('../src/services/agentRegistryService.ts');
 
         const store = makeStore();
         const svc = createAgentRegistryService({ store });
@@ -83,10 +83,51 @@ describe('agentRegistryService (unit)', () => {
         });
     });
 
+    it('listAgents merges shared agents and marks shared=true for collaborators', async () => {
+        setRequiredEnv();
+        const { createAgentRegistryService } =
+            await import('../src/services/agentRegistryService.ts');
+
+        const owned = makeStoredAgent({
+            id: '507f1f77bcf86cd799439011',
+            updatedAt: '2026-02-20T10:00:00.000Z',
+        });
+        const shared = makeStoredAgent({
+            id: '507f1f77bcf86cd799439012',
+            updatedAt: '2026-02-21T10:00:00.000Z',
+        });
+
+        const store = makeStore({
+            list: vi.fn().mockResolvedValue([owned]),
+            getById: vi
+                .fn()
+                .mockResolvedValueOnce(shared)
+                .mockResolvedValueOnce(null),
+        });
+        const access = {
+            listSharedAgentIds: vi.fn().mockResolvedValue(new Set(['507f1f77bcf86cd799439012'])),
+            hasSharedAccess: vi.fn().mockResolvedValue(false),
+            listSharedUserIdsForAgent: vi.fn().mockResolvedValue([]),
+            shareAgent: vi.fn(),
+            unshareAgent: vi.fn(),
+        };
+        const svc = createAgentRegistryService({ store, access });
+
+        const result = await svc.listAgents(MEMBER_AUTH, { limit: 10, offset: 0 });
+        expect(result).toHaveLength(2);
+        expect(result[0]).toMatchObject({
+            id: '507f1f77bcf86cd799439012',
+            shared: true,
+        });
+        expect(result[1]).toMatchObject({
+            id: '507f1f77bcf86cd799439011',
+        });
+    });
+
     it('getAgent delegates to store.getById with member scope', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
-            await import('../dist/services/agentRegistryService.js');
+            await import('../src/services/agentRegistryService.ts');
 
         const agent = makeStoredAgent();
         const store = makeStore({ getById: vi.fn().mockResolvedValue(agent) });
@@ -103,7 +144,7 @@ describe('agentRegistryService (unit)', () => {
     it('getAgent returns null when agent not found', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
-            await import('../dist/services/agentRegistryService.js');
+            await import('../src/services/agentRegistryService.ts');
 
         const store = makeStore();
         const svc = createAgentRegistryService({ store });
@@ -112,10 +153,40 @@ describe('agentRegistryService (unit)', () => {
         expect(result).toBeNull();
     });
 
+    it('getAgent allows shared read access and marks shared=true', async () => {
+        setRequiredEnv();
+        const { createAgentRegistryService } =
+            await import('../src/services/agentRegistryService.ts');
+
+        const shared = makeStoredAgent({ id: '507f1f77bcf86cd799439011' });
+        const store = makeStore({
+            getById: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(shared),
+        });
+        const access = {
+            listSharedAgentIds: vi.fn().mockResolvedValue(new Set()),
+            hasSharedAccess: vi.fn().mockResolvedValue(true),
+            listSharedUserIdsForAgent: vi.fn().mockResolvedValue([]),
+            shareAgent: vi.fn(),
+            unshareAgent: vi.fn(),
+        };
+        const svc = createAgentRegistryService({ store, access });
+
+        const result = await svc.getAgent(MEMBER_AUTH, '507f1f77bcf86cd799439011');
+        expect(result).toMatchObject({
+            id: '507f1f77bcf86cd799439011',
+            shared: true,
+        });
+        expect(access.hasSharedAccess).toHaveBeenCalledWith(
+            MEMBER_AUTH,
+            '507f1f77bcf86cd799439011',
+            'read'
+        );
+    });
+
     it('listAgentVersions delegates to store.listVersions with member scope', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
-            await import('../dist/services/agentRegistryService.js');
+            await import('../src/services/agentRegistryService.ts');
 
         const versions = [
             {
@@ -139,7 +210,7 @@ describe('agentRegistryService (unit)', () => {
     it('createAgent trims agent_name and persists org/user ownership', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
-            await import('../dist/services/agentRegistryService.js');
+            await import('../src/services/agentRegistryService.ts');
 
         const store = makeStore();
         const svc = createAgentRegistryService({ store });
@@ -160,8 +231,8 @@ describe('agentRegistryService (unit)', () => {
     it('createAgent throws 400 when agent_name is empty', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
-            await import('../dist/services/agentRegistryService.js');
-        const { HttpError } = await import('../dist/lib/httpErrors.js');
+            await import('../src/services/agentRegistryService.ts');
+        const { HttpError } = await import('../src/lib/httpErrors.ts');
 
         const store = makeStore();
         const svc = createAgentRegistryService({ store });
@@ -174,8 +245,8 @@ describe('agentRegistryService (unit)', () => {
     it('createAgent throws 400 when agent_name is missing', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
-            await import('../dist/services/agentRegistryService.js');
-        const { HttpError } = await import('../dist/lib/httpErrors.js');
+            await import('../src/services/agentRegistryService.ts');
+        const { HttpError } = await import('../src/lib/httpErrors.ts');
 
         const store = makeStore();
         const svc = createAgentRegistryService({ store });
@@ -188,7 +259,7 @@ describe('agentRegistryService (unit)', () => {
     it('updateAgent trims agent_name and applies member scope', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
-            await import('../dist/services/agentRegistryService.js');
+            await import('../src/services/agentRegistryService.ts');
 
         const updated = makeStoredAgent({ config: { agent_name: 'Updated' } });
         const store = makeStore({ update: vi.fn().mockResolvedValue(updated) });
@@ -213,8 +284,8 @@ describe('agentRegistryService (unit)', () => {
     it('updateAgent throws 400 when agent_name is empty', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
-            await import('../dist/services/agentRegistryService.js');
-        const { HttpError } = await import('../dist/lib/httpErrors.js');
+            await import('../src/services/agentRegistryService.ts');
+        const { HttpError } = await import('../src/lib/httpErrors.ts');
 
         const store = makeStore();
         const svc = createAgentRegistryService({ store });
@@ -229,11 +300,10 @@ describe('agentRegistryService (unit)', () => {
     it('activateAgentVersion returns null when agent is not found in scope', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
-            await import('../dist/services/agentRegistryService.js');
+            await import('../src/services/agentRegistryService.ts');
 
         const store = makeStore({
-            getById: vi.fn().mockResolvedValue(null),
-            activateVersion: vi.fn(),
+            activateVersion: vi.fn().mockResolvedValue(null),
         });
         const svc = createAgentRegistryService({ store });
 
@@ -243,17 +313,23 @@ describe('agentRegistryService (unit)', () => {
             '6ca631d2-7f1f-4dbd-9b66-d3c0ecae0136'
         );
         expect(result).toBeNull();
-        expect(store.activateVersion).not.toHaveBeenCalled();
+        expect(store.activateVersion).toHaveBeenCalledWith(
+            '507f1f77bcf86cd799439011',
+            '6ca631d2-7f1f-4dbd-9b66-d3c0ecae0136',
+            {
+                orgId: MEMBER_AUTH.orgId,
+                createdByUserId: MEMBER_AUTH.userId,
+            }
+        );
     });
 
     it('activateAgentVersion delegates to store.activateVersion with member scope', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
-            await import('../dist/services/agentRegistryService.js');
+            await import('../src/services/agentRegistryService.ts');
 
         const updated = makeStoredAgent({ config: { agent_name: 'Version Active', tools: [] } });
         const store = makeStore({
-            getById: vi.fn().mockResolvedValue(makeStoredAgent()),
             activateVersion: vi.fn().mockResolvedValue(updated),
         });
         const svc = createAgentRegistryService({ store });
@@ -278,7 +354,7 @@ describe('agentRegistryService (unit)', () => {
     it('deleteAgent returns false when agent not found', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
-            await import('../dist/services/agentRegistryService.js');
+            await import('../src/services/agentRegistryService.ts');
 
         const store = makeStore({ delete: vi.fn().mockResolvedValue(false) });
         const svc = createAgentRegistryService({ store });
@@ -290,7 +366,7 @@ describe('agentRegistryService (unit)', () => {
     it('deleteAgent returns true on success', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
-            await import('../dist/services/agentRegistryService.js');
+            await import('../src/services/agentRegistryService.ts');
 
         const store = makeStore({ delete: vi.fn().mockResolvedValue(true) });
         const svc = createAgentRegistryService({ store });
@@ -301,5 +377,60 @@ describe('agentRegistryService (unit)', () => {
             orgId: MEMBER_AUTH.orgId,
             createdByUserId: MEMBER_AUTH.userId,
         });
+    });
+
+    it('shareAgent delegates to access service for owner/admin', async () => {
+        setRequiredEnv();
+        const { createAgentRegistryService } =
+            await import('../src/services/agentRegistryService.ts');
+
+        const store = makeStore({
+            getById: vi.fn().mockResolvedValue(makeStoredAgent()),
+        });
+        const access = {
+            listSharedAgentIds: vi.fn().mockResolvedValue(new Set()),
+            hasSharedAccess: vi.fn().mockResolvedValue(false),
+            listSharedUserIdsForAgent: vi.fn().mockResolvedValue([]),
+            shareAgent: vi.fn().mockResolvedValue({ message: 'ok' }),
+            unshareAgent: vi.fn().mockResolvedValue({ message: 'ok' }),
+        };
+        const svc = createAgentRegistryService({ store, access });
+
+        await svc.shareAgent(MEMBER_AUTH, '507f1f77bcf86cd799439011', {
+            emailIds: ['a@example.com'],
+        });
+
+        expect(access.shareAgent).toHaveBeenCalledWith({
+            auth: MEMBER_AUTH,
+            agentId: '507f1f77bcf86cd799439011',
+            emailIds: ['a@example.com'],
+            adminUserId: undefined,
+            bearerToken: undefined,
+        });
+    });
+
+    it('shareAgent throws 403 for non-owner', async () => {
+        setRequiredEnv();
+        const { createAgentRegistryService } =
+            await import('../src/services/agentRegistryService.ts');
+        const { HttpError } = await import('../src/lib/httpErrors.ts');
+
+        const store = makeStore({
+            getById: vi.fn().mockResolvedValue(null),
+        });
+        const access = {
+            listSharedAgentIds: vi.fn().mockResolvedValue(new Set()),
+            hasSharedAccess: vi.fn().mockResolvedValue(false),
+            listSharedUserIdsForAgent: vi.fn().mockResolvedValue([]),
+            shareAgent: vi.fn(),
+            unshareAgent: vi.fn(),
+        };
+        const svc = createAgentRegistryService({ store, access });
+
+        await expect(
+            svc.shareAgent(MEMBER_AUTH, '507f1f77bcf86cd799439011', {
+                emailIds: ['a@example.com'],
+            })
+        ).rejects.toBeInstanceOf(HttpError);
     });
 });

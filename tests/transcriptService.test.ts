@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { setRequiredEnv } from './testUtils.js';
 
@@ -13,6 +13,11 @@ function buildStore() {
 }
 
 describe('transcriptService (unit)', () => {
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        vi.resetModules();
+    });
+
     it('parses observability report and computes transcript fields', async () => {
         setRequiredEnv();
         const { createTranscriptService } = await import('../dist/services/transcriptService.js');
@@ -143,6 +148,39 @@ describe('transcriptService (unit)', () => {
 
         expect(result).toBeNull();
         expect(store.save).not.toHaveBeenCalled();
+    });
+
+    it('logs validation warnings with bounded issues for invalid reports', async () => {
+        setRequiredEnv();
+        const { logger } = await import('../dist/lib/logger.js');
+        const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+        const { createTranscriptService } = await import('../dist/services/transcriptService.js');
+
+        const store = buildStore();
+        const service = createTranscriptService({
+            store,
+        });
+
+        const result = await service.saveFromObservability({
+            roomName: 'room-invalid',
+            sessionId: 'session-invalid',
+            orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+            rawSessionReport: {},
+        });
+
+        expect(result).toBeNull();
+        expect(store.save).not.toHaveBeenCalled();
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+
+        const [payload, message] = warnSpy.mock.calls[0] as [Record<string, unknown>, string];
+        expect(payload).toMatchObject({
+            event: 'transcript_ingest_invalid_report',
+            roomName: 'room-invalid',
+        });
+        expect(Array.isArray(payload.issues)).toBe(true);
+        expect((payload.issues as unknown[]).length).toBeGreaterThan(0);
+        expect((payload.issues as unknown[]).length).toBeLessThanOrEqual(5);
+        expect(message).toBe('Session report failed validation — skipping transcript persistence');
     });
 
     it('delegates read/list calls to transcript store', async () => {

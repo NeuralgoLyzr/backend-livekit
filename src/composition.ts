@@ -9,18 +9,20 @@ import { createAgentConfigResolverService } from './services/agentConfigResolver
 import { createTranscriptService } from './services/transcriptService.js';
 import { createLangfuseTraceService } from './services/langfuseTraceService.js';
 import { createPagosAuthService } from './services/pagosAuthService.js';
+import { createPagosPolicyService } from './services/pagosPolicyService.js';
+import { createAgentAccessService } from './services/agentAccessService.js';
 import { createSessionTraceService } from './services/sessionTraceService.js';
 import { createAudioStorageService } from './services/audioStorageService.js';
+import { createSessionStore } from './services/sessionStoreFactory.js';
 import { createTtsVoicePreviewService, createTtsVoicesService } from './services/ttsVoices/index.js';
 import { MongooseAgentStore } from './adapters/mongoose/mongooseAgentStore.js';
 import { MongooseTranscriptStore } from './adapters/mongoose/mongooseTranscriptStore.js';
-import { InMemorySessionStore } from './lib/storage.js';
 
 const agentStore = new MongooseAgentStore();
 const transcriptStore = new MongooseTranscriptStore({
     phoneRoomPrefix: config.telephony.management.livekitProvisioning.dispatchRoomPrefix,
 });
-const sessionStore = new InMemorySessionStore();
+const sessionStore = createSessionStore(config.sessionStore);
 
 const tokenService = createTokenService({
     createAccessToken: livekitClients.createAccessToken,
@@ -39,8 +41,18 @@ const agentConfigResolver = createAgentConfigResolverService({
     agentStore,
 });
 
+const pagosPolicyService = createPagosPolicyService({
+    pagosApiUrl: config.pagos.apiUrl,
+    pagosAdminToken: config.pagos.adminToken,
+});
+
+const agentAccessService = createAgentAccessService({
+    policyService: pagosPolicyService,
+});
+
 const agentRegistryService = createAgentRegistryService({
     store: agentStore,
+    access: agentAccessService,
 });
 
 const sessionService = createSessionService({
@@ -72,7 +84,7 @@ const sessionTraceService = createSessionTraceService({
     langfuseTraceService,
 });
 
-const audioStorageService = createAudioStorageService();
+const audioStorageService = createAudioStorageService(config.recordingStorage);
 
 const ttsVoicesService = createTtsVoicesService({
     cartesia: config.ttsVoicesProxy.cartesia,
@@ -96,6 +108,8 @@ export const services = {
     agentRegistryService,
     sessionService,
     pagosAuthService,
+    pagosPolicyService,
+    agentAccessService,
     transcriptService,
     langfuseTraceService,
     sessionTraceService,

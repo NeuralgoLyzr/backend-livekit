@@ -66,14 +66,14 @@ export function createTranscriptsRouter(
                 return res.status(404).json({ error: 'Audio recordings not configured' });
             }
 
-            const filePath = await audioStorageService.getFilePath(parseId.data);
-            if (!filePath) {
+            const audioObject = await audioStorageService.get(parseId.data);
+            if (!audioObject) {
                 return res.status(404).json({ error: 'Audio recording not found' });
             }
 
-            res.setHeader('Content-Type', 'audio/ogg');
+            res.setHeader('Content-Type', audioObject.contentType || 'audio/ogg');
             res.setHeader('Content-Disposition', `inline; filename="${parseId.data}.ogg"`);
-            return res.sendFile(filePath);
+            return res.send(audioObject.data);
         })
     );
 

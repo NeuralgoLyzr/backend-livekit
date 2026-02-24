@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
     AgentIdSchema,
+    AgentShareRequestSchema,
     AgentVersionIdSchema,
     CreateAgentRequestSchema,
     UpdateAgentRequestSchema,
@@ -17,6 +18,16 @@ function requireAuth(res: { locals: unknown }): { orgId: string; userId: string;
         throw new HttpError(401, 'Missing auth context');
     }
     return auth;
+}
+
+function getBearerToken(value: string | undefined): string | undefined {
+    const raw = (value ?? '').trim();
+    if (!raw) return undefined;
+
+    const match = raw.match(/^Bearer\s+(.+)$/i);
+    if (!match) return undefined;
+    const token = match[1]?.trim();
+    return token || undefined;
 }
 
 export function createAgentsRouter(agentRegistryService: AgentRegistryService): Router {
@@ -149,6 +160,72 @@ export function createAgentsRouter(agentRegistryService: AgentRegistryService): 
             const deleted = await agentRegistryService.deleteAgent(auth, parseId.data);
             if (!deleted) return res.status(404).json({ error: 'Agent not found' });
             return res.status(204).send();
+        })
+    );
+
+    router.get(
+        '/:agentId/shares',
+        asyncHandler(async (req, res) => {
+            const auth = requireAuth(res);
+            const parseId = AgentIdSchema.safeParse(req.params.agentId);
+            if (!parseId.success) {
+                return res.status(400).json(formatZodError(parseId.error));
+            }
+
+            const userIds = await agentRegistryService.listAgentShares(auth, parseId.data);
+            if (!userIds) return res.status(404).json({ error: 'Agent not found' });
+            return res.json({
+                agent_id: parseId.data,
+                user_ids: userIds,
+            });
+        })
+    );
+
+    router.post(
+        '/:agentId/share',
+        asyncHandler(async (req, res) => {
+            const auth = requireAuth(res);
+            const parseId = AgentIdSchema.safeParse(req.params.agentId);
+            if (!parseId.success) {
+                return res.status(400).json(formatZodError(parseId.error));
+            }
+
+            const parseBody = AgentShareRequestSchema.safeParse(req.body);
+            if (!parseBody.success) {
+                return res.status(400).json(formatZodError(parseBody.error));
+            }
+
+            const result = await agentRegistryService.shareAgent(auth, parseId.data, {
+                emailIds: parseBody.data.email_ids,
+                adminUserId: parseBody.data.admin_user_id,
+                bearerToken: getBearerToken(req.get('Authorization')),
+            });
+
+            return res.json(result ?? { message: 'Agent shared successfully' });
+        })
+    );
+
+    router.post(
+        '/:agentId/unshare',
+        asyncHandler(async (req, res) => {
+            const auth = requireAuth(res);
+            const parseId = AgentIdSchema.safeParse(req.params.agentId);
+            if (!parseId.success) {
+                return res.status(400).json(formatZodError(parseId.error));
+            }
+
+            const parseBody = AgentShareRequestSchema.safeParse(req.body);
+            if (!parseBody.success) {
+                return res.status(400).json(formatZodError(parseBody.error));
+            }
+
+            const result = await agentRegistryService.unshareAgent(auth, parseId.data, {
+                emailIds: parseBody.data.email_ids,
+                adminUserId: parseBody.data.admin_user_id,
+                bearerToken: getBearerToken(req.get('Authorization')),
+            });
+
+            return res.json(result ?? { message: 'Agent unshared successfully' });
         })
     );
 

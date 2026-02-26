@@ -84,9 +84,14 @@ describe('RedisSessionStore', () => {
         expect(fakeRedis.client.connect).toHaveBeenCalledTimes(1);
         expect(await store.has('room-1')).toBe(true);
         expect(await store.get('room-1')).toEqual(sessionData);
+        expect(await store.getBySessionId('session-1')).toEqual({
+            roomName: 'room-1',
+            data: sessionData,
+        });
         expect(await store.entries()).toEqual([['room-1', sessionData]]);
         expect(await store.delete('room-1')).toBe(true);
         expect(await store.get('room-1')).toBeUndefined();
+        expect(await store.getBySessionId('session-1')).toBeUndefined();
     });
 
     it('applies EX ttl to redis writes when ttlSeconds is configured', async () => {
@@ -142,6 +147,36 @@ describe('RedisSessionStore', () => {
         );
 
         await expect(store.get('room-bad-json')).resolves.toBeUndefined();
+    });
+
+    it('updates sessionId index when the room sessionId changes', async () => {
+        const fakeRedis = createFakeRedisClient();
+        const { RedisSessionStore } = await import('../dist/adapters/sessionStore/redisSessionStore.js');
+
+        const store = new RedisSessionStore(
+            {
+                redisUrl: 'redis://example.invalid:6379',
+            },
+            { redisClient: fakeRedis.client as never }
+        );
+
+        await store.set('room-1', {
+            ...makeSessionData(),
+            sessionId: 'session-old',
+        });
+        await store.set('room-1', {
+            ...makeSessionData(),
+            sessionId: 'session-new',
+        });
+
+        expect(await store.getBySessionId('session-old')).toBeUndefined();
+        expect(await store.getBySessionId('session-new')).toEqual({
+            roomName: 'room-1',
+            data: {
+                ...makeSessionData(),
+                sessionId: 'session-new',
+            },
+        });
     });
 
     it('propagates redis entries command failures', async () => {

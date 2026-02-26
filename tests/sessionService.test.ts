@@ -13,6 +13,19 @@ function createStore() {
     return {
         set: (k: string, v: unknown) => void map.set(k, v),
         get: (k: string): unknown => map.get(k),
+        getBySessionId: (sessionId: string): { roomName: string; data: unknown } | undefined => {
+            for (const [roomName, data] of map.entries()) {
+                if (
+                    typeof data === 'object' &&
+                    data !== null &&
+                    'sessionId' in data &&
+                    (data as { sessionId?: unknown }).sessionId === sessionId
+                ) {
+                    return { roomName, data };
+                }
+            }
+            return undefined;
+        },
         delete: (k: string) => map.delete(k),
         has: (k: string) => map.has(k),
         entries: () => Array.from(map.entries()),
@@ -502,6 +515,38 @@ describe('sessionService (unit)', () => {
 
         expect(roomA.endedAt).toBeUndefined();
         expect(roomB.endedAt).toBeDefined();
+    });
+
+    it('endSession by sessionId does not scan all store entries', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const store = createStore();
+        store.set('room-direct-lookup', {
+            userIdentity: 'u',
+            sessionId: 'session-direct',
+            orgId: ORG_ID_A,
+            createdByUserId: 'member_user_1',
+            createdAt: new Date().toISOString(),
+        });
+
+        const entriesSpy = vi.fn(() => {
+            throw new Error('entries() should not be called for sessionId lookup');
+        });
+        const deps = buildDeps({
+            store: {
+                ...store,
+                entries: entriesSpy,
+            },
+        });
+        const svc = createSessionService(deps);
+
+        await svc.endSession({ sessionId: 'session-direct', auth: MEMBER_AUTH });
+
+        expect(entriesSpy).not.toHaveBeenCalled();
+        const stored = deps.store.get('room-direct-lookup') as Record<string, unknown>;
+        expect(stored.endedAt).toBeDefined();
     });
 
     it('cleanupSession deletes the room and clears the store entry', async () => {

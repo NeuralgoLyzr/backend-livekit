@@ -21,11 +21,11 @@ describe('apiKeyAuthMiddleware', () => {
         const pagosAuth = { resolveAuthContext } as PagosAuthService;
         const middleware = apiKeyAuthMiddleware(pagosAuth);
 
-        const req = { get: vi.fn().mockReturnValue('secret-key') } as any;
-        const res = { locals: {} } as any;
+        const req = { get: vi.fn().mockReturnValue('secret-key') };
+        const res: { locals: { auth?: AuthContext } } = { locals: {} };
         const next = vi.fn();
 
-        await middleware(req, res, next);
+        await middleware(req as never, res as never, next);
 
         expect(req.get).toHaveBeenCalledWith('x-api-key');
         expect(resolveAuthContext).toHaveBeenCalledWith('secret-key');
@@ -38,11 +38,11 @@ describe('apiKeyAuthMiddleware', () => {
         const pagosAuth = { resolveAuthContext } as PagosAuthService;
         const middleware = apiKeyAuthMiddleware(pagosAuth);
 
-        const req = { get: vi.fn().mockReturnValue(undefined) } as any;
-        const res = { locals: {} } as any;
+        const req = { get: vi.fn().mockReturnValue(undefined) };
+        const res: { locals: { auth?: AuthContext } } = { locals: {} };
         const next = vi.fn();
 
-        await middleware(req, res, next);
+        await middleware(req as never, res as never, next);
 
         expect(resolveAuthContext).toHaveBeenCalledWith('');
         expect(next).toHaveBeenCalledWith();
@@ -54,11 +54,11 @@ describe('apiKeyAuthMiddleware', () => {
         const pagosAuth = { resolveAuthContext } as PagosAuthService;
         const middleware = apiKeyAuthMiddleware(pagosAuth);
 
-        const req = { get: vi.fn().mockReturnValue('bad-key') } as any;
-        const res = { locals: {} } as any;
+        const req = { get: vi.fn().mockReturnValue('bad-key') };
+        const res: { locals: { auth?: AuthContext } } = { locals: {} };
         const next = vi.fn();
 
-        await middleware(req, res, next);
+        await middleware(req as never, res as never, next);
 
         expect(resolveAuthContext).toHaveBeenCalledWith('bad-key');
         expect(res.locals.auth).toBeUndefined();

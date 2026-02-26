@@ -256,7 +256,7 @@ describe('sessionObservabilityService (unit)', () => {
         );
     });
 
-    it('does not persist or cleanup when sessionReport is missing', async () => {
+    it('does not persist when sessionReport is missing and still cleans up', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
         const cleanupSession = vi.fn().mockResolvedValue(undefined);
         const get = vi.fn().mockResolvedValue(undefined);
@@ -277,6 +277,6 @@ describe('sessionObservabilityService (unit)', () => {
 
         expect(get).not.toHaveBeenCalled();
         expect(saveFromObservability).not.toHaveBeenCalled();
-        expect(cleanupSession).not.toHaveBeenCalled();
+        expect(cleanupSession).toHaveBeenCalledWith('room-abc');
     });
 });

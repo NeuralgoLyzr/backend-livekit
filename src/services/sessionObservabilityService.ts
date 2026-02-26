@@ -24,11 +24,7 @@ export function createSessionObservabilityService(deps: SessionObservabilityServ
         async ingestObservability(input: IngestSessionObservabilityInput): Promise<void> {
             const { payload, audioBuffer } = input;
 
-            if (!payload.sessionReport) {
-                return;
-            }
-
-            if (deps.transcriptService && deps.sessionStore) {
+            if (payload.sessionReport && deps.transcriptService && deps.sessionStore) {
                 try {
                     const sessionData = await deps.sessionStore.get(payload.roomName);
                     const sessionId = payload.sessionId || sessionData?.sessionId || randomUUID();

@@ -124,6 +124,65 @@ describe('agentRegistryService (unit)', () => {
         });
     });
 
+    it('listAgents for members with shared IDs stops owned pagination once page is satisfied', async () => {
+        setRequiredEnv();
+        const { createAgentRegistryService } =
+            await import('../src/services/agentRegistryService.ts');
+
+        const firstOwnedPage = Array.from({ length: 200 }, (_, index) =>
+            makeStoredAgent({
+                id: (index + 1).toString(16).padStart(24, '0'),
+                updatedAt: new Date(2026, 1, 20, 12, 0, 0, 0 - index).toISOString(),
+            })
+        );
+        const secondOwnedPage = Array.from({ length: 200 }, (_, index) =>
+            makeStoredAgent({
+                id: (index + 201).toString(16).padStart(24, '0'),
+                updatedAt: new Date(2026, 1, 19, 12, 0, 0, 0 - index).toISOString(),
+            })
+        );
+        const finalOwnedPage = [
+            makeStoredAgent({
+                id: (401).toString(16).padStart(24, '0'),
+                updatedAt: '2026-02-18T12:00:00.000Z',
+            }),
+        ];
+        const shared = makeStoredAgent({
+            id: '507f1f77bcf86cd799439099',
+            updatedAt: '2026-02-10T10:00:00.000Z',
+        });
+
+        const store = makeStore({
+            list: vi
+                .fn()
+                .mockResolvedValueOnce(firstOwnedPage)
+                .mockResolvedValueOnce(secondOwnedPage)
+                .mockResolvedValueOnce(finalOwnedPage),
+            getById: vi.fn().mockResolvedValue(shared),
+        });
+        const access = {
+            listSharedAgentIds: vi.fn().mockResolvedValue(new Set(['507f1f77bcf86cd799439099'])),
+            hasSharedAccess: vi.fn().mockResolvedValue(false),
+            listSharedUserIdsForAgent: vi.fn().mockResolvedValue([]),
+            shareAgent: vi.fn(),
+            unshareAgent: vi.fn(),
+        };
+        const svc = createAgentRegistryService({ store, access });
+
+        const result = await svc.listAgents(MEMBER_AUTH, { limit: 5, offset: 0 });
+
+        expect(result).toHaveLength(5);
+        expect(store.list).toHaveBeenCalledTimes(1);
+        expect(store.list).toHaveBeenNthCalledWith(1, {
+            limit: 200,
+            offset: 0,
+            scope: {
+                orgId: MEMBER_AUTH.orgId,
+                createdByUserId: MEMBER_AUTH.userId,
+            },
+        });
+    });
+
     it('getAgent delegates to store.getById with member scope', async () => {
         setRequiredEnv();
         const { createAgentRegistryService } =
@@ -429,6 +488,65 @@ describe('agentRegistryService (unit)', () => {
 
         await expect(
             svc.shareAgent(MEMBER_AUTH, '507f1f77bcf86cd799439011', {
+                emailIds: ['a@example.com'],
+            })
+        ).rejects.toBeInstanceOf(HttpError);
+    });
+
+    it('unshareAgent delegates to access service for owner/admin', async () => {
+        setRequiredEnv();
+        const { createAgentRegistryService } =
+            await import('../src/services/agentRegistryService.ts');
+
+        const store = makeStore({
+            getById: vi.fn().mockResolvedValue(makeStoredAgent()),
+        });
+        const access = {
+            listSharedAgentIds: vi.fn().mockResolvedValue(new Set()),
+            hasSharedAccess: vi.fn().mockResolvedValue(false),
+            listSharedUserIdsForAgent: vi.fn().mockResolvedValue([]),
+            shareAgent: vi.fn().mockResolvedValue({ message: 'ok' }),
+            unshareAgent: vi.fn().mockResolvedValue({ message: 'ok' }),
+        };
+        const svc = createAgentRegistryService({ store, access });
+
+        await svc.unshareAgent(MEMBER_AUTH, '507f1f77bcf86cd799439011', {
+            emailIds: ['a@example.com'],
+        });
+
+        expect(store.getById).toHaveBeenCalledWith('507f1f77bcf86cd799439011', {
+            orgId: MEMBER_AUTH.orgId,
+            createdByUserId: MEMBER_AUTH.userId,
+        });
+        expect(access.unshareAgent).toHaveBeenCalledWith({
+            auth: MEMBER_AUTH,
+            agentId: '507f1f77bcf86cd799439011',
+            emailIds: ['a@example.com'],
+            adminUserId: undefined,
+            bearerToken: undefined,
+        });
+    });
+
+    it('unshareAgent throws 403 for non-owner', async () => {
+        setRequiredEnv();
+        const { createAgentRegistryService } =
+            await import('../src/services/agentRegistryService.ts');
+        const { HttpError } = await import('../src/lib/httpErrors.ts');
+
+        const store = makeStore({
+            getById: vi.fn().mockResolvedValue(null),
+        });
+        const access = {
+            listSharedAgentIds: vi.fn().mockResolvedValue(new Set()),
+            hasSharedAccess: vi.fn().mockResolvedValue(false),
+            listSharedUserIdsForAgent: vi.fn().mockResolvedValue([]),
+            shareAgent: vi.fn(),
+            unshareAgent: vi.fn(),
+        };
+        const svc = createAgentRegistryService({ store, access });
+
+        await expect(
+            svc.unshareAgent(MEMBER_AUTH, '507f1f77bcf86cd799439011', {
                 emailIds: ['a@example.com'],
             })
         ).rejects.toBeInstanceOf(HttpError);

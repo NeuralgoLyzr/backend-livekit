@@ -127,6 +127,64 @@ describe('transcriptService (unit)', () => {
         expect((saved.endedAt as Date).toISOString()).toBe('1970-01-01T00:00:10.000Z');
     });
 
+    it('rejects report when first event timestamp is not numeric', async () => {
+        setRequiredEnv();
+        const { createTranscriptService } = await import('../dist/services/transcriptService.js');
+
+        const store = buildStore();
+        const service = createTranscriptService({
+            store,
+        });
+
+        const result = await service.saveFromObservability({
+            roomName: 'room-3a',
+            sessionId: 'session-3a',
+            orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+            rawSessionReport: {
+                job_id: 'job-3a',
+                room_id: 'rid-3a',
+                room: 'room-3a',
+                events: [
+                    { type: 'agent_state_changed', created_at: 'oops', old_state: 'listening', new_state: 'thinking' },
+                    { type: 'close', created_at: 4, reason: 'normal' },
+                ],
+                timestamp: 4,
+            },
+        });
+
+        expect(result).toBeNull();
+        expect(store.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects report when last event timestamp is not numeric', async () => {
+        setRequiredEnv();
+        const { createTranscriptService } = await import('../dist/services/transcriptService.js');
+
+        const store = buildStore();
+        const service = createTranscriptService({
+            store,
+        });
+
+        const result = await service.saveFromObservability({
+            roomName: 'room-3b',
+            sessionId: 'session-3b',
+            orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+            rawSessionReport: {
+                job_id: 'job-3b',
+                room_id: 'rid-3b',
+                room: 'room-3b',
+                events: [
+                    { type: 'agent_state_changed', created_at: 1, old_state: 'listening', new_state: 'thinking' },
+                    { type: 'close', created_at: 'oops', reason: 'normal' },
+                ],
+                timestamp: 4,
+            },
+        });
+
+        expect(result).toBeNull();
+        expect(store.save).not.toHaveBeenCalled();
+    });
+
     it('returns null and skips persistence when report is invalid', async () => {
         setRequiredEnv();
         const { createTranscriptService } = await import('../dist/services/transcriptService.js');
@@ -181,6 +239,54 @@ describe('transcriptService (unit)', () => {
         expect((payload.issues as unknown[]).length).toBeGreaterThan(0);
         expect((payload.issues as unknown[]).length).toBeLessThanOrEqual(5);
         expect(message).toBe('Session report failed validation — skipping transcript persistence');
+    });
+
+    it('logs at most 5 validation issues when report has many issues', async () => {
+        setRequiredEnv();
+        const { logger } = await import('../dist/lib/logger.js');
+        const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+        const { createTranscriptService } = await import('../dist/services/transcriptService.js');
+
+        const store = buildStore();
+        const service = createTranscriptService({
+            store,
+        });
+
+        await service.saveFromObservability({
+            roomName: 'room-many-issues',
+            sessionId: 'session-many-issues',
+            orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+            rawSessionReport: {
+                job_id: 123,
+                room_id: false,
+                room: 999,
+                events: [
+                    {
+                        type: 'close',
+                        created_at: 'bad-ts',
+                        reason: 42,
+                    },
+                ],
+                chat_history: {
+                    items: [
+                        {
+                            type: 'message',
+                            id: 7,
+                            created_at: 'bad',
+                            role: null,
+                            content: [123],
+                        },
+                    ],
+                },
+                timestamp: 'bad-ts',
+            },
+        });
+
+        expect(store.save).not.toHaveBeenCalled();
+        const [payload] = warnSpy.mock.calls[0] as [Record<string, unknown>];
+        const issues = payload.issues as unknown[];
+        expect(Array.isArray(issues)).toBe(true);
+        expect(issues).toHaveLength(5);
     });
 
     it('delegates read/list calls to transcript store', async () => {

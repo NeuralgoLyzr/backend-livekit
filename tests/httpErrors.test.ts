@@ -67,6 +67,17 @@ describe('httpErrors', () => {
             expect(result.details).toBe('extra info');
         });
 
+        it('does not include details for HttpError when details are undefined in dev mode', async () => {
+            setRequiredEnv();
+            const { HttpError, formatErrorResponse } = await import('../dist/lib/httpErrors.js');
+
+            const result = formatErrorResponse(new HttpError(400, 'Bad request'), {
+                isDev: true,
+            });
+            expect(result).toEqual({ error: 'Bad request' });
+            expect('details' in result).toBe(false);
+        });
+
         it('formats generic Error with fallback message', async () => {
             setRequiredEnv();
             const { formatErrorResponse } = await import('../dist/lib/httpErrors.js');

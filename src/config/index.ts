@@ -42,10 +42,10 @@ function parseOptionalBoolean(name: string, value: string | undefined): boolean 
 }
 
 const sessionStoreProvider = (
-    process.env.SESSION_STORE_PROVIDER?.trim().toLowerCase() || 'memory'
-) as 'memory' | 'redis';
-if (sessionStoreProvider !== 'memory' && sessionStoreProvider !== 'redis') {
-    throw new Error('SESSION_STORE_PROVIDER must be "memory" or "redis"');
+    process.env.SESSION_STORE_PROVIDER?.trim().toLowerCase() || 'local'
+) as 'local' | 'redis';
+if (sessionStoreProvider !== 'local' && sessionStoreProvider !== 'redis') {
+    throw new Error('SESSION_STORE_PROVIDER must be "local" or "redis"');
 }
 
 const recordingStorageProvider = (

@@ -61,7 +61,7 @@ export function setRequiredEnv(overrides?: Record<string, string | undefined>) {
     process.env.APP_ENV = 'production';
     process.env.NODE_ENV = 'production';
     process.env.TELEPHONY_ENABLED = 'false';
-    process.env.SESSION_STORE_PROVIDER = 'memory';
+    process.env.SESSION_STORE_PROVIDER = 'local';
     delete process.env.REDIS_URL;
     delete process.env.REDIS_SESSION_KEY_PREFIX;
     delete process.env.REDIS_SESSION_TTL_SECONDS;

@@ -268,12 +268,10 @@ export function createSessionService(deps: SessionServiceDeps) {
             // Instead, mark the session as ended and let a later step (e.g.
             // `/session/observability`) perform cleanup once transcripts/reports
             // have been received.
-            if (existing) {
-                await deps.store.set(roomName, {
-                    ...existing,
-                    endedAt: new Date().toISOString(),
-                });
-            }
+            await deps.store.set(roomName, {
+                ...existing,
+                endedAt: new Date().toISOString(),
+            });
         },
 
         async cleanupSession(roomName: string): Promise<void> {

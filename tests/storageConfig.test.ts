@@ -9,13 +9,13 @@ async function loadConfig(overrides?: Record<string, string | undefined>) {
 }
 
 describe('storage provider config validation', () => {
-    it('uses memory session store + local recording storage by default', async () => {
+    it('uses local session store + local recording storage by default', async () => {
         const mod = await loadConfig({
             SESSION_STORE_PROVIDER: undefined,
             RECORDING_STORAGE_PROVIDER: undefined,
         });
 
-        expect(mod.config.sessionStore.provider).toBe('memory');
+        expect(mod.config.sessionStore.provider).toBe('local');
         expect(mod.config.recordingStorage.provider).toBe('local');
     });
 
@@ -33,7 +33,7 @@ describe('storage provider config validation', () => {
             loadConfig({
                 SESSION_STORE_PROVIDER: 'postgres',
             })
-        ).rejects.toThrow('SESSION_STORE_PROVIDER must be "memory" or "redis"');
+        ).rejects.toThrow('SESSION_STORE_PROVIDER must be "local" or "redis"');
     });
 
     it('requires bucket + region when RECORDING_STORAGE_PROVIDER=s3', async () => {

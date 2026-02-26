@@ -11,6 +11,27 @@ describe('config/tools', () => {
             expect(normalizeTools()).toEqual([]);
         });
 
+        it('returns empty array when tools is not an array', async () => {
+            setRequiredEnv();
+            const { normalizeTools } = await import('../dist/config/tools.js');
+            expect(normalizeTools({ tools: '*' as unknown as string[] })).toEqual([]);
+            expect(normalizeTools({ tools: null as unknown as string[] })).toEqual([]);
+            expect(normalizeTools({ tools: { value: 'get_weather' } as unknown as string[] })).toEqual(
+                []
+            );
+        });
+
+        it('adds knowledge-base tool when tools is non-array and KB is enabled', async () => {
+            setRequiredEnv();
+            const { normalizeTools } = await import('../dist/config/tools.js');
+            expect(
+                normalizeTools({
+                    tools: '*' as unknown as string[],
+                    knowledge_base: { enabled: true },
+                })
+            ).toEqual(['search_knowledge_base']);
+        });
+
         it('filters out unknown tool IDs', async () => {
             setRequiredEnv();
             const { normalizeTools } = await import('../dist/config/tools.js');
@@ -64,6 +85,16 @@ describe('config/tools', () => {
             const result = normalizeTools({ tools: ['all'] });
             expect(result.length).toBeGreaterThan(0);
             expect(result).not.toContain('search_knowledge_base');
+        });
+
+        it('wildcard behavior still applies when mixed with non-wildcard entries', async () => {
+            setRequiredEnv();
+            const { normalizeTools, toolRegistry } = await import('../dist/config/tools.js');
+            const result = normalizeTools({ tools: ['get_weather', '*', 'unknown_tool'] });
+            const expected = toolRegistry
+                .map((t: { id: string }) => t.id)
+                .filter((id: string) => id !== 'search_knowledge_base');
+            expect(result).toEqual(expected);
         });
 
         it('trims wildcard values before matching', async () => {

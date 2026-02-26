@@ -283,7 +283,7 @@ Client                    Backend                       Python Agent
 | `PORT` | `4000` | HTTP listen port |
 | `NODE_ENV` | — | Optional; affects some Node ecosystem behavior (`development` / `production`). Not used for app environment checks. |
 | `AGENT_NAME` | `local-test` | Agent name for LiveKit dispatch (must match Python agent's `AGENT_NAME`) |
-| `SESSION_STORE_PROVIDER` | `memory` | Session storage backend (`memory` or `redis`) |
+| `SESSION_STORE_PROVIDER` | `local` | Session storage backend (`local` or `redis`) |
 | `REDIS_URL` | — | Required when `SESSION_STORE_PROVIDER=redis` |
 | `REDIS_SESSION_KEY_PREFIX` | `session:` | Redis key prefix for session-store entries |
 | `REDIS_SESSION_TTL_SECONDS` | — | Optional Redis TTL for session-store entries |

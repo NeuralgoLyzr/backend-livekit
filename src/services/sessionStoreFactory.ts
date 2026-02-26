@@ -3,7 +3,7 @@ import { InMemorySessionStore } from '../adapters/sessionStore/inMemorySessionSt
 import { RedisSessionStore } from '../adapters/sessionStore/redisSessionStore.js';
 
 export interface SessionStoreConfig {
-    provider: 'memory' | 'redis';
+    provider: 'local' | 'redis';
     redis: {
         url: string;
         keyPrefix: string;

@@ -1,5 +1,4 @@
 import { Router, type RequestHandler } from 'express';
-import { randomUUID } from 'crypto';
 import multer from 'multer';
 import {
     SessionRequestSchema,
@@ -23,6 +22,7 @@ import type { HttpWideEvent } from '../middleware/requestLogging.js';
 import { apiKeyAuthMiddleware } from '../middleware/apiKeyAuth.js';
 import type { RequestAuthLocals } from '../middleware/apiKeyAuth.js';
 import { HttpError } from '../lib/httpErrors.js';
+import { createSessionObservabilityService } from '../services/sessionObservabilityService.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
@@ -48,6 +48,12 @@ export function createSessionRouter(
     const requireApiKey: RequestHandler = deps?.pagosAuthService
         ? apiKeyAuthMiddleware(deps.pagosAuthService)
         : (_req, _res, next) => next(new HttpError(500, 'Pagos auth is not configured'));
+    const sessionObservabilityService = createSessionObservabilityService({
+        sessionService,
+        transcriptService: deps?.transcriptService,
+        sessionStore: deps?.sessionStore,
+        audioStorageService: deps?.audioStorageService,
+    });
 
     router.post(
         '/',
@@ -232,84 +238,10 @@ export function createSessionRouter(
                 'Ingested session observability payload'
             );
 
-            if (payload.sessionReport) {
-                if (deps?.transcriptService && deps?.sessionStore) {
-                    try {
-                        const sessionData = await deps.sessionStore.get(payload.roomName);
-                        const sessionId = payload.sessionId || sessionData?.sessionId || randomUUID();
-                        const agentId = sessionData?.agentConfig?.agent_id ?? null;
-                        const orgId = sessionData?.orgId || payload.orgId || null;
-                        const createdByUserId = sessionData?.createdByUserId ?? null;
-
-                        if (!orgId) {
-                            logger.warn(
-                                {
-                                    event: 'transcript_persist_missing_org_id',
-                                    roomName: payload.roomName,
-                                    sessionId,
-                                },
-                                'Missing orgId; skipping transcript persistence'
-                            );
-                        } else {
-                            if (!payload.sessionId && !sessionData?.sessionId) {
-                                logger.warn(
-                                    {
-                                        event: 'transcript_persist_derived_session_id',
-                                        roomName: payload.roomName,
-                                        derivedSessionId: sessionId,
-                                    },
-                                    'No sessionId provided/resolved; generated a random UUID for transcript persistence'
-                                );
-                            }
-
-                            await deps.transcriptService.saveFromObservability({
-                                roomName: payload.roomName,
-                                sessionId,
-                                agentId,
-                                orgId,
-                                createdByUserId,
-                                rawSessionReport: payload.sessionReport,
-                                closeReason: payload.closeReason ?? null,
-                            });
-
-                            // Save audio recording if present
-                            if (audioFile && deps.audioStorageService) {
-                                try {
-                                    await deps.audioStorageService.save(
-                                        sessionId,
-                                        audioFile.buffer
-                                    );
-                                } catch (error) {
-                                    logger.error(
-                                        {
-                                            err: error,
-                                            event: 'audio_recording_save_failed',
-                                            sessionId,
-                                        },
-                                        'Failed to save audio recording'
-                                    );
-                                }
-                            }
-                        }
-                    } catch (error) {
-                        logger.error({
-                            err: error,
-                            event: 'transcript_persist_failed',
-                            roomName: payload.roomName,
-                        });
-                    }
-                }
-
-                try {
-                    await sessionService.cleanupSession(payload.roomName);
-                } catch (error) {
-                    logger.error({
-                        err: error,
-                        event: 'session_cleanup_failed',
-                        roomName: payload.roomName,
-                    });
-                }
-            }
+            await sessionObservabilityService.ingestObservability({
+                payload,
+                audioBuffer: audioFile?.buffer,
+            });
 
             const wideEvent = res.locals.wideEvent as HttpWideEvent | undefined;
             if (wideEvent) {

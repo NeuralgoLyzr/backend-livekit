@@ -137,6 +137,92 @@ describe('agentService (unit)', () => {
         expect(metadata.avatar).toBeUndefined();
     });
 
+    it('forwards provider-specific avatar payloads for all supported providers', async () => {
+        setRequiredEnv();
+        const { createAgentService } = await import('../dist/services/agentService.js');
+
+        const createDispatch = vi.fn().mockResolvedValue({ id: 'd-avatar' });
+        const svc = createAgentService({
+            client: { createDispatch } as unknown as AgentDispatchClient,
+            agentName: 'test-agent',
+        });
+
+        const cases = [
+            { provider: 'hedra', payload: { hedra: { avatar_id: 'h1' } }, key: 'hedra' },
+            { provider: 'lemonslice', payload: { lemonslice: { agent_id: 'l1' } }, key: 'lemonslice' },
+            { provider: 'liveavatar', payload: { liveavatar: { avatar_id: 'la1' } }, key: 'liveavatar' },
+            { provider: 'tavus', payload: { tavus: { replica_id: 't1' } }, key: 'tavus' },
+            { provider: 'bithuman', payload: { bithuman: { model: 'essence' } }, key: 'bithuman' },
+            { provider: 'simli', payload: { simli: { face_id: 's1' } }, key: 'simli' },
+            { provider: 'bey', payload: { bey: { avatar_id: 'b1' } }, key: 'bey' },
+            { provider: 'avatario', payload: { avatario: { avatar_id: 'a1' } }, key: 'avatario' },
+        ] as const;
+
+        for (const [index, item] of cases.entries()) {
+            await svc.dispatchAgent(`room-avatar-${item.provider}`, {
+                avatar: {
+                    enabled: true,
+                    provider: item.provider,
+                    avatar_participant_name: `avatar-${item.provider}`,
+                    ...(item.payload as Record<string, unknown>),
+                },
+            });
+            const metadata = JSON.parse(createDispatch.mock.calls[index][2].metadata);
+            expect(metadata.avatar.provider).toBe(item.provider);
+            expect(metadata.avatar.enabled).toBe(true);
+            expect(metadata.avatar[item.key]).toBeDefined();
+            expect(metadata.avatar.avatar_participant_name).toBe(`avatar-${item.provider}`);
+        }
+    });
+
+    it('defaults avatar provider to anam and enabled to false when omitted', async () => {
+        setRequiredEnv();
+        const { createAgentService } = await import('../dist/services/agentService.js');
+
+        const createDispatch = vi.fn().mockResolvedValue({ id: 'd-avatar-default' });
+        const svc = createAgentService({
+            client: { createDispatch } as unknown as AgentDispatchClient,
+            agentName: 'test-agent',
+        });
+
+        await svc.dispatchAgent('room-avatar-default', {
+            avatar: {
+                anam: { name: 'Ava', avatarId: 'anam-1' },
+            },
+        });
+
+        const metadata = JSON.parse(createDispatch.mock.calls[0][2].metadata);
+        expect(metadata.avatar.provider).toBe('anam');
+        expect(metadata.avatar.enabled).toBe(false);
+        expect(metadata.avatar.anam).toEqual({ name: 'Ava', avatarId: 'anam-1' });
+    });
+
+    it('falls back to base avatar shape for unknown provider values', async () => {
+        setRequiredEnv();
+        const { createAgentService } = await import('../dist/services/agentService.js');
+
+        const createDispatch = vi.fn().mockResolvedValue({ id: 'd-avatar-unknown-provider' });
+        const svc = createAgentService({
+            client: { createDispatch } as unknown as AgentDispatchClient,
+            agentName: 'test-agent',
+        });
+
+        await svc.dispatchAgent('room-avatar-unknown-provider', {
+            avatar: {
+                enabled: true,
+                provider: 'unknown-provider' as unknown as 'anam',
+                avatar_participant_name: 'avatar-unknown',
+            },
+        });
+
+        const metadata = JSON.parse(createDispatch.mock.calls[0][2].metadata);
+        expect(metadata.avatar).toEqual({
+            enabled: true,
+            provider: 'unknown-provider',
+            avatar_participant_name: 'avatar-unknown',
+        });
+    });
+
     it('forwards managed_agents only when enabled', async () => {
         setRequiredEnv();
         const { createAgentService } = await import('../dist/services/agentService.js');

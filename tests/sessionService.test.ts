@@ -120,6 +120,30 @@ describe('sessionService (unit)', () => {
         expect(stored.sessionId).toBe('00000000-0000-4000-8000-000000000000');
     });
 
+    it('records rounded non-negative step timings for successful session creation', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const deps = buildDeps();
+        const timingsMs: Record<string, number> = {};
+        const nowValues = [1000.2, 1001.0, 1003.9, 1005.2, 1008.6, 1010.1, 1015.4, 1020.2, 1026.8, 1030.3, 1035.9, 1040.4];
+        const now = vi.fn(() => nowValues.shift() ?? 1040.4);
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const svc = createSessionService(deps);
+
+        await svc.createSession({ userIdentity: 'user_timing' }, { timingsMs, now });
+
+        expect(timingsMs).toEqual({
+            resolveConfigMs: 3,
+            finalizeConfigMs: 3,
+            tokenMintMs: 5,
+            dispatchMs: 7,
+            storeWriteMs: 6,
+            totalMs: 40,
+        });
+    });
+
     it('wraps agent dispatch failures as 502 and does not store the session', async () => {
         vi.resetModules();
         setRequiredEnv();
@@ -137,6 +161,35 @@ describe('sessionService (unit)', () => {
             message: 'Failed to dispatch agent',
             details: 'nope',
         });
+        expect(deps.store.size()).toBe(0);
+    });
+
+    it('records dispatch and total timings on dispatch failure', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const deps = buildDeps({
+            dispatchAgent: vi.fn().mockRejectedValue(new Error('nope')),
+        });
+        const timingsMs: Record<string, number> = {};
+        const nowValues = [2000, 2001, 2004, 2005, 2008, 2010, 2012, 2015, 2022, 2025];
+        const now = vi.fn(() => nowValues.shift() ?? 2025);
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const svc = createSessionService(deps);
+
+        await expect(
+            svc.createSession({ userIdentity: 'user_1' }, { timingsMs, now })
+        ).rejects.toMatchObject({
+            status: 502,
+            details: 'nope',
+        });
+
+        expect(timingsMs.resolveConfigMs).toBe(3);
+        expect(timingsMs.finalizeConfigMs).toBe(3);
+        expect(timingsMs.tokenMintMs).toBe(2);
+        expect(timingsMs.dispatchMs).toBe(7);
+        expect(timingsMs.totalMs).toBe(25);
         expect(deps.store.size()).toBe(0);
     });
 
@@ -205,6 +258,34 @@ describe('sessionService (unit)', () => {
             },
         });
         expect(dispatchAgent).toHaveBeenCalledTimes(1);
+    });
+
+    it('defaults requesterIsAdmin to false when omitted for agentId resolution scope', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const resolveByAgentId = vi.fn().mockResolvedValue({
+            prompt: 'Resolved config',
+        });
+        const deps = buildDeps({ resolveByAgentId });
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const svc = createSessionService(deps);
+
+        await svc.createSession({
+            userIdentity: 'user_1',
+            agentId: '507f1f77bcf86cd799439011',
+            orgId: ORG_ID_A,
+            createdByUserId: 'member_user_1',
+        });
+
+        expect(resolveByAgentId).toHaveBeenCalledWith(
+            expect.objectContaining({
+                accessScope: expect.objectContaining({
+                    isAdmin: false,
+                }),
+            })
+        );
     });
 
     it('rejects agentId session creation when auth context is missing', async () => {
@@ -461,5 +542,28 @@ describe('sessionService (unit)', () => {
         await svc.cleanupSession('  room-trim-clean  ');
         expect(deleteRoom).toHaveBeenCalledWith('room-trim-clean');
         expect(deps.store.has('room-trim-clean')).toBe(false);
+    });
+
+    it('cleanupSession throws 502 with context when room deletion fails', async () => {
+        vi.resetModules();
+        setRequiredEnv();
+
+        const deleteRoom = vi.fn().mockRejectedValue(new Error('lk delete failed'));
+        const deps = buildDeps({ deleteRoom });
+        deps.store.set('room-delete-fail', {
+            userIdentity: 'u',
+            sessionId: 's',
+            createdAt: new Date().toISOString(),
+        });
+
+        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const svc = createSessionService(deps);
+
+        await expect(svc.cleanupSession('room-delete-fail')).rejects.toMatchObject({
+            status: 502,
+            message: 'Failed to delete LiveKit room "room-delete-fail"',
+            details: 'lk delete failed',
+        });
+        expect(deps.store.has('room-delete-fail')).toBe(true);
     });
 });

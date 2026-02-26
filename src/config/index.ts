@@ -3,7 +3,10 @@
  * Loads and validates environment variables
  */
 
+import { getAppEnv } from '../lib/env.js';
+
 const requiredEnvVars = [
+    'APP_ENV',
     'LIVEKIT_URL',
     'LIVEKIT_API_KEY',
     'LIVEKIT_API_SECRET',
@@ -82,7 +85,12 @@ for (const envVar of requiredEnvVars) {
     }
 }
 
+const appEnv = getAppEnv();
+
 export const config = {
+    app: {
+        env: appEnv,
+    },
     livekit: {
         url: process.env.LIVEKIT_URL!,
         apiKey: process.env.LIVEKIT_API_KEY!,
@@ -167,7 +175,7 @@ export const config = {
     },
     ttsVoicesProxy: {
         /**
-         * Optional provider API keys used by backend-livekit to proxy TTS voice lists.
+         * Optional provider API keys used by voice-agent-server to proxy TTS voice lists.
          * These are NOT required to start the server; endpoints will return 503 with
          * requiredEnv when a provider is queried without its credentials.
          */

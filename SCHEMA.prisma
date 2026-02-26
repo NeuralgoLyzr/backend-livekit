@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-// Documentation-only Prisma-style schema for backend-livekit.
+// Documentation-only Prisma-style schema for voice-agent-server.
 // This file is NOT used by any tooling — it exists purely as a
 // human-readable reference for the MongoDB collections managed
 // by Mongoose. Could be out of date. Keep it in sync when you change models.

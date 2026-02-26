@@ -1,4 +1,4 @@
-## Docker persistence testing (MongoDB + backend-livekit)
+## Docker persistence testing (MongoDB + voice-agent-server)
 
 This runbook validates agent persistence (`/agents`) using Docker Compose.
 
@@ -11,7 +11,7 @@ This runbook validates agent persistence (`/agents`) using Docker Compose.
 From repo root:
 
 ```bash
-docker compose -f backend-livekit/docker-compose.persistence.yml up -d --build
+docker compose -f voice-agent-server/docker-compose.persistence.yml up -d --build
 ```
 
 Note: This stack maps MongoDB to host port `27018` (to avoid clashing with any local MongoDB on `27017`).
@@ -72,14 +72,14 @@ curl -sS http://localhost:4000/agents
 Restart only the backend:
 
 ```bash
-docker compose -f backend-livekit/docker-compose.persistence.yml restart backend
+docker compose -f voice-agent-server/docker-compose.persistence.yml restart backend
 curl -sS http://localhost:4000/agents
 ```
 
 Restart mongo (data should persist because of the named volume):
 
 ```bash
-docker compose -f backend-livekit/docker-compose.persistence.yml restart mongo
+docker compose -f voice-agent-server/docker-compose.persistence.yml restart mongo
 curl -sS http://localhost:4000/agents
 ```
 
@@ -88,11 +88,11 @@ curl -sS http://localhost:4000/agents
 Keep data (preserve named volume):
 
 ```bash
-docker compose -f backend-livekit/docker-compose.persistence.yml down
+docker compose -f voice-agent-server/docker-compose.persistence.yml down
 ```
 
 Wipe data too (remove named volume):
 
 ```bash
-docker compose -f backend-livekit/docker-compose.persistence.yml down -v
+docker compose -f voice-agent-server/docker-compose.persistence.yml down -v
 ```

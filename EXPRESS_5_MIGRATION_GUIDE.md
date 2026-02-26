@@ -1,10 +1,10 @@
 # Express 5 migration guide (for an AI agent)
 
-This guide is written for an AI coding agent that will migrate `backend-livekit` from **Express 4** to **Express 5**.
+This guide is written for an AI coding agent that will migrate `voice-agent-server` from **Express 4** to **Express 5**.
 
 ## Goals
 
-- Upgrade `backend-livekit` to Express 5 (currently `express@latest`).
+- Upgrade `voice-agent-server` to Express 5 (currently `express@latest`).
 - Keep behavior consistent (especially `/telephony/livekit-webhook` raw-body handling).
 - Ensure `pnpm dev`, `pnpm build`, and `pnpm start` work.
 - Prefer minimal, mechanical changes; avoid refactors unless required by Express 5.
@@ -24,7 +24,7 @@ This guide is written for an AI coding agent that will migrate `backend-livekit`
 
 ### Baseline sanity (run and record results)
 
-From `backend-livekit/`:
+From `voice-agent-server/`:
 
 ```bash
 pnpm install
@@ -47,7 +47,7 @@ Verify at least:
 
 ### 1) Upgrade dependencies (pnpm)
 
-In `backend-livekit/package.json`:
+In `voice-agent-server/package.json`:
 
 - Update `express` from `^4.18.0` to `^5.x` (or pin to the current latest 5.x).
 - Update typings:
@@ -166,7 +166,7 @@ Guidance:
 
 ### 5) Verification checklist (must pass)
 
-From `backend-livekit/`:
+From `voice-agent-server/`:
 
 ```bash
 pnpm lint

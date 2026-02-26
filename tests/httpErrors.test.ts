@@ -44,9 +44,9 @@ describe('httpErrors', () => {
         });
     });
 
-    describe('formatErrorResponse', () => {
-        it('formats HttpError without details in production', async () => {
-            setRequiredEnv({ NODE_ENV: 'production' });
+        describe('formatErrorResponse', () => {
+            it('formats HttpError without details in production', async () => {
+            setRequiredEnv({ APP_ENV: 'production' });
             const { HttpError, formatErrorResponse } = await import('../dist/lib/httpErrors.js');
 
             const result = formatErrorResponse(new HttpError(400, 'Bad request', 'extra info'), {

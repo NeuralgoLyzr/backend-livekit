@@ -26,7 +26,7 @@ server.once('listening', () => {
         {
             event: 'startup',
             port: actualPort,
-            environment: process.env.NODE_ENV || 'development',
+            environment: config.app.env,
             livekitUrl: config.livekit.url,
             telephonyEnabled: config.telephony.enabled,
             endpoints: {

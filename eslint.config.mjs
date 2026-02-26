@@ -16,7 +16,16 @@ const unicornRecommendedRules =
 
 export default tseslint.config(
     {
-        ignores: ['**/dist/**', '**/node_modules/**'],
+        ignores: [
+            'dist/**',
+            'node_modules/**',
+            '.stryker-tmp/**',
+            'reports/**',
+            '**/dist/**',
+            '**/node_modules/**',
+            '**/.stryker-tmp/**',
+            '**/reports/**',
+        ],
         linterOptions: {
             reportUnusedDisableDirectives: 'error',
         },

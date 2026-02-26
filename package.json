@@ -20,7 +20,7 @@
         "test:integration": "pnpm build && vitest run tests/*.integration.test.ts",
         "test:contract": "pnpm build && vitest run tests/*.contract.test.ts",
         "test:mutation": "pnpm build && stryker run",
-        "lint": "eslint .",
+        "lint": "eslint . --ignore-pattern .stryker-tmp --ignore-pattern reports",
         "lint:fix": "eslint . --fix",
         "format": "prettier --write .",
         "format:check": "prettier --check ."

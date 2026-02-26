@@ -1,6 +1,7 @@
 import pino from 'pino';
 import { once } from 'node:events';
 import { getRequestId } from './requestContext.js';
+import { getAppEnv } from './env.js';
 
 function getLogLevel(): string {
     // Allow standard LOG_LEVEL; default to info.
@@ -43,8 +44,8 @@ const baseLoggerOptions: pino.LoggerOptions = {
         },
     },
     base: {
-        service: 'backend-livekit',
-        env: process.env.NODE_ENV ?? 'development',
+        service: 'voice-agent-server',
+        env: getAppEnv(),
     },
     // Automatically attach requestId when available.
     mixin() {

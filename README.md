@@ -1,4 +1,4 @@
-# backend-livekit
+# voice-agent-server
 
 Express 5 + TypeScript (ESM) service that manages LiveKit voice-agent sessions: creates rooms, mints tokens, dispatches the Python agent with configuration metadata, persists transcripts, and serves agent CRUD + config catalogs.
 
@@ -269,6 +269,7 @@ Client                    Backend                       Python Agent
 
 | Variable | Description |
 |----------|-------------|
+| `APP_ENV` | App environment (`dev`, `staging`, `production`) |
 | `LIVEKIT_URL` | LiveKit server URL |
 | `LIVEKIT_API_KEY` | LiveKit API key |
 | `LIVEKIT_API_SECRET` | LiveKit API secret |
@@ -280,7 +281,7 @@ Client                    Backend                       Python Agent
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `4000` | HTTP listen port |
-| `NODE_ENV` | — | `development` / `production` |
+| `NODE_ENV` | — | Optional; affects some Node ecosystem behavior (`development` / `production`). Not used for app environment checks. |
 | `AGENT_NAME` | `local-test` | Agent name for LiveKit dispatch (must match Python agent's `AGENT_NAME`) |
 | `SESSION_STORE_PROVIDER` | `memory` | Session storage backend (`memory` or `redis`) |
 | `REDIS_URL` | — | Required when `SESSION_STORE_PROVIDER=redis` |
@@ -316,45 +317,45 @@ Client                    Backend                       Python Agent
 
 ```bash
 # Install dependencies
-pnpm -C backend-livekit install
+pnpm -C voice-agent-server install
 
 # Dev server (watch mode)
-pnpm -C backend-livekit dev
+pnpm -C voice-agent-server dev
 
 # Production build
-pnpm -C backend-livekit build
+pnpm -C voice-agent-server build
 
 # Lint
-pnpm -C backend-livekit lint
-pnpm -C backend-livekit lint:fix
+pnpm -C voice-agent-server lint
+pnpm -C voice-agent-server lint:fix
 
 # Format
-pnpm -C backend-livekit format
+pnpm -C voice-agent-server format
 
 # Typecheck (no emit)
-pnpm -C backend-livekit exec tsc -p tsconfig.json --noEmit
+pnpm -C voice-agent-server exec tsc -p tsconfig.json --noEmit
 
 # Lint a single file
-pnpm -C backend-livekit exec eslint src/routes/session.ts
+pnpm -C voice-agent-server exec eslint src/routes/session.ts
 
 # ── Tests ──────────────────────────────────────────────
 
 # Unit tests (no network calls)
-pnpm -C backend-livekit test
+pnpm -C voice-agent-server test
 
 # Low-level client live tests (hit real provider APIs)
-pnpm -C backend-livekit test:telnyx-live
-pnpm -C backend-livekit test:twilio-live
-pnpm -C backend-livekit test:plivo-live
+pnpm -C voice-agent-server test:telnyx-live
+pnpm -C voice-agent-server test:twilio-live
+pnpm -C voice-agent-server test:plivo-live
 
 # E2E onboarding live tests (full create→connect→disconnect→delete flow)
-pnpm -C backend-livekit test:telnyx-onboarding-live   # requires TELNYX_API_KEY, TELNYX_TEST_PHONE_NUMBER
-pnpm -C backend-livekit test:twilio-onboarding-live   # requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_TEST_PHONE_NUMBER
-pnpm -C backend-livekit test:plivo-onboarding-live    # requires PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_TEST_PHONE_NUMBER
-pnpm -C backend-livekit test:onboarding-live          # all providers
+pnpm -C voice-agent-server test:telnyx-onboarding-live   # requires TELNYX_API_KEY, TELNYX_TEST_PHONE_NUMBER
+pnpm -C voice-agent-server test:twilio-onboarding-live   # requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_TEST_PHONE_NUMBER
+pnpm -C voice-agent-server test:plivo-onboarding-live    # requires PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_TEST_PHONE_NUMBER
+pnpm -C voice-agent-server test:onboarding-live          # all providers
 
 # All live tests (client + onboarding)
-pnpm -C backend-livekit test:live
+pnpm -C voice-agent-server test:live
 ```
 
 ---
@@ -383,7 +384,7 @@ pnpm -C backend-livekit test:live
 
 When adding a config field that flows from UI → backend → Python agent:
 
-### 1. Backend (`backend-livekit/`)
+### 1. Backend (`voice-agent-server/`)
 
 - `src/types/index.ts` → Add field to `AgentConfigSchema` (Zod).
 - `src/services/agentService.ts` → Add to `buildMetadataObject()` (this is the allowlist).

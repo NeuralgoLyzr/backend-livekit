@@ -24,6 +24,7 @@ RUN pnpm prune --prod
 FROM public.ecr.aws/docker/library/node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+ENV APP_ENV=production
 
 # Run as non-root user provided by the base image
 USER node

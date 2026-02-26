@@ -1,4 +1,4 @@
-## Docker storage testing (Redis + S3/MinIO + backend-livekit)
+## Docker storage testing (Redis + S3/MinIO + voice-agent-server)
 
 This runbook validates:
 - Redis-backed session store adapter
@@ -14,7 +14,7 @@ This runbook validates:
 From repo root:
 
 ```bash
-docker compose -f backend-livekit/docker-compose.storage.yml up -d --build
+docker compose -f voice-agent-server/docker-compose.storage.yml up -d --build
 ```
 
 Services started:
@@ -35,7 +35,7 @@ S3_TEST_ENDPOINT=http://localhost:9002 \
 S3_TEST_FORCE_PATH_STYLE=true \
 S3_TEST_ACCESS_KEY_ID=minioadmin \
 S3_TEST_SECRET_ACCESS_KEY=minioadmin \
-pnpm -C backend-livekit exec vitest run tests/storageBackends.integration.test.ts
+pnpm -C voice-agent-server exec vitest run tests/storageBackends.integration.test.ts
 ```
 
 ### 2) Verify backend `/session/observability` stores audio into S3 (MinIO)
@@ -43,20 +43,20 @@ pnpm -C backend-livekit exec vitest run tests/storageBackends.integration.test.t
 ```bash
 curl -i -X POST http://localhost:4000/session/observability \
   -F 'payload={"roomName":"room-storage-1","sessionId":"00000000-0000-4000-8000-000000000000","orgId":"96f0cee4-bb87-4477-8eff-577ef2780614","closeReason":null,"sessionReport":{"job_id":"job-1","room_id":"rid-1","room":"room-storage-1","events":[{"type":"unknown_event","created_at":1}],"timestamp":2}}' \
-  -F "audio=@backend-livekit/data/recordings/sample.ogg;type=audio/ogg"
+  -F "audio=@voice-agent-server/data/recordings/sample.ogg;type=audio/ogg"
 ```
 
 If you don't have a sample file, create one quickly:
 
 ```bash
-mkdir -p backend-livekit/data/recordings
-printf 'fake-ogg-data' > backend-livekit/data/recordings/sample.ogg
+mkdir -p voice-agent-server/data/recordings
+printf 'fake-ogg-data' > voice-agent-server/data/recordings/sample.ogg
 ```
 
 Then verify object exists in MinIO:
 
 ```bash
-pnpm -C backend-livekit exec node -e "
+pnpm -C voice-agent-server exec node -e "
 const { S3Client, HeadObjectCommand } = require('@aws-sdk/client-s3');
 (async () => {
   const s3 = new S3Client({
@@ -79,11 +79,11 @@ const { S3Client, HeadObjectCommand } = require('@aws-sdk/client-s3');
 Keep data:
 
 ```bash
-docker compose -f backend-livekit/docker-compose.storage.yml down
+docker compose -f voice-agent-server/docker-compose.storage.yml down
 ```
 
 Wipe data volumes:
 
 ```bash
-docker compose -f backend-livekit/docker-compose.storage.yml down -v
+docker compose -f voice-agent-server/docker-compose.storage.yml down -v
 ```

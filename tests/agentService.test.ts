@@ -235,7 +235,7 @@ describe('agentService (unit)', () => {
     });
 
     it('logs dispatch attempt only in development mode', async () => {
-        setRequiredEnv({ NODE_ENV: 'production' });
+        setRequiredEnv({ APP_ENV: 'production' });
         const { logger } = await import('../dist/lib/logger.js');
         const debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => undefined);
         const { createAgentService } = await import('../dist/services/agentService.js');
@@ -252,7 +252,7 @@ describe('agentService (unit)', () => {
         });
         expect(debugSpy).not.toHaveBeenCalled();
 
-        setRequiredEnv({ NODE_ENV: 'development' });
+        setRequiredEnv({ APP_ENV: 'dev' });
         await svc.dispatchAgent('room-dev', {
             user_id: 'user-dev',
             session_id: 'session-dev',

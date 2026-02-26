@@ -142,7 +142,7 @@ describe('sessionService (unit)', () => {
 
     it('logs dispatch attempt only in development mode', async () => {
         vi.resetModules();
-        setRequiredEnv({ NODE_ENV: 'production' });
+        setRequiredEnv({ APP_ENV: 'production' });
 
         const { logger } = await import('../dist/lib/logger.js');
         const debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => undefined);
@@ -154,7 +154,7 @@ describe('sessionService (unit)', () => {
         await svc.createSession({ userIdentity: 'user_prod', agentConfig: {} });
         expect(debugSpy).not.toHaveBeenCalled();
 
-        setRequiredEnv({ NODE_ENV: 'development' });
+        setRequiredEnv({ APP_ENV: 'dev' });
         await svc.createSession({
             userIdentity: 'user_dev',
             agentConfig: { api_key: 'dev-api-key' },

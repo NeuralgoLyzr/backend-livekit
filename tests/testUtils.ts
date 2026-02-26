@@ -58,6 +58,7 @@ export function setRequiredEnv(overrides?: Record<string, string | undefined>) {
     process.env.PAGOS_API_URL = 'https://pagos-dev.test.studio.lyzr.ai';
     process.env.PAGOS_ADMIN_TOKEN = 'test_pagos_admin_token';
     process.env.PORT = '0';
+    process.env.APP_ENV = 'production';
     process.env.NODE_ENV = 'production';
     process.env.TELEPHONY_ENABLED = 'false';
     process.env.SESSION_STORE_PROVIDER = 'memory';

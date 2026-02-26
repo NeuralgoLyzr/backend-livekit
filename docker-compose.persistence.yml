@@ -1,7 +1,6 @@
 services:
     mongo:
         image: mongo:7
-        container_name: backend_livekit_mongo
         ports:
             - '27018:27017'
         volumes:
@@ -16,7 +15,6 @@ services:
         build:
             context: .
             dockerfile: Dockerfile
-        container_name: backend_livekit_api
         ports:
             - '4000:4000'
         environment:

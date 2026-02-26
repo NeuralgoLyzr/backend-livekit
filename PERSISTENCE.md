@@ -1,6 +1,6 @@
 ## Persistence layer (MongoDB + Mongoose) — Handoff
 
-This document explains how **agent persistence** works in `backend-livekit`, how the **frontend** uses it, and how to extend it safely (e.g. add new fields).
+This document explains how **agent persistence** works in `voice-agent-server`, how the **frontend** uses it, and how to extend it safely (e.g. add new fields).
 
 ---
 
@@ -39,11 +39,11 @@ This document explains how **agent persistence** works in `backend-livekit`, how
     - Unique index: `(user_id, session_id)`
     - Stores `current_agent_id` and arbitrary `data.*` keys via update helpers.
 
-This is separate from `backend-livekit` and is **not currently wired** into `python-agent-livekit` (which reads config from LiveKit job metadata).
+This is separate from `voice-agent-server` and is **not currently wired** into `python-agent-livekit` (which reads config from LiveKit job metadata).
 
 ---
 
-## How agents are stored (in `backend-livekit`)
+## How agents are stored (in `voice-agent-server`)
 
 ### Data model (MongoDB via Mongoose)
 
@@ -51,15 +51,15 @@ Key idea: the agent “runtime config” is stored as **JSON** in `Agent.config`
 
 Implementation files:
 
-- Model: `backend-livekit/src/models/agentModel.ts`
-- Adapter: `backend-livekit/src/adapters/mongoose/mongooseAgentStore.ts`
-- Connection bootstrap: `backend-livekit/src/db/mongoose.ts`
+- Model: `voice-agent-server/src/models/agentModel.ts`
+- Adapter: `voice-agent-server/src/adapters/mongoose/mongooseAgentStore.ts`
+- Connection bootstrap: `voice-agent-server/src/db/mongoose.ts`
 
 ### Mongoose configuration
 
 Runtime enforces configuration when persistence is used:
 
-- `backend-livekit/src/db/mongoose.ts` throws **503** if `MONGODB_URI` is missing.
+- `voice-agent-server/src/db/mongoose.ts` throws **503** if `MONGODB_URI` is missing.
 
 ---
 
@@ -67,21 +67,21 @@ Runtime enforces configuration when persistence is used:
 
 ### Port (interface)
 
-- `backend-livekit/src/ports/agentStorePort.ts`
+- `voice-agent-server/src/ports/agentStorePort.ts`
     - Defines the storage boundary: list/get/create/update/delete.
 
 ### Adapter (Mongoose/Mongo implementation)
 
-- `backend-livekit/src/adapters/mongoose/mongooseAgentStore.ts`
+- `voice-agent-server/src/adapters/mongoose/mongooseAgentStore.ts`
     - Implements `AgentStorePort` using Mongoose.
     - Soft-delete via `deletedAt`.
 
 ### Services
 
-- `backend-livekit/src/services/agentRegistryService.ts`
+- `voice-agent-server/src/services/agentRegistryService.ts`
     - Pure app logic for CRUD (name normalization, defaults).
 
-- `backend-livekit/src/services/agentConfigResolverService.ts`
+- `voice-agent-server/src/services/agentConfigResolverService.ts`
     - The important “call start” behavior:
         - Load stored agent config by `agentId`
         - Deep-merge **overrides** (`agentConfig`) on top
@@ -90,10 +90,10 @@ Runtime enforces configuration when persistence is used:
 
 ### Routes
 
-- `backend-livekit/src/routes/agents.ts`
+- `voice-agent-server/src/routes/agents.ts`
     - REST CRUD for persisted agents.
 
-- `backend-livekit/src/routes/session.ts`
+- `voice-agent-server/src/routes/session.ts`
     - `POST /session` accepts optional `agentId` + optional `agentConfig`.
 
 ---
@@ -119,7 +119,7 @@ If “agent id to start calls” must include **telephony**, you’ll need a way
 
 - Persist a DID mapping (e.g. `toNumber -> agentId`) and update telephony routing to use it.
     - New model suggestion: `TelephonyDidRoute { id, did, agentId, createdAt, updatedAt, deletedAt? }`
-    - Update routing in `backend-livekit/src/telephony/routing/`
+    - Update routing in `voice-agent-server/src/telephony/routing/`
 
 ---
 
@@ -157,7 +157,7 @@ Key files:
 - Run:
 
 ```bash
-pnpm -C backend-livekit dev
+pnpm -C voice-agent-server dev
 ```
 
 ### Frontend
@@ -186,7 +186,7 @@ This requires **no DB schema change**.
 Checklist:
 
 - Add field to validation/type boundaries:
-    - Backend: `backend-livekit/src/types/index.ts` (`AgentConfigSchema`)
+    - Backend: `voice-agent-server/src/types/index.ts` (`AgentConfigSchema`)
     - Frontend: `frontend-livekit/lib/types.ts` (`AgentConfig`)
 - Ensure the Python agent understands it via metadata parsing (if needed).
 - Done: the `config` JSON blob will store it automatically.
@@ -196,12 +196,12 @@ Checklist:
 Checklist:
 
 - Update the Mongoose schema:
-    - `backend-livekit/src/models/agentModel.ts`
+    - `voice-agent-server/src/models/agentModel.ts`
 - Update adapter mapping:
-    - `backend-livekit/src/adapters/mongoose/mongooseAgentStore.ts`
-    - `backend-livekit/src/ports/agentStorePort.ts` types
+    - `voice-agent-server/src/adapters/mongoose/mongooseAgentStore.ts`
+    - `voice-agent-server/src/ports/agentStorePort.ts` types
 - Update API types/validation:
-    - `backend-livekit/src/types/index.ts`
+    - `voice-agent-server/src/types/index.ts`
 - Update frontend types + client payloads if exposed:
     - `frontend-livekit/lib/types.ts`
     - `frontend-livekit/lib/backendClient.ts`
@@ -216,9 +216,9 @@ Checklist:
 
 ### `agentId must be a valid Mongo ObjectId`
 
-- `agentId` must be a 24-hex Mongo ObjectId string (see `AgentIdSchema` in `backend-livekit/src/types/index.ts`).
+- `agentId` must be a 24-hex Mongo ObjectId string (see `AgentIdSchema` in `voice-agent-server/src/types/index.ts`).
 
 ### You can create agents but `GET /agents` is empty
 
 - Verify you’re pointing at the same database (`MONGODB_URI`) you wrote into.
-- If you’re experimenting with collection names, update the pinned collection name in `backend-livekit/src/models/agentModel.ts`.
+- If you’re experimenting with collection names, update the pinned collection name in `voice-agent-server/src/models/agentModel.ts`.

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 
 import { ENABLE_TAIL_SAMPLING, SLOW_REQUEST_MS, SUCCESS_SAMPLE_RATE } from '../CONSTS.js';
+import { isDevEnv } from '../lib/env.js';
 import { logger } from '../lib/logger.js';
 import { runWithRequestContext } from '../lib/requestContext.js';
 
@@ -49,7 +50,7 @@ function shouldSample(event: HttpWideEvent, req: Request): boolean {
     if (durationMs > SLOW_REQUEST_MS) return true;
 
     const debugHeader = req.header('x-debug-log');
-    if (process.env.NODE_ENV !== 'production' && debugHeader === '1') return true;
+    if (isDevEnv() && debugHeader === '1') return true;
 
     return Math.random() < SUCCESS_SAMPLE_RATE;
 }

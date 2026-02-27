@@ -42,12 +42,17 @@ describeRedisIntegration('RedisSessionStore integration', () => {
             await store.set(roomName, data);
             expect(await store.has(roomName)).toBe(true);
             expect(await store.get(roomName)).toEqual(data);
+            expect(await store.getBySessionId(data.sessionId)).toEqual({
+                roomName,
+                data,
+            });
 
             const entries = await store.entries();
             expect(entries).toEqual(expect.arrayContaining([[roomName, data]]));
 
             expect(await store.delete(roomName)).toBe(true);
             expect(await store.get(roomName)).toBeUndefined();
+            expect(await store.getBySessionId(data.sessionId)).toBeUndefined();
         } finally {
             if ('close' in store && typeof store.close === 'function') {
                 await store.close();

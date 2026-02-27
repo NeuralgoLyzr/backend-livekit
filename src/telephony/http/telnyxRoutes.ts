@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { TelnyxOnboardingService } from '../management/telnyxOnboardingService.js';
 import type { TelephonyIntegrationStorePort } from '../ports/telephonyIntegrationStorePort.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
+import { isDevEnv } from '../../lib/env.js';
 import { HttpError } from '../../lib/httpErrors.js';
 import { formatZodError } from '../../lib/zod.js';
 import {
@@ -77,8 +78,8 @@ export function createTelnyxRouter(deps: TelnyxRouterDeps): Router {
         })
     );
 
-    // Non-prod debug: inspect provider number mapping and trunk FQDN attachment.
-    if (process.env.NODE_ENV !== 'production') {
+    // Dev-only debug: inspect provider number mapping and trunk FQDN attachment.
+    if (isDevEnv()) {
         router.get(
             '/debug/numbers/:providerNumberId',
             asyncHandler(async (req, res) => {

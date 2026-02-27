@@ -85,11 +85,13 @@ function mergeAndSortAgents(owned: StoredAgent[], shared: StoredAgent[]): Stored
 
 async function listAllAgentsInScope(
     store: AgentStorePort,
-    scope: { orgId: string; createdByUserId?: string }
+    scope: { orgId: string; createdByUserId?: string },
+    targetCount?: number
 ): Promise<StoredAgent[]> {
     const pageSize = 200;
     let offset = 0;
     const results: StoredAgent[] = [];
+    const minimumCount = targetCount === undefined ? Number.POSITIVE_INFINITY : Math.max(targetCount, 0);
 
     while (true) {
         const page = await store.list({
@@ -98,6 +100,7 @@ async function listAllAgentsInScope(
             offset,
         });
         results.push(...page);
+        if (results.length >= minimumCount) break;
         if (page.length < pageSize) break;
         offset += pageSize;
     }
@@ -124,6 +127,18 @@ async function listSharedAgentsByIds(
 
 function hasNonEmptyValues(values: string[]): boolean {
     return values.some((value) => value.trim().length > 0);
+}
+
+async function assertOwnerOrAdminCanManageShares(params: {
+    store: AgentStorePort;
+    auth: AgentRegistryAuthContext;
+    agentId: string;
+    operation: 'share' | 'unshare';
+}): Promise<void> {
+    const ownerVisibleAgent = await params.store.getById(params.agentId, toReadScope(params.auth));
+    if (ownerVisibleAgent) return;
+
+    throw new HttpError(403, `Only owner/admin can ${params.operation} this agent`);
 }
 
 export function createAgentRegistryService(deps: {
@@ -167,13 +182,14 @@ export function createAgentRegistryService(deps: {
                 });
             }
 
+            const { limit, offset } = normalizePagination(input);
+            const requiredMergedCount = offset + limit;
             const [ownedAgents, sharedAgents] = await Promise.all([
-                listAllAgentsInScope(deps.store, toReadScope(auth)),
+                listAllAgentsInScope(deps.store, toReadScope(auth), requiredMergedCount),
                 listSharedAgentsByIds(deps.store, auth.orgId, sharedIds),
             ]);
 
             const merged = mergeAndSortAgents(ownedAgents, sharedAgents);
-            const { limit, offset } = normalizePagination(input);
             return merged.slice(offset, offset + limit);
         },
 
@@ -305,13 +321,12 @@ export function createAgentRegistryService(deps: {
                 throw new HttpError(400, 'emailIds must include at least one email');
             }
 
-            const ownerScope = auth.isAdmin
-                ? { orgId: auth.orgId }
-                : { orgId: auth.orgId, createdByUserId: auth.userId };
-            const ownerVisibleAgent = await deps.store.getById(agentId, ownerScope);
-            if (!ownerVisibleAgent) {
-                throw new HttpError(403, 'Only owner/admin can share this agent');
-            }
+            await assertOwnerOrAdminCanManageShares({
+                store: deps.store,
+                auth,
+                agentId,
+                operation: 'share',
+            });
 
             return access.shareAgent({
                 auth,
@@ -331,13 +346,12 @@ export function createAgentRegistryService(deps: {
                 throw new HttpError(400, 'emailIds must include at least one email');
             }
 
-            const ownerScope = auth.isAdmin
-                ? { orgId: auth.orgId }
-                : { orgId: auth.orgId, createdByUserId: auth.userId };
-            const ownerVisibleAgent = await deps.store.getById(agentId, ownerScope);
-            if (!ownerVisibleAgent) {
-                throw new HttpError(403, 'Only owner/admin can unshare this agent');
-            }
+            await assertOwnerOrAdminCanManageShares({
+                store: deps.store,
+                auth,
+                agentId,
+                operation: 'unshare',
+            });
 
             return access.unshareAgent({
                 auth,

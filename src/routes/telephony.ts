@@ -4,6 +4,7 @@
 
 import { Router } from 'express';
 import { config } from '../config/index.js';
+import { isDevEnv } from '../lib/env.js';
 import { telephonyModule } from '../telephony/telephonyModule.js';
 import { normalizeLiveKitWebhookEvent } from '../telephony/adapters/livekit/eventNormalizer.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
@@ -158,7 +159,7 @@ router.post(
             // Invalid signature / malformed payload
             return res.status(401).json({
                 error: 'Invalid webhook signature',
-                ...(process.env.NODE_ENV !== 'production' && {
+                ...(isDevEnv() && {
                     details: error instanceof Error ? error.message : 'Unknown error',
                 }),
             });
@@ -235,8 +236,8 @@ router.post(
     })
 );
 
-// Minimal diagnostics (non-prod only)
-if (process.env.NODE_ENV !== 'production') {
+// Minimal diagnostics (dev only)
+if (isDevEnv()) {
     router.get(
         '/livekit-webhook/status',
         asyncHandler(async (_req, res) => {

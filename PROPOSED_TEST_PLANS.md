@@ -114,7 +114,7 @@ Ensure Sarvam STT is supported end-to-end (config options + runtime plugin wirin
 
 ### Run Commands
 
-- `pnpm -C backend-livekit test`
+- `pnpm -C voice-agent-server test`
 - `cd python-agent-livekit && uv run ruff check .`
 - `cd python-agent-livekit && uv run pyright`
 - `cd python-agent-livekit && uv run pytest -v tests/test_sessions_unit.py`

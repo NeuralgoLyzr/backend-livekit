@@ -45,7 +45,12 @@ const KNOWLEDGE_BASE_TOOL_ID = 'search_knowledge_base';
  */
 export function normalizeTools(agentConfig?: AgentConfig): string[] {
     const tools = agentConfig?.tools;
-    const requestedTools: unknown[] = Array.isArray(tools) ? tools : [];
+    if (!Array.isArray(tools)) {
+        return registryIds.has(KNOWLEDGE_BASE_TOOL_ID) && hasKnowledgeBaseEnabled(agentConfig)
+            ? [KNOWLEDGE_BASE_TOOL_ID]
+            : [];
+    }
+    const requestedTools: unknown[] = tools;
 
     const wildcardEnabled = requestedTools.some((value) => {
         if (typeof value !== 'string') return false;

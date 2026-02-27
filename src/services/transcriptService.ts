@@ -38,8 +38,6 @@ function computeDurationMs(report: SessionReport): number | null {
 
     const first = events[0].created_at;
     const last = events[events.length - 1].created_at;
-    if (typeof first !== 'number' || typeof last !== 'number') return null;
-
     return Math.round((last - first) * 1000);
 }
 

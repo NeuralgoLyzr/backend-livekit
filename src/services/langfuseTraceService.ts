@@ -197,7 +197,7 @@ function ensureConfigured(deps: CreateLangfuseTraceServiceDeps): void {
     const secretKey = deps.secretKey.trim();
     if (host && publicKey && secretKey) return;
 
-    throw new HttpError(503, 'Langfuse tracing is not configured on backend-livekit', {
+    throw new HttpError(503, 'Langfuse tracing is not configured on voice-agent-server', {
         requiredEnv: ['LANGFUSE_HOST', 'LANGFUSE_PUBLIC_KEY', 'LANGFUSE_SECRET_KEY'],
     });
 }

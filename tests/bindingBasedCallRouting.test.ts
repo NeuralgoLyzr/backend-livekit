@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { logger } from '../src/lib/logger.js';
 import { BindingBasedCallRouting } from '../src/telephony/routing/bindingBasedCallRouting.js';
 import type { TelephonyBindingStorePort } from '../src/telephony/ports/telephonyBindingStorePort.js';
 import type { CallRoutingContext } from '../src/telephony/types.js';
@@ -135,17 +136,29 @@ describe('BindingBasedCallRouting', () => {
     });
 
     it('falls back to default routing when agentId resolution fails', async () => {
+        const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => logger);
         const store = makeBindingStore({
             getBindingByE164: vi.fn().mockResolvedValue(makeStoredBinding()),
         });
         const resolver = makeAgentConfigResolver({
-            resolveByAgentId: vi.fn().mockRejectedValue(new Error('Agent not found')),
+            resolveByAgentId: vi.fn().mockRejectedValue(new Error('Agent config lookup failed')),
         });
         const router = new BindingBasedCallRouting(store, resolver);
 
         const result = await router.resolveRouting(makeCtx());
 
         expect(result.agentConfig.prompt).toContain('helpful voice AI assistant');
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'telephony.binding.agent_resolution_failed',
+                bindingId: 'binding-1',
+                e164: '+15559876543',
+                agentId: 'agent-1',
+                err: expect.any(Error),
+            }),
+            'Failed to resolve latest agent config from bound agentId'
+        );
     });
 
     it('normalizes DID by adding + prefix when missing', async () => {

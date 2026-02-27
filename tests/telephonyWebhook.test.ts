@@ -45,7 +45,7 @@ describe('telephony webhook', () => {
 
     it('returns 401 with details on invalid signature (non-prod)', async () => {
         vi.resetModules();
-        setRequiredEnv({ TELEPHONY_ENABLED: 'true', NODE_ENV: 'test' });
+        setRequiredEnv({ TELEPHONY_ENABLED: 'true', APP_ENV: 'dev' });
 
         vi.doMock('../dist/telephony/telephonyModule.js', () => ({
             telephonyModule: {
@@ -77,7 +77,7 @@ describe('telephony webhook', () => {
 
     it('accepts raw JSON and dispatches handler in background', async () => {
         vi.resetModules();
-        setRequiredEnv({ TELEPHONY_ENABLED: 'true', NODE_ENV: 'test' });
+        setRequiredEnv({ TELEPHONY_ENABLED: 'true', APP_ENV: 'dev' });
 
         const verifyAndDecode = vi.fn().mockImplementation(async (raw: string) => ({
             raw,

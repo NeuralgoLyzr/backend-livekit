@@ -7,7 +7,7 @@
         "dev": "tsx watch src/index.ts",
         "build": "tsc",
         "start": "node dist/index.js",
-        "test": "pnpm build && vitest run --exclude tests/telnyxLive.test.ts --exclude tests/twilioLive.test.ts --exclude tests/plivoLive.test.ts --exclude tests/telnyxOnboardingLive.test.ts --exclude tests/twilioOnboardingLive.test.ts --exclude tests/plivoOnboardingLive.test.ts",
+        "test": "pnpm build && vitest run --maxWorkers=4 --exclude tests/**/*Live.test.ts --exclude tests/**/*live.test.ts",
         "test:watch": "pnpm build && vitest",
         "test:telnyx-live": "pnpm build && vitest run tests/telnyxLive.test.ts",
         "test:twilio-live": "pnpm build && vitest run tests/twilioLive.test.ts",
@@ -20,7 +20,7 @@
         "test:integration": "pnpm build && vitest run tests/*.integration.test.ts",
         "test:contract": "pnpm build && vitest run tests/*.contract.test.ts",
         "test:mutation": "pnpm build && stryker run",
-        "lint": "eslint .",
+        "lint": "eslint . --ignore-pattern .stryker-tmp --ignore-pattern reports",
         "lint:fix": "eslint . --fix",
         "format": "prettier --write .",
         "format:check": "prettier --check ."

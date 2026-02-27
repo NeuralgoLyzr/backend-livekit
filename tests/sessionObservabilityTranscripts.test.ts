@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type * as Crypto from 'crypto';
 
 import { importFreshApp } from './testUtils';
@@ -22,6 +22,10 @@ function makeObservabilityPayload(overrides?: Record<string, unknown>) {
 }
 
 describe('POST /session/observability (transcripts)', () => {
+    afterEach(() => {
+        vi.doUnmock('crypto');
+    });
+
     it('generates a random UUID sessionId when missing and persists transcript', async () => {
         vi.doMock('crypto', async () => {
             const actual = await vi.importActual<Crypto>('crypto');

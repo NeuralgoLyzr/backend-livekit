@@ -243,20 +243,13 @@ export function createSessionService(deps: SessionServiceDeps) {
                     throw new HttpError(404, 'Session not found for room');
                 }
             } else {
-                const allEntries = await deps.store.entries();
-                const match = allEntries.find(([, data]) => {
-                    if (data.sessionId !== normalizedSessionId) {
-                        return false;
-                    }
-                    return canAccessSession(auth, data);
-                });
-
-                if (!match) {
+                const match = await deps.store.getBySessionId(normalizedSessionId);
+                if (!match || !canAccessSession(auth, match.data)) {
                     throw new HttpError(404, 'Session not found for sessionId');
                 }
 
-                roomName = match[0];
-                existing = match[1];
+                roomName = match.roomName;
+                existing = match.data;
             }
 
             // IMPORTANT:
@@ -268,12 +261,10 @@ export function createSessionService(deps: SessionServiceDeps) {
             // Instead, mark the session as ended and let a later step (e.g.
             // `/session/observability`) perform cleanup once transcripts/reports
             // have been received.
-            if (existing) {
-                await deps.store.set(roomName, {
-                    ...existing,
-                    endedAt: new Date().toISOString(),
-                });
-            }
+            await deps.store.set(roomName, {
+                ...existing,
+                endedAt: new Date().toISOString(),
+            });
         },
 
         async cleanupSession(roomName: string): Promise<void> {

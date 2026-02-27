@@ -9,9 +9,13 @@ export default {
     tsconfigFile: 'tsconfig.json',
     mutate: [
         'src/config/tools.ts',
+        'src/lib/httpErrors.ts',
+        'src/middleware/apiKeyAuth.ts',
         'src/services/agentService.ts',
         'src/services/sessionService.ts',
         'src/services/transcriptService.ts',
+        'src/telephony/core/sipAttributes.ts',
+        'src/telephony/routing/bindingBasedCallRouting.ts',
     ],
     reporters: ['clear-text', 'progress', 'html'],
     htmlReporter: {
@@ -23,7 +27,7 @@ export default {
     thresholds: {
         high: 80,
         low: 60,
-        break: null,
+        break: 97,
     },
     ignorePatterns: ['reports', 'data'],
     vitest: {

@@ -19,11 +19,13 @@ const DEFAULT_SCAN_COUNT = 100;
 export class RedisSessionStore implements SessionStorePort {
     private readonly client: RedisClientType;
     private readonly keyPrefix: string;
+    private readonly sessionIdIndexPrefix: string;
     private readonly ttlSeconds?: number;
     private connectPromise: Promise<void> | null;
 
     constructor(options: RedisSessionStoreOptions, deps?: RedisSessionStoreDeps) {
         this.keyPrefix = options.keyPrefix?.trim() || DEFAULT_KEY_PREFIX;
+        this.sessionIdIndexPrefix = `session-id-index:${this.keyPrefix}`;
         this.ttlSeconds =
             typeof options.ttlSeconds === 'number' && options.ttlSeconds > 0
                 ? Math.floor(options.ttlSeconds)
@@ -51,14 +53,21 @@ export class RedisSessionStore implements SessionStorePort {
         await this.ensureConnected();
 
         const key = this.keyFor(roomName);
+        const existingRaw = await this.client.get(key);
+        const existingSessionId = existingRaw ? this.parseSessionData(existingRaw)?.sessionId : undefined;
         const payload = JSON.stringify(data);
 
         if (this.ttlSeconds) {
             await this.client.set(key, payload, { EX: this.ttlSeconds });
-            return;
+            await this.client.set(this.sessionIdKeyFor(data.sessionId), roomName, { EX: this.ttlSeconds });
+        } else {
+            await this.client.set(key, payload);
+            await this.client.set(this.sessionIdKeyFor(data.sessionId), roomName);
         }
 
-        await this.client.set(key, payload);
+        if (existingSessionId && existingSessionId !== data.sessionId) {
+            await this.client.del(this.sessionIdKeyFor(existingSessionId));
+        }
     }
 
     async get(roomName: string): Promise<SessionData | undefined> {
@@ -71,9 +80,33 @@ export class RedisSessionStore implements SessionStorePort {
         return this.parseSessionData(value);
     }
 
+    async getBySessionId(
+        sessionId: string
+    ): Promise<{ roomName: string; data: SessionData } | undefined> {
+        await this.ensureConnected();
+
+        const roomName = await this.client.get(this.sessionIdKeyFor(sessionId));
+        if (!roomName) {
+            return undefined;
+        }
+
+        const data = await this.get(roomName);
+        if (!data || data.sessionId !== sessionId) {
+            await this.client.del(this.sessionIdKeyFor(sessionId));
+            return undefined;
+        }
+
+        return { roomName, data };
+    }
+
     async delete(roomName: string): Promise<boolean> {
         await this.ensureConnected();
+        const existingRaw = await this.client.get(this.keyFor(roomName));
+        const existingSessionId = existingRaw ? this.parseSessionData(existingRaw)?.sessionId : undefined;
         const deletedCount = await this.client.del(this.keyFor(roomName));
+        if (existingSessionId) {
+            await this.client.del(this.sessionIdKeyFor(existingSessionId));
+        }
         return deletedCount > 0;
     }
 
@@ -136,6 +169,10 @@ export class RedisSessionStore implements SessionStorePort {
             return key;
         }
         return key.slice(this.keyPrefix.length);
+    }
+
+    private sessionIdKeyFor(sessionId: string): string {
+        return `${this.sessionIdIndexPrefix}${sessionId}`;
     }
 
     private parseSessionData(raw: string): SessionData | undefined {

@@ -423,16 +423,13 @@ describe('agentService (unit)', () => {
         );
     });
 
-    it('logs failure details and rethrows errors from dispatch client', async () => {
+    it('rethrows dispatch client errors without logging (error handler logs them)', async () => {
         setRequiredEnv();
         const { logger } = await import('../dist/lib/logger.js');
         const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
-        const nowSpy = vi.spyOn(Date, 'now');
-        nowSpy.mockReturnValueOnce(3000).mockReturnValueOnce(3330);
 
         const { createAgentService } = await import('../dist/services/agentService.js');
-        const dispatchError = new Error('network fail');
-        const createDispatch = vi.fn().mockRejectedValue(dispatchError);
+        const createDispatch = vi.fn().mockRejectedValue(new Error('network fail'));
         const svc = createAgentService({
             client: { createDispatch } as unknown as AgentDispatchClient,
             agentName: 'test-agent',
@@ -445,19 +442,6 @@ describe('agentService (unit)', () => {
             })
         ).rejects.toThrow('network fail');
 
-        expect(errorSpy).toHaveBeenCalledWith(
-            expect.objectContaining({
-                event: 'livekit_agent_dispatch',
-                roomName: 'room-log-error',
-                agentName: 'test-agent',
-                userId: 'user-e',
-                sessionId: 'session-e',
-                durationMs: 330,
-                outcome: 'error',
-                agentConfig: expect.any(Object),
-                err: dispatchError,
-            }),
-            'Failed to dispatch agent to room'
-        );
+        expect(errorSpy).not.toHaveBeenCalled();
     });
 });

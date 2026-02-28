@@ -240,12 +240,15 @@ export function createSessionService(deps: SessionServiceDeps) {
                     throw new HttpError(404, 'Session not found for room');
                 }
                 if (!canAccessSession(auth, existing)) {
-                    throw new HttpError(404, 'Session not found for room');
+                    throw new HttpError(404, 'Session not found for room', 'access_denied');
                 }
             } else {
                 const match = await deps.store.getBySessionId(normalizedSessionId);
-                if (!match || !canAccessSession(auth, match.data)) {
+                if (!match) {
                     throw new HttpError(404, 'Session not found for sessionId');
+                }
+                if (!canAccessSession(auth, match.data)) {
+                    throw new HttpError(404, 'Session not found for sessionId', 'access_denied');
                 }
 
                 roomName = match.roomName;

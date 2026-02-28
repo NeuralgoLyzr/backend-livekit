@@ -416,6 +416,7 @@ describe('sessionService (unit)', () => {
             name: 'HttpError',
             status: 404,
             message: 'Session not found for room',
+            details: 'access_denied',
         });
         const stored = deps.store.get('room-1') as Record<string, unknown>;
         expect(stored.endedAt).toBeUndefined();
@@ -442,6 +443,7 @@ describe('sessionService (unit)', () => {
             name: 'HttpError',
             status: 404,
             message: 'Session not found for sessionId',
+            details: 'access_denied',
         });
         const stored = deps.store.get('room-1') as Record<string, unknown>;
         expect(stored.endedAt).toBeUndefined();

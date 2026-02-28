@@ -120,6 +120,7 @@ export function createSessionRouter(
             const wideEvent = res.locals.wideEvent as HttpWideEvent | undefined;
             if (wideEvent) {
                 wideEvent.userIdentity = parseResult.data.userIdentity;
+                wideEvent.agentId = parseResult.data.agentId;
             }
             const sessionCreateTimings: CreateSessionStepTimingsMs = {};
 

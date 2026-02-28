@@ -202,18 +202,6 @@ export function createSessionService(deps: SessionServiceDeps) {
             recordTiming(timingsMs, 'dispatchMs', now() - dispatchStart);
 
             const storeWriteStart = now();
-            if (!input.orgId) {
-                logger.warn(
-                    {
-                        event: 'session_create_missing_org_id',
-                        roomName,
-                        sessionId,
-                        userIdentity,
-                        agentId: input.agentId ?? null,
-                    },
-                    'Creating session without orgId; transcript scoping may fail'
-                );
-            }
             await deps.store.set(roomName, {
                 userIdentity,
                 sessionId,
@@ -222,17 +210,6 @@ export function createSessionService(deps: SessionServiceDeps) {
                 agentConfig: agentConfigWithIds,
                 createdAt: new Date().toISOString(),
             });
-            logger.info(
-                {
-                    event: 'session_store_write_complete',
-                    roomName,
-                    sessionId,
-                    hasOrgId: Boolean(input.orgId),
-                    hasCreatedByUserId: Boolean(input.createdByUserId),
-                    agentId: input.agentId ?? null,
-                },
-                'Stored session metadata for observability lookups'
-            );
             recordTiming(timingsMs, 'storeWriteMs', now() - storeWriteStart);
             recordTiming(timingsMs, 'totalMs', now() - totalStart);
 

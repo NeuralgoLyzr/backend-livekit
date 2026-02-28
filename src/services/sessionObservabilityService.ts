@@ -63,16 +63,98 @@ export function createSessionObservabilityService(deps: SessionObservabilityServ
 
             if (payload.sessionReport && deps.transcriptService && deps.sessionStore) {
                 try {
+                    logger.info(
+                        {
+                            event: 'session_observability_store_lookup_start',
+                            roomName: payload.roomName,
+                            sessionId: payload.sessionId ?? null,
+                            payloadHasOrgId: Boolean(payload.orgId),
+                        },
+                        'Looking up session store data for observability ingest'
+                    );
                     const sessionData = await deps.sessionStore.get(payload.roomName);
+                    logger.info(
+                        {
+                            event: 'session_observability_store_lookup_result',
+                            roomName: payload.roomName,
+                            sessionId: payload.sessionId ?? null,
+                            hasSessionStoreRecord: Boolean(sessionData),
+                            storeSessionId: sessionData?.sessionId ?? null,
+                            storeHasOrgId: Boolean(sessionData?.orgId),
+                            storeHasCreatedByUserId: Boolean(sessionData?.createdByUserId),
+                        },
+                        sessionData
+                            ? 'Resolved session store record for observability ingest'
+                            : 'No session store record found for observability ingest'
+                    );
+
+                    const getBySessionId = (
+                        deps.sessionStore as Partial<SessionStorePort>
+                    ).getBySessionId;
+                    if (
+                        !sessionData &&
+                        payload.sessionId &&
+                        typeof getBySessionId === 'function'
+                    ) {
+                        const fallbackBySessionId = await getBySessionId.call(
+                            deps.sessionStore,
+                            payload.sessionId
+                        );
+                        logger.warn(
+                            {
+                                event: 'session_observability_store_lookup_by_session_id',
+                                roomName: payload.roomName,
+                                sessionId: payload.sessionId,
+                                found: Boolean(fallbackBySessionId),
+                                matchedRoomName: fallbackBySessionId?.roomName ?? null,
+                                matchedHasOrgId: Boolean(fallbackBySessionId?.data.orgId),
+                            },
+                            fallbackBySessionId
+                                ? 'Room lookup missed, but sessionId lookup found a store record'
+                                : 'Room lookup missed and sessionId lookup also found nothing'
+                        );
+                    }
+
                     const sessionId =
                         payload.sessionId || sessionData?.sessionId || randomUUID();
                     const agentId = sessionData?.agentConfig?.agent_id ?? null;
                     const orgId = sessionData?.orgId || payload.orgId || null;
                     const createdByUserId = sessionData?.createdByUserId ?? null;
+                    const orgIdSource = sessionData?.orgId
+                        ? 'session_store'
+                        : payload.orgId
+                          ? 'payload'
+                          : 'none';
 
                     if (!orgId) {
+                        logger.warn(
+                            {
+                                event: 'transcript_persist_missing_org_id',
+                                roomName: payload.roomName,
+                                sessionId: payload.sessionId ?? sessionData?.sessionId ?? null,
+                                payloadSessionId: payload.sessionId ?? null,
+                                storeSessionId: sessionData?.sessionId ?? null,
+                                hasSessionStoreRecord: Boolean(sessionData),
+                                payloadHasOrgId: Boolean(payload.orgId),
+                                storeHasOrgId: Boolean(sessionData?.orgId),
+                                hasSessionReport: Boolean(payload.sessionReport),
+                                closeReason: payload.closeReason ?? null,
+                            },
+                            'Missing orgId; skipping transcript persistence'
+                        );
                         transcript = { status: 'skipped', reason: 'missing_org_id' };
                     } else {
+                        logger.info(
+                            {
+                                event: 'transcript_persist_org_id_resolved',
+                                roomName: payload.roomName,
+                                sessionId,
+                                orgIdSource,
+                                hasCreatedByUserId: Boolean(createdByUserId),
+                                agentId,
+                            },
+                            'Resolved orgId for transcript persistence'
+                        );
                         if (!payload.sessionId && !sessionData?.sessionId) {
                             logger.warn(
                                 {

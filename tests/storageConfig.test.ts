@@ -88,6 +88,16 @@ describe('storage provider config validation', () => {
         );
     });
 
+    it('defaults REDIS_SESSION_TTL_SECONDS to 3600 when unset', async () => {
+        const mod = await loadConfig({
+            SESSION_STORE_PROVIDER: 'redis',
+            REDIS_URL: 'redis://localhost:6379',
+            REDIS_SESSION_TTL_SECONDS: undefined,
+        });
+
+        expect(mod.config.sessionStore.redis.ttlSeconds).toBe(3600);
+    });
+
     it('parses valid redis + s3 configuration', async () => {
         const mod = await loadConfig({
             SESSION_STORE_PROVIDER: 'redis',

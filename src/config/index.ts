@@ -119,10 +119,11 @@ export const config = {
         redis: {
             url: redisUrl,
             keyPrefix: process.env.REDIS_SESSION_KEY_PREFIX?.trim() || 'session:',
-            ttlSeconds: parseOptionalPositiveInt(
-                'REDIS_SESSION_TTL_SECONDS',
-                process.env.REDIS_SESSION_TTL_SECONDS
-            ),
+            ttlSeconds:
+                parseOptionalPositiveInt(
+                    'REDIS_SESSION_TTL_SECONDS',
+                    process.env.REDIS_SESSION_TTL_SECONDS
+                ) ?? 3600,
         },
     },
     recordingStorage: {

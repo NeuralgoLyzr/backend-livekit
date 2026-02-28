@@ -88,8 +88,16 @@ export function createSessionObservabilityService(deps: SessionObservabilityServ
                             : 'No session store record found for observability ingest'
                     );
 
-                    if (!sessionData && payload.sessionId) {
-                        const fallbackBySessionId = await deps.sessionStore.getBySessionId(
+                    const getBySessionId = (
+                        deps.sessionStore as Partial<SessionStorePort>
+                    ).getBySessionId;
+                    if (
+                        !sessionData &&
+                        payload.sessionId &&
+                        typeof getBySessionId === 'function'
+                    ) {
+                        const fallbackBySessionId = await getBySessionId.call(
+                            deps.sessionStore,
                             payload.sessionId
                         );
                         logger.warn(

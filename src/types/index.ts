@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 
-import { SessionReportSchema, ChatHistorySchema } from './sessionReport.js';
+import { SessionReportSchema } from './sessionReport.js';
 
 // Validation constants
 const MAX_IDENTITY_LENGTH = 128;
@@ -772,7 +772,6 @@ export const SessionObservabilityIngestSchema = z
          * If omitted, the backend will attempt to derive it from the session store.
          */
         orgId: z.string().uuid().optional(),
-        conversationHistory: ChatHistorySchema.optional(),
         sessionReport: SessionReportSchema.optional(),
         closeReason: z.string().nullable().optional(),
         receivedAt: z.string().nullable().optional(),

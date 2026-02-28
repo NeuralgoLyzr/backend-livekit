@@ -49,7 +49,7 @@ function buildDeps(overrides?: {
             dispatchAgent: overrides?.dispatchAgent ?? vi.fn().mockResolvedValue(undefined),
         },
         roomService: {
-            deleteRoom: overrides?.deleteRoom ?? vi.fn().mockResolvedValue(undefined),
+            deleteRoom: overrides?.deleteRoom ?? vi.fn().mockResolvedValue({ status: 'deleted' }),
         },
         agentConfigResolver: {
             resolveByAgentId: overrides?.resolveByAgentId ?? vi.fn(),
@@ -553,7 +553,7 @@ describe('sessionService (unit)', () => {
         vi.resetModules();
         setRequiredEnv();
 
-        const deleteRoom = vi.fn().mockResolvedValue(undefined);
+        const deleteRoom = vi.fn().mockResolvedValue({ status: 'deleted' });
         const deps = buildDeps({ deleteRoom });
         deps.store.set('room-1', {
             userIdentity: 'u',
@@ -564,7 +564,9 @@ describe('sessionService (unit)', () => {
         const { createSessionService } = await import('../dist/services/sessionService.js');
         const svc = createSessionService(deps);
 
-        await svc.cleanupSession('room-1');
+        const result = await svc.cleanupSession('room-1');
+        expect(result.roomDelete).toEqual({ status: 'deleted' });
+        expect(result.storeDelete).toEqual({ status: 'ok' });
         expect(deleteRoom).toHaveBeenCalledWith('room-1');
         expect(deps.store.has('room-1')).toBe(false);
     });
@@ -573,7 +575,7 @@ describe('sessionService (unit)', () => {
         vi.resetModules();
         setRequiredEnv();
 
-        const deleteRoom = vi.fn().mockResolvedValue(undefined);
+        const deleteRoom = vi.fn().mockResolvedValue({ status: 'deleted' });
         const deps = buildDeps({ deleteRoom });
         deps.store.set('room-trim-clean', {
             userIdentity: 'u',
@@ -584,16 +586,18 @@ describe('sessionService (unit)', () => {
         const { createSessionService } = await import('../dist/services/sessionService.js');
         const svc = createSessionService(deps);
 
-        await svc.cleanupSession('  room-trim-clean  ');
+        const result = await svc.cleanupSession('  room-trim-clean  ');
+        expect(result.roomDelete).toEqual({ status: 'deleted' });
+        expect(result.storeDelete).toEqual({ status: 'ok' });
         expect(deleteRoom).toHaveBeenCalledWith('room-trim-clean');
         expect(deps.store.has('room-trim-clean')).toBe(false);
     });
 
-    it('cleanupSession throws 502 with context when room deletion fails', async () => {
+    it('cleanupSession returns error outcome when room deletion fails and still cleans up store', async () => {
         vi.resetModules();
         setRequiredEnv();
 
-        const deleteRoom = vi.fn().mockRejectedValue(new Error('lk delete failed'));
+        const deleteRoom = vi.fn().mockResolvedValue({ status: 'error', error: new Error('lk delete failed') });
         const deps = buildDeps({ deleteRoom });
         deps.store.set('room-delete-fail', {
             userIdentity: 'u',
@@ -604,11 +608,10 @@ describe('sessionService (unit)', () => {
         const { createSessionService } = await import('../dist/services/sessionService.js');
         const svc = createSessionService(deps);
 
-        await expect(svc.cleanupSession('room-delete-fail')).rejects.toMatchObject({
-            status: 502,
-            message: 'Failed to delete LiveKit room "room-delete-fail"',
-            details: 'lk delete failed',
-        });
-        expect(deps.store.has('room-delete-fail')).toBe(true);
+        const result = await svc.cleanupSession('room-delete-fail');
+        expect(result.roomDelete).toEqual({ status: 'error', error: expect.any(Error) });
+        expect(result.storeDelete).toEqual({ status: 'ok' });
+        // Store should still be cleaned up even when room delete fails
+        expect(deps.store.has('room-delete-fail')).toBe(false);
     });
 });

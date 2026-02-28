@@ -36,7 +36,7 @@ describe('POST /session/observability (transcripts)', () => {
         });
 
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue(undefined);
+        const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
         const sessionStoreGet = vi.fn().mockReturnValue(undefined);
 
         const app = await importFreshApp({
@@ -74,7 +74,7 @@ describe('POST /session/observability (transcripts)', () => {
 
     it('saves uploaded multipart audio recording when present', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue(undefined);
+        const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
         const saveAudio = vi.fn().mockResolvedValue('00000000-0000-4000-8000-000000000000.ogg');
 
         const app = await importFreshApp({
@@ -104,7 +104,7 @@ describe('POST /session/observability (transcripts)', () => {
 
     it('does not save audio when request has no uploaded file', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue(undefined);
+        const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
         const saveAudio = vi.fn().mockResolvedValue('ignored.ogg');
 
         const app = await importFreshApp({
@@ -123,7 +123,7 @@ describe('POST /session/observability (transcripts)', () => {
 
     it('keeps /session/observability successful when audio save fails', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue(undefined);
+        const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
         const saveAudio = vi.fn().mockRejectedValue(new Error('disk full'));
 
         const app = await importFreshApp({

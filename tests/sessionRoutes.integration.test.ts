@@ -46,7 +46,7 @@ function buildApp(harness: Harness) {
 
 function createHarness() {
     const createDispatch = vi.fn().mockResolvedValue({ id: 'dispatch-1' });
-    const deleteRoom = vi.fn().mockResolvedValue(undefined);
+    const deleteRoom = vi.fn().mockResolvedValue({ status: 'deleted' });
     const resolveAuthContext = vi.fn().mockResolvedValue({
         orgId: ORG_ID,
         userId: USER_ID,

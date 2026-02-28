@@ -36,6 +36,10 @@ export interface HttpWideEvent {
     durationMs?: number;
     outcome?: Outcome;
     operationTimingsMs?: Record<string, number>;
+    /**
+     * True when `/session/observability` completed with one or more step errors.
+     */
+    observabilityHasErrors?: boolean;
     userAgent?: string;
     ip?: string;
 }

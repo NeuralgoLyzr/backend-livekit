@@ -7,6 +7,31 @@ import type { SessionService } from './sessionService.js';
 import type { TranscriptService } from './transcriptService.js';
 import type { SessionObservabilityIngest } from '../types/index.js';
 
+// ---------------------------------------------------------------------------
+// Step outcome types
+// ---------------------------------------------------------------------------
+
+interface StepOutcome {
+    status: 'ok' | 'skipped' | 'error';
+    reason?: string;
+    error?: string;
+}
+
+export interface ObservabilityResult {
+    steps: {
+        transcript: StepOutcome;
+        audio: StepOutcome;
+        roomDelete: StepOutcome;
+        storeDelete: StepOutcome;
+    };
+    hasErrors: boolean;
+    durationMs: number;
+}
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
 interface SessionObservabilityServiceDeps {
     sessionService: Pick<SessionService, 'cleanupSession'>;
     transcriptService?: TranscriptService;
@@ -19,28 +44,34 @@ interface IngestSessionObservabilityInput {
     audioBuffer?: Buffer;
 }
 
+function errorToString(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
 export function createSessionObservabilityService(deps: SessionObservabilityServiceDeps) {
     return {
-        async ingestObservability(input: IngestSessionObservabilityInput): Promise<void> {
+        async ingestObservability(
+            input: IngestSessionObservabilityInput
+        ): Promise<ObservabilityResult> {
             const { payload, audioBuffer } = input;
+            const start = Date.now();
+
+            // ---- Step 1 & 2: Transcript + Audio ----
+
+            let transcript: StepOutcome = { status: 'skipped', reason: 'no_report_or_deps' };
+            let audio: StepOutcome = { status: 'skipped', reason: 'no_transcript' };
 
             if (payload.sessionReport && deps.transcriptService && deps.sessionStore) {
                 try {
                     const sessionData = await deps.sessionStore.get(payload.roomName);
-                    const sessionId = payload.sessionId || sessionData?.sessionId || randomUUID();
+                    const sessionId =
+                        payload.sessionId || sessionData?.sessionId || randomUUID();
                     const agentId = sessionData?.agentConfig?.agent_id ?? null;
                     const orgId = sessionData?.orgId || payload.orgId || null;
                     const createdByUserId = sessionData?.createdByUserId ?? null;
 
                     if (!orgId) {
-                        logger.warn(
-                            {
-                                event: 'transcript_persist_missing_org_id',
-                                roomName: payload.roomName,
-                                sessionId,
-                            },
-                            'Missing orgId; skipping transcript persistence'
-                        );
+                        transcript = { status: 'skipped', reason: 'missing_org_id' };
                     } else {
                         if (!payload.sessionId && !sessionData?.sessionId) {
                             logger.warn(
@@ -63,39 +94,64 @@ export function createSessionObservabilityService(deps: SessionObservabilityServ
                             closeReason: payload.closeReason ?? null,
                         });
 
+                        transcript = { status: 'ok' };
+
+                        // Audio (only attempted after successful transcript persistence)
                         if (audioBuffer && deps.audioStorageService) {
                             try {
                                 await deps.audioStorageService.save(sessionId, audioBuffer);
+                                audio = { status: 'ok' };
                             } catch (error) {
-                                logger.error(
-                                    {
-                                        err: error,
-                                        event: 'audio_recording_save_failed',
-                                        sessionId,
-                                    },
-                                    'Failed to save audio recording'
-                                );
+                                audio = { status: 'error', error: errorToString(error) };
                             }
+                        } else if (!audioBuffer) {
+                            audio = { status: 'skipped', reason: 'no_audio' };
+                        } else {
+                            audio = { status: 'skipped', reason: 'no_storage_service' };
                         }
                     }
                 } catch (error) {
-                    logger.error({
-                        err: error,
-                        event: 'transcript_persist_failed',
-                        roomName: payload.roomName,
-                    });
+                    transcript = { status: 'error', error: errorToString(error) };
                 }
             }
 
-            try {
-                await deps.sessionService.cleanupSession(payload.roomName);
-            } catch (error) {
-                logger.error({
-                    err: error,
-                    event: 'session_cleanup_failed',
+            // ---- Step 3 & 4: Room + Store cleanup ----
+
+            const cleanup = await deps.sessionService.cleanupSession(payload.roomName);
+
+            const roomDelete: StepOutcome =
+                cleanup.roomDelete.status === 'error'
+                    ? { status: 'error', error: errorToString(cleanup.roomDelete.error) }
+                    : cleanup.roomDelete.status === 'already_gone'
+                      ? { status: 'ok', reason: 'already_gone' }
+                      : { status: 'ok' };
+
+            const storeDelete: StepOutcome =
+                cleanup.storeDelete.status === 'error'
+                    ? { status: 'error', error: errorToString(cleanup.storeDelete.error) }
+                    : { status: 'ok' };
+
+            // ---- Summary ----
+
+            const steps = { transcript, audio, roomDelete, storeDelete };
+            const hasErrors = Object.values(steps).some((s) => s.status === 'error');
+            const durationMs = Date.now() - start;
+
+            logger[hasErrors ? 'warn' : 'info'](
+                {
+                    event: 'session_observability_complete',
                     roomName: payload.roomName,
-                });
-            }
+                    sessionId: payload.sessionId,
+                    steps,
+                    hasErrors,
+                    durationMs,
+                },
+                hasErrors
+                    ? 'Session observability completed with errors'
+                    : 'Session observability completed'
+            );
+
+            return { steps, hasErrors, durationMs };
         },
     };
 }

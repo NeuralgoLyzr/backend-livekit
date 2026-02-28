@@ -3,6 +3,8 @@ import type * as Crypto from 'crypto';
 
 import { setRequiredEnv } from './testUtils.js';
 
+const CLEANUP_OK = { roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } };
+
 function makePayload(overrides?: Record<string, unknown>) {
     return {
         roomName: 'room-abc',
@@ -29,7 +31,7 @@ describe('sessionObservabilityService (unit)', () => {
 
     it('resolves session data, persists transcript, and runs cleanup', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue(undefined);
+        const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
         const get = vi.fn().mockResolvedValue({
             sessionId: '00000000-0000-4000-8000-000000000099',
             orgId: '96f0cee4-bb87-4477-8eff-577ef2780615',
@@ -52,10 +54,11 @@ describe('sessionObservabilityService (unit)', () => {
             sessionStore: { get } as never,
         });
 
-        await service.ingestObservability({
+        const result = await service.ingestObservability({
             payload: makePayload({ orgId: '96f0cee4-bb87-4477-8eff-577ef2780614' }),
         });
 
+        expect(result.hasErrors).toBe(false);
         expect(get).toHaveBeenCalledWith('room-abc');
         expect(saveFromObservability).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -79,7 +82,7 @@ describe('sessionObservabilityService (unit)', () => {
         });
 
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue(undefined);
+        const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
         const get = vi.fn().mockResolvedValue(undefined);
 
         const { createSessionObservabilityService } = await import(
@@ -105,7 +108,7 @@ describe('sessionObservabilityService (unit)', () => {
 
     it('skips transcript persistence when orgId cannot be resolved', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue(undefined);
+        const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
         const saveAudio = vi.fn().mockResolvedValue('audio.ogg');
         const get = vi.fn().mockResolvedValue(undefined);
 
@@ -120,11 +123,13 @@ describe('sessionObservabilityService (unit)', () => {
             audioStorageService: { save: saveAudio } as never,
         });
 
-        await service.ingestObservability({
+        const result = await service.ingestObservability({
             payload: makePayload({ orgId: undefined }),
             audioBuffer: Buffer.from('fake-ogg-data'),
         });
 
+        expect(result.steps.transcript.status).toBe('skipped');
+        expect(result.steps.transcript.reason).toBe('missing_org_id');
         expect(saveFromObservability).not.toHaveBeenCalled();
         expect(saveAudio).not.toHaveBeenCalled();
         expect(cleanupSession).toHaveBeenCalledWith('room-abc');
@@ -132,7 +137,7 @@ describe('sessionObservabilityService (unit)', () => {
 
     it('saves audio when available and transcript persistence is possible', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue(undefined);
+        const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
         const saveAudio = vi.fn().mockResolvedValue('audio.ogg');
 
         const { createSessionObservabilityService } = await import(
@@ -160,11 +165,11 @@ describe('sessionObservabilityService (unit)', () => {
 
     it('swallows and logs audio save failures', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue(undefined);
+        const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
         const saveAudio = vi.fn().mockRejectedValue(new Error('disk full'));
 
         const { logger } = await import('../src/lib/logger.ts');
-        const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+        const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
 
         const { createSessionObservabilityService } = await import(
             '../src/services/sessionObservabilityService.ts'
@@ -177,28 +182,27 @@ describe('sessionObservabilityService (unit)', () => {
             audioStorageService: { save: saveAudio } as never,
         });
 
-        await expect(
-            service.ingestObservability({
-                payload: makePayload(),
-                audioBuffer: Buffer.from('fake-ogg-data'),
-            })
-        ).resolves.toBeUndefined();
+        const result = await service.ingestObservability({
+            payload: makePayload(),
+            audioBuffer: Buffer.from('fake-ogg-data'),
+        });
 
-        expect(errorSpy).toHaveBeenCalledWith(
+        expect(result.steps.audio.status).toBe('error');
+        expect(warnSpy).toHaveBeenCalledWith(
             expect.objectContaining({
-                event: 'audio_recording_save_failed',
-                sessionId: '00000000-0000-4000-8000-000000000000',
+                event: 'session_observability_complete',
+                hasErrors: true,
             }),
-            'Failed to save audio recording'
+            'Session observability completed with errors'
         );
     });
 
     it('swallows and logs transcript persistence failures and still cleans up', async () => {
         const saveFromObservability = vi.fn().mockRejectedValue(new Error('db down'));
-        const cleanupSession = vi.fn().mockResolvedValue(undefined);
+        const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
 
         const { logger } = await import('../src/lib/logger.ts');
-        const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+        const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
 
         const { createSessionObservabilityService } = await import(
             '../src/services/sessionObservabilityService.ts'
@@ -210,27 +214,30 @@ describe('sessionObservabilityService (unit)', () => {
             sessionStore: { get: vi.fn().mockResolvedValue(undefined) } as never,
         });
 
-        await expect(
-            service.ingestObservability({
-                payload: makePayload(),
-            })
-        ).resolves.toBeUndefined();
+        const result = await service.ingestObservability({
+            payload: makePayload(),
+        });
 
-        expect(errorSpy).toHaveBeenCalledWith(
+        expect(result.steps.transcript.status).toBe('error');
+        expect(warnSpy).toHaveBeenCalledWith(
             expect.objectContaining({
-                event: 'transcript_persist_failed',
-                roomName: 'room-abc',
-            })
+                event: 'session_observability_complete',
+                hasErrors: true,
+            }),
+            'Session observability completed with errors'
         );
         expect(cleanupSession).toHaveBeenCalledWith('room-abc');
     });
 
     it('swallows and logs cleanup failures', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockRejectedValue(new Error('redis down'));
+        const cleanupSession = vi.fn().mockResolvedValue({
+            roomDelete: { status: 'error', error: new Error('redis down') },
+            storeDelete: { status: 'ok' },
+        });
 
         const { logger } = await import('../src/lib/logger.ts');
-        const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+        const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
 
         const { createSessionObservabilityService } = await import(
             '../src/services/sessionObservabilityService.ts'
@@ -242,23 +249,23 @@ describe('sessionObservabilityService (unit)', () => {
             sessionStore: { get: vi.fn().mockResolvedValue(undefined) } as never,
         });
 
-        await expect(
-            service.ingestObservability({
-                payload: makePayload(),
-            })
-        ).resolves.toBeUndefined();
+        const result = await service.ingestObservability({
+            payload: makePayload(),
+        });
 
-        expect(errorSpy).toHaveBeenCalledWith(
+        expect(result.steps.roomDelete.status).toBe('error');
+        expect(warnSpy).toHaveBeenCalledWith(
             expect.objectContaining({
-                event: 'session_cleanup_failed',
-                roomName: 'room-abc',
-            })
+                event: 'session_observability_complete',
+                hasErrors: true,
+            }),
+            'Session observability completed with errors'
         );
     });
 
     it('does not persist when sessionReport is missing and still cleans up', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue(undefined);
+        const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
         const get = vi.fn().mockResolvedValue(undefined);
 
         const { createSessionObservabilityService } = await import(
@@ -271,10 +278,11 @@ describe('sessionObservabilityService (unit)', () => {
             sessionStore: { get } as never,
         });
 
-        await service.ingestObservability({
+        const result = await service.ingestObservability({
             payload: makePayload({ sessionReport: undefined }),
         });
 
+        expect(result.steps.transcript.status).toBe('skipped');
         expect(get).not.toHaveBeenCalled();
         expect(saveFromObservability).not.toHaveBeenCalled();
         expect(cleanupSession).toHaveBeenCalledWith('room-abc');

@@ -16,6 +16,14 @@ export interface RedisSessionStoreOptions {
 const DEFAULT_KEY_PREFIX = 'session:';
 const DEFAULT_SCAN_COUNT = 100;
 
+function safeRedisHost(redisUrl: string): string {
+    try {
+        return new URL(redisUrl).host || 'unknown';
+    } catch {
+        return 'unknown';
+    }
+}
+
 export class RedisSessionStore implements SessionStorePort {
     private readonly client: RedisClientType;
     private readonly keyPrefix: string;
@@ -47,6 +55,17 @@ export class RedisSessionStore implements SessionStorePort {
                 'Redis session store client error'
             );
         });
+
+        logger.info(
+            {
+                event: 'session_store_redis_initialized',
+                redisHost: safeRedisHost(options.redisUrl),
+                keyPrefix: this.keyPrefix,
+                sessionIdIndexPrefix: this.sessionIdIndexPrefix,
+                ttlSeconds: this.ttlSeconds ?? null,
+            },
+            'Initialized Redis session store adapter'
+        );
     }
 
     async set(roomName: string, data: SessionData): Promise<void> {
@@ -68,6 +87,18 @@ export class RedisSessionStore implements SessionStorePort {
         if (existingSessionId && existingSessionId !== data.sessionId) {
             await this.client.del(this.sessionIdKeyFor(existingSessionId));
         }
+
+        logger.info(
+            {
+                event: 'session_store_redis_set',
+                roomName,
+                sessionId: data.sessionId,
+                hasOrgId: Boolean(data.orgId),
+                hasCreatedByUserId: Boolean(data.createdByUserId),
+                ttlSeconds: this.ttlSeconds ?? null,
+            },
+            'Wrote session record to Redis'
+        );
     }
 
     async get(roomName: string): Promise<SessionData | undefined> {
@@ -75,9 +106,27 @@ export class RedisSessionStore implements SessionStorePort {
 
         const value = await this.client.get(this.keyFor(roomName));
         if (!value) {
+            logger.warn(
+                {
+                    event: 'session_store_redis_get_miss',
+                    roomName,
+                    keyPrefix: this.keyPrefix,
+                },
+                'Redis session lookup by room name returned no record'
+            );
             return undefined;
         }
-        return this.parseSessionData(value);
+        const parsed = this.parseSessionData(value);
+        logger.info(
+            {
+                event: 'session_store_redis_get_hit',
+                roomName,
+                hasOrgId: Boolean(parsed?.orgId),
+                sessionId: parsed?.sessionId ?? null,
+            },
+            'Redis session lookup by room name returned a record'
+        );
+        return parsed;
     }
 
     async getBySessionId(
@@ -87,15 +136,40 @@ export class RedisSessionStore implements SessionStorePort {
 
         const roomName = await this.client.get(this.sessionIdKeyFor(sessionId));
         if (!roomName) {
+            logger.warn(
+                {
+                    event: 'session_store_redis_get_by_session_id_miss',
+                    sessionId,
+                },
+                'Redis session lookup by sessionId returned no room mapping'
+            );
             return undefined;
         }
 
         const data = await this.get(roomName);
         if (!data || data.sessionId !== sessionId) {
             await this.client.del(this.sessionIdKeyFor(sessionId));
+            logger.warn(
+                {
+                    event: 'session_store_redis_get_by_session_id_inconsistent',
+                    sessionId,
+                    roomName,
+                    foundSessionId: data?.sessionId ?? null,
+                },
+                'Redis sessionId mapping was stale or inconsistent and was removed'
+            );
             return undefined;
         }
 
+        logger.info(
+            {
+                event: 'session_store_redis_get_by_session_id_hit',
+                sessionId,
+                roomName,
+                hasOrgId: Boolean(data.orgId),
+            },
+            'Redis session lookup by sessionId returned a valid record'
+        );
         return { roomName, data };
     }
 
@@ -107,6 +181,15 @@ export class RedisSessionStore implements SessionStorePort {
         if (existingSessionId) {
             await this.client.del(this.sessionIdKeyFor(existingSessionId));
         }
+        logger.info(
+            {
+                event: 'session_store_redis_delete',
+                roomName,
+                deleted: deletedCount > 0,
+                sessionId: existingSessionId ?? null,
+            },
+            'Deleted session record from Redis'
+        );
         return deletedCount > 0;
     }
 
@@ -209,9 +292,25 @@ export class RedisSessionStore implements SessionStorePort {
         }
 
         if (!this.connectPromise) {
+            logger.info(
+                {
+                    event: 'session_store_redis_connect_start',
+                    keyPrefix: this.keyPrefix,
+                },
+                'Connecting Redis session store client'
+            );
             this.connectPromise = this.client
                 .connect()
-                .then(() => undefined)
+                .then(() => {
+                    logger.info(
+                        {
+                            event: 'session_store_redis_connect_success',
+                            keyPrefix: this.keyPrefix,
+                        },
+                        'Connected Redis session store client'
+                    );
+                    return undefined;
+                })
                 .finally(() => {
                     this.connectPromise = null;
                 });

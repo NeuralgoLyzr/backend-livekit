@@ -240,12 +240,15 @@ export function createSessionService(deps: SessionServiceDeps) {
                     throw new HttpError(404, 'Session not found for room');
                 }
                 if (!canAccessSession(auth, existing)) {
-                    throw new HttpError(404, 'Session not found for room');
+                    throw new HttpError(404, 'Session not found for room', 'access_denied');
                 }
             } else {
                 const match = await deps.store.getBySessionId(normalizedSessionId);
-                if (!match || !canAccessSession(auth, match.data)) {
+                if (!match) {
                     throw new HttpError(404, 'Session not found for sessionId');
+                }
+                if (!canAccessSession(auth, match.data)) {
+                    throw new HttpError(404, 'Session not found for sessionId', 'access_denied');
                 }
 
                 roomName = match.roomName;
@@ -267,20 +270,20 @@ export function createSessionService(deps: SessionServiceDeps) {
             });
         },
 
-        async cleanupSession(roomName: string): Promise<void> {
+        async cleanupSession(roomName: string) {
             const normalizedRoomName = roomName.trim();
 
+            const roomDelete = await deps.roomService.deleteRoom(normalizedRoomName);
+
+            let storeDelete: { status: 'ok' } | { status: 'error'; error: unknown };
             try {
-                await deps.roomService.deleteRoom(normalizedRoomName);
+                await deps.store.delete(normalizedRoomName);
+                storeDelete = { status: 'ok' };
             } catch (error) {
-                throw new HttpError(
-                    502,
-                    `Failed to delete LiveKit room "${normalizedRoomName}"`,
-                    error instanceof Error ? error.message : error
-                );
+                storeDelete = { status: 'error', error };
             }
 
-            await deps.store.delete(normalizedRoomName);
+            return { roomDelete, storeDelete };
         },
     };
 }

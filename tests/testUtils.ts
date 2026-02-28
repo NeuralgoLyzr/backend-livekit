@@ -109,7 +109,12 @@ export async function importFreshApp(options?: {
     ) {
         const createSession = options.sessionServiceMock?.createSession ?? vi.fn();
         const endSession = options.sessionServiceMock?.endSession ?? vi.fn();
-        const cleanupSession = options.sessionServiceMock?.cleanupSession ?? vi.fn();
+        const cleanupSession =
+            options.sessionServiceMock?.cleanupSession ??
+            vi.fn().mockResolvedValue({
+                roomDelete: { status: 'deleted' },
+                storeDelete: { status: 'ok' },
+            });
 
         const saveFromObservability = options.transcriptServiceMock?.saveFromObservability ?? vi.fn();
         const getBySessionId = options.transcriptServiceMock?.getBySessionId ?? vi.fn();

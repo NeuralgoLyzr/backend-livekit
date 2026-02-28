@@ -286,7 +286,7 @@ Client                    Backend                       Python Agent
 | `SESSION_STORE_PROVIDER` | `local` | Session storage backend (`local` or `redis`) |
 | `REDIS_URL` | — | Required when `SESSION_STORE_PROVIDER=redis` |
 | `REDIS_SESSION_KEY_PREFIX` | `session:` | Redis key prefix for session-store entries |
-| `REDIS_SESSION_TTL_SECONDS` | — | Optional Redis TTL for session-store entries |
+| `REDIS_SESSION_TTL_SECONDS` | `3600` | Optional Redis TTL for session-store entries (seconds). Default 1 hour. |
 | `RECORDING_STORAGE_PROVIDER` | `local` | Recording storage backend (`local` or `s3`) |
 | `RECORDINGS_DIR` | `data/recordings` | Local recording directory (when `RECORDING_STORAGE_PROVIDER=local`) |
 | `S3_RECORDINGS_BUCKET` | — | Required when `RECORDING_STORAGE_PROVIDER=s3` |

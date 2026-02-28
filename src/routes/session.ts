@@ -17,7 +17,6 @@ import type { PagosAuthService } from '../services/pagosAuthService.js';
 import { AGENT_DEFAULTS } from '../CONSTS.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { formatZodError } from '../lib/zod.js';
-import { logger } from '../lib/logger.js';
 import type { HttpWideEvent } from '../middleware/requestLogging.js';
 import { apiKeyAuthMiddleware } from '../middleware/apiKeyAuth.js';
 import type { RequestAuthLocals } from '../middleware/apiKeyAuth.js';
@@ -121,6 +120,7 @@ export function createSessionRouter(
             const wideEvent = res.locals.wideEvent as HttpWideEvent | undefined;
             if (wideEvent) {
                 wideEvent.userIdentity = parseResult.data.userIdentity;
+                wideEvent.agentId = parseResult.data.agentId;
             }
             const sessionCreateTimings: CreateSessionStepTimingsMs = {};
 
@@ -227,18 +227,7 @@ export function createSessionRouter(
             const payload = parseResult.data;
             const audioFile = req.file;
 
-            logger.info(
-                {
-                    event: 'session_observability_ingest',
-                    roomName: payload.roomName,
-                    hasConversationHistory: Boolean(payload.conversationHistory),
-                    hasSessionReport: Boolean(payload.sessionReport),
-                    hasAudioRecording: Boolean(audioFile),
-                },
-                'Ingested session observability payload'
-            );
-
-            await sessionObservabilityService.ingestObservability({
+            const result = await sessionObservabilityService.ingestObservability({
                 payload,
                 audioBuffer: audioFile?.buffer,
             });
@@ -247,6 +236,7 @@ export function createSessionRouter(
             if (wideEvent) {
                 wideEvent.roomName = payload.roomName;
                 wideEvent.sessionId = payload.sessionId ?? undefined;
+                wideEvent.observabilityHasErrors = result.hasErrors;
             }
 
             return res.status(204).send();

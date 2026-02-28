@@ -29,6 +29,10 @@ export interface HttpWideEvent {
      */
     roomName?: string;
     /**
+     * Agent template id (when the session was created from a saved agent).
+     */
+    agentId?: string;
+    /**
      * End-user identity for the session (when available).
      */
     userIdentity?: string;
@@ -36,6 +40,14 @@ export interface HttpWideEvent {
     durationMs?: number;
     outcome?: Outcome;
     operationTimingsMs?: Record<string, number>;
+    /**
+     * True when `/session/observability` completed with one or more step errors.
+     */
+    observabilityHasErrors?: boolean;
+    /**
+     * Error object attached by the global error handler (for 4xx/5xx responses).
+     */
+    err?: unknown;
     userAgent?: string;
     ip?: string;
 }
@@ -98,8 +110,9 @@ export function requestLoggingMiddleware(req: Request, res: Response, next: Next
         if (isHealthCheck && res.statusCode < 500) return;
 
         if (shouldSample(wideEvent, req)) {
-            // requestId will also be included by logger mixin, but keeping it explicit helps downstream queries.
-            logger.info(wideEvent);
+            const level =
+                res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info';
+            logger[level](wideEvent);
         }
     });
 

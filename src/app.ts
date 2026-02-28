@@ -11,7 +11,7 @@ import { config } from './config/index.js';
 import { services } from './composition.js';
 import { formatErrorResponse, getErrorStatus } from './lib/httpErrors.js';
 import { requestLoggingMiddleware } from './middleware/requestLogging.js';
-import { logger } from './lib/logger.js';
+import type { HttpWideEvent } from './middleware/requestLogging.js';
 import { apiKeyAuthMiddleware } from './middleware/apiKeyAuth.js';
 
 export const app: Express = express();
@@ -108,18 +108,15 @@ app.use((req: Request, res: Response) => {
     });
 });
 
-// Error handling middleware
-app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+// Error handling middleware – attach error to the wide event; the request
+// logging middleware will log it (at the appropriate level) on `finish`.
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     const statusCode = getErrorStatus(err);
-    logger.error(
-        {
-            event: 'http_error',
-            statusCode,
-            method: req.method,
-            path: req.originalUrl || req.url,
-            err,
-        },
-        'Request failed'
-    );
+
+    const wideEvent = res.locals.wideEvent as HttpWideEvent | undefined;
+    if (wideEvent) {
+        wideEvent.err = err;
+    }
+
     res.status(statusCode).json(formatErrorResponse(err));
 });

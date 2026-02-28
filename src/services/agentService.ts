@@ -142,42 +142,24 @@ export function createAgentService(deps: AgentServiceDeps) {
                 );
             }
 
-            try {
-                const dispatch = await deps.client.createDispatch(roomName, deps.agentName, {
-                    metadata,
-                });
+            const dispatch = await deps.client.createDispatch(roomName, deps.agentName, {
+                metadata,
+            });
 
-                logger.info(
-                    {
-                        event: 'livekit_agent_dispatch',
-                        roomName,
-                        agentName: deps.agentName,
-                        userId: agentConfig.user_id,
-                        sessionId: agentConfig.session_id,
-                        dispatchId: dispatch?.id ?? 'unknown',
-                        durationMs: Date.now() - start,
-                        outcome: 'success',
-                        agentConfig: summarizeAgentConfigForLog(agentConfig),
-                    },
-                    'Dispatched agent to room'
-                );
-            } catch (error) {
-                logger.error(
-                    {
-                        event: 'livekit_agent_dispatch',
-                        roomName,
-                        agentName: deps.agentName,
-                        userId: agentConfig.user_id,
-                        sessionId: agentConfig.session_id,
-                        durationMs: Date.now() - start,
-                        outcome: 'error',
-                        agentConfig: summarizeAgentConfigForLog(agentConfig),
-                        err: error,
-                    },
-                    'Failed to dispatch agent to room'
-                );
-                throw error;
-            }
+            logger.info(
+                {
+                    event: 'livekit_agent_dispatch',
+                    roomName,
+                    agentName: deps.agentName,
+                    userId: agentConfig.user_id,
+                    sessionId: agentConfig.session_id,
+                    dispatchId: dispatch?.id ?? 'unknown',
+                    durationMs: Date.now() - start,
+                    outcome: 'success',
+                    agentConfig: summarizeAgentConfigForLog(agentConfig),
+                },
+                'Dispatched agent to room'
+            );
         },
     };
 }

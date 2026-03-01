@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
     TwilioClient,
     isTwilioClientError,
-} from '../dist/telephony/adapters/twilio/twilioClient.js';
+} from '../src/telephony/adapters/twilio/twilioClient.js';
 
 const ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || '';
 const AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || '';
@@ -23,15 +23,16 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN)('TwilioClient (live)', () => {
     describe('credential validation', () => {
         it(
             'valid credentials returns { valid: true }',
+            { timeout: 30_000 },
             async () => {
                 const result = await client.verifyCredentials();
                 expect(result).toEqual({ valid: true });
-            },
-            { timeout: 30_000 }
+            }
         );
 
         it(
             'invalid auth token throws AUTH_INVALID',
+            { timeout: 30_000 },
             async () => {
                 const bad = new TwilioClient({
                     accountSid: ACCOUNT_SID,
@@ -46,8 +47,7 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN)('TwilioClient (live)', () => {
                         expect(err.code).toBe('AUTH_INVALID');
                     }
                 }
-            },
-            { timeout: 30_000 }
+            }
         );
     });
 
@@ -56,6 +56,7 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN)('TwilioClient (live)', () => {
     describe('phone number listing', () => {
         it(
             'list returns an array with correct shape',
+            { timeout: 30_000 },
             async () => {
                 const numbers = await client.listIncomingPhoneNumbers();
                 expect(Array.isArray(numbers)).toBe(true);
@@ -66,8 +67,7 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN)('TwilioClient (live)', () => {
                     expect(typeof first.sid).toBe('string');
                     expect(typeof first.phoneNumber).toBe('string');
                 }
-            },
-            { timeout: 30_000 }
+            }
         );
     });
 
@@ -76,6 +76,7 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN)('TwilioClient (live)', () => {
     describe('trunk lifecycle', () => {
         it(
             'create → list confirms → delete',
+            { timeout: 30_000 },
             async () => {
                 const suffix = Date.now();
                 const friendlyName = `test-live-${suffix}`;
@@ -93,8 +94,7 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN)('TwilioClient (live)', () => {
                 } finally {
                     await client.deleteTrunk(trunkSid);
                 }
-            },
-            { timeout: 30_000 }
+            }
         );
     });
 
@@ -103,6 +103,7 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN)('TwilioClient (live)', () => {
     describe('origination URL lifecycle', () => {
         it(
             'create trunk → create origination URL → list confirms → delete trunk cleans up',
+            { timeout: 30_000 },
             async () => {
                 const suffix = Date.now();
                 const { sid: trunkSid } = await client.createTrunk({
@@ -127,8 +128,7 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN)('TwilioClient (live)', () => {
                 } finally {
                     await client.deleteTrunk(trunkSid);
                 }
-            },
-            { timeout: 30_000 }
+            }
         );
     });
 
@@ -137,6 +137,7 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN)('TwilioClient (live)', () => {
     describe('phone number attach/detach lifecycle', () => {
         it(
             'attach → listTrunkPhoneNumbers confirms → detach → confirms removed',
+            { timeout: 30_000 },
             async () => {
                 const numbers = await client.listIncomingPhoneNumbers();
                 if (numbers.length === 0) {
@@ -168,8 +169,7 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN)('TwilioClient (live)', () => {
                 } finally {
                     await client.deleteTrunk(trunkSid);
                 }
-            },
-            { timeout: 30_000 }
+            }
         );
     });
 
@@ -178,6 +178,7 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN)('TwilioClient (live)', () => {
     describe('error handling', () => {
         it(
             'getIncomingPhoneNumber with invalid SID throws',
+            { timeout: 30_000 },
             async () => {
                 try {
                     await client.getIncomingPhoneNumber('PN_INVALID_SID_12345');
@@ -188,12 +189,12 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN)('TwilioClient (live)', () => {
                         expect(err.status).toBeGreaterThanOrEqual(400);
                     }
                 }
-            },
-            { timeout: 30_000 }
+            }
         );
 
         it(
             'deleteTrunk with invalid SID throws',
+            { timeout: 30_000 },
             async () => {
                 try {
                     await client.deleteTrunk('TK_INVALID_SID_12345');
@@ -204,8 +205,7 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN)('TwilioClient (live)', () => {
                         expect(err.status).toBeGreaterThanOrEqual(400);
                     }
                 }
-            },
-            { timeout: 30_000 }
+            }
         );
     });
 });

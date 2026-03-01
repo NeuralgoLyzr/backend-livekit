@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { HttpError } from '../dist/lib/httpErrors.js';
-import { apiKeyAuthMiddleware } from '../dist/middleware/apiKeyAuth.js';
-import type { AuthContext, PagosAuthService } from '../dist/services/pagosAuthService.js';
+import { HttpError } from '../src/lib/httpErrors.js';
+import { apiKeyAuthMiddleware } from '../src/middleware/apiKeyAuth.js';
+import type { AuthContext, PagosAuthService } from '../src/services/pagosAuthService.js';
 
 function makeAuthContext(overrides?: Partial<AuthContext>): AuthContext {
     return {

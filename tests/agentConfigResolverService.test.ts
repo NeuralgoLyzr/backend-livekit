@@ -6,7 +6,7 @@ describe('agentConfigResolverService (unit)', () => {
     it('merges overrides and normalizes tools + KB-derived RAG fields', async () => {
         setRequiredEnv();
         const { createAgentConfigResolverService } =
-            await import('../dist/services/agentConfigResolverService.js');
+            await import('../src/services/agentConfigResolverService.js');
 
         const storedConfig = {
             tools: ['get_weather'],
@@ -59,7 +59,7 @@ describe('agentConfigResolverService (unit)', () => {
     it('uses org-only scope when requester is admin', async () => {
         setRequiredEnv();
         const { createAgentConfigResolverService } =
-            await import('../dist/services/agentConfigResolverService.js');
+            await import('../src/services/agentConfigResolverService.js');
 
         const getById = vi.fn().mockResolvedValue({
             id: '507f1f77bcf86cd799439011',
@@ -97,8 +97,8 @@ describe('agentConfigResolverService (unit)', () => {
     it('throws 404 when agent is missing', async () => {
         setRequiredEnv();
         const { createAgentConfigResolverService } =
-            await import('../dist/services/agentConfigResolverService.js');
-        const { HttpError } = await import('../dist/lib/httpErrors.js');
+            await import('../src/services/agentConfigResolverService.js');
+        const { HttpError } = await import('../src/lib/httpErrors.js');
 
         const resolver = createAgentConfigResolverService({
             agentStore: {

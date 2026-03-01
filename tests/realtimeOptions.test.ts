@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('realtimeOptions', () => {
     it('exposes xAI provider metadata without backend warning fields', async () => {
-        const { getRealtimeOptions } = await import('../dist/config/realtimeOptions.js');
+        const { getRealtimeOptions } = await import('../src/config/realtimeOptions.js');
         const providers = getRealtimeOptions().providers;
         const xai = providers.find((provider) => provider.providerId === 'xai');
 
@@ -27,7 +27,7 @@ describe('realtimeOptions', () => {
     });
 
     it('does not set warning on realtime providers', async () => {
-        const { getRealtimeOptions } = await import('../dist/config/realtimeOptions.js');
+        const { getRealtimeOptions } = await import('../src/config/realtimeOptions.js');
 
         for (const provider of getRealtimeOptions().providers) {
             expect((provider as { warning?: unknown }).warning).toBeUndefined();

@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
     TelnyxClient,
     isTelnyxClientError,
-} from '../dist/telephony/adapters/telnyx/telnyxClient.js';
+} from '../src/telephony/adapters/telnyx/telnyxClient.js';
 
 const API_KEY = process.env.TELNYX_API_KEY || '';
 

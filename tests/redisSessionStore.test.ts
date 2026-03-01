@@ -68,7 +68,7 @@ describe('RedisSessionStore', () => {
 
     it('stores, reads, lists, and deletes sessions', async () => {
         const fakeRedis = createFakeRedisClient();
-        const { RedisSessionStore } = await import('../dist/adapters/sessionStore/redisSessionStore.js');
+        const { RedisSessionStore } = await import('../src/adapters/sessionStore/redisSessionStore.js');
 
         const store = new RedisSessionStore(
             {
@@ -96,7 +96,7 @@ describe('RedisSessionStore', () => {
 
     it('applies EX ttl to redis writes when ttlSeconds is configured', async () => {
         const fakeRedis = createFakeRedisClient();
-        const { RedisSessionStore } = await import('../dist/adapters/sessionStore/redisSessionStore.js');
+        const { RedisSessionStore } = await import('../src/adapters/sessionStore/redisSessionStore.js');
 
         const store = new RedisSessionStore(
             {
@@ -118,7 +118,7 @@ describe('RedisSessionStore', () => {
 
     it('skips malformed redis entries when listing sessions', async () => {
         const fakeRedis = createFakeRedisClient();
-        const { RedisSessionStore } = await import('../dist/adapters/sessionStore/redisSessionStore.js');
+        const { RedisSessionStore } = await import('../src/adapters/sessionStore/redisSessionStore.js');
 
         fakeRedis.setRaw('lk-session:room-valid', JSON.stringify(makeSessionData()));
         fakeRedis.setRaw('lk-session:room-invalid', '{"unexpected":"shape"}');
@@ -136,7 +136,7 @@ describe('RedisSessionStore', () => {
 
     it('returns undefined when get reads malformed JSON', async () => {
         const fakeRedis = createFakeRedisClient();
-        const { RedisSessionStore } = await import('../dist/adapters/sessionStore/redisSessionStore.js');
+        const { RedisSessionStore } = await import('../src/adapters/sessionStore/redisSessionStore.js');
 
         fakeRedis.setRaw('session:room-bad-json', 'not-json');
         const store = new RedisSessionStore(
@@ -151,7 +151,7 @@ describe('RedisSessionStore', () => {
 
     it('updates sessionId index when the room sessionId changes', async () => {
         const fakeRedis = createFakeRedisClient();
-        const { RedisSessionStore } = await import('../dist/adapters/sessionStore/redisSessionStore.js');
+        const { RedisSessionStore } = await import('../src/adapters/sessionStore/redisSessionStore.js');
 
         const store = new RedisSessionStore(
             {
@@ -181,7 +181,7 @@ describe('RedisSessionStore', () => {
 
     it('propagates redis entries command failures', async () => {
         const fakeRedis = createFakeRedisClient();
-        const { RedisSessionStore } = await import('../dist/adapters/sessionStore/redisSessionStore.js');
+        const { RedisSessionStore } = await import('../src/adapters/sessionStore/redisSessionStore.js');
 
         fakeRedis.setRaw('session:room-1', JSON.stringify(makeSessionData()));
         fakeRedis.client.sendCommand.mockRejectedValueOnce(new Error('redis down'));
@@ -197,7 +197,7 @@ describe('RedisSessionStore', () => {
 
     it('propagates connection failures', async () => {
         const fakeRedis = createFakeRedisClient();
-        const { RedisSessionStore } = await import('../dist/adapters/sessionStore/redisSessionStore.js');
+        const { RedisSessionStore } = await import('../src/adapters/sessionStore/redisSessionStore.js');
 
         fakeRedis.client.connect.mockRejectedValueOnce(new Error('connection refused'));
         const store = new RedisSessionStore(

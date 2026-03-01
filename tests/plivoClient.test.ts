@@ -3,7 +3,7 @@ import {
     PlivoClient,
     isPlivoClientError,
     type PlivoClientError,
-} from '../dist/telephony/adapters/plivo/plivoClient.js';
+} from '../src/telephony/adapters/plivo/plivoClient.js';
 
 function jsonResponse(body: unknown, status = 200): Response {
     return new Response(JSON.stringify(body), {

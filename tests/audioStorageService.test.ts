@@ -13,7 +13,7 @@ describe('audio storage adapters', () => {
         const tempDir = await mkdtemp(path.join(os.tmpdir(), 'lk-audio-local-'));
         try {
             const { createLocalAudioStorage } = await import(
-                '../dist/adapters/audioStorage/localAudioStorage.js'
+                '../src/adapters/audioStorage/localAudioStorage.js'
             );
             const storage = createLocalAudioStorage({
                 recordingsDir: tempDir,
@@ -46,7 +46,7 @@ describe('audio storage adapters', () => {
             throw new Error('Unexpected command type');
         });
 
-        const { createS3AudioStorage } = await import('../dist/adapters/audioStorage/s3AudioStorage.js');
+        const { createS3AudioStorage } = await import('../src/adapters/audioStorage/s3AudioStorage.js');
         const storage = createS3AudioStorage(
             {
                 bucket: 'test-bucket',
@@ -81,7 +81,7 @@ describe('audio storage adapters', () => {
             return {};
         });
 
-        const { createS3AudioStorage } = await import('../dist/adapters/audioStorage/s3AudioStorage.js');
+        const { createS3AudioStorage } = await import('../src/adapters/audioStorage/s3AudioStorage.js');
         const storage = createS3AudioStorage(
             {
                 bucket: 'test-bucket',

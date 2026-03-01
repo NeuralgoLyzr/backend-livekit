@@ -5,14 +5,14 @@ import type {
     CreateIntegrationInput,
     StoredIntegration,
     TelephonyIntegrationStorePort,
-} from '../dist/telephony/ports/telephonyIntegrationStorePort.js';
+} from '../src/telephony/ports/telephonyIntegrationStorePort.js';
 import type {
     StoredBinding,
     TelephonyBindingStorePort,
     UpsertBindingInput,
-} from '../dist/telephony/ports/telephonyBindingStorePort.js';
+} from '../src/telephony/ports/telephonyBindingStorePort.js';
 
-vi.mock('../dist/telephony/adapters/twilio/twilioClient.js', () => {
+vi.mock('../src/telephony/adapters/twilio/twilioClient.js', () => {
     const MockTwilioClient = vi.fn();
     MockTwilioClient.prototype.verifyCredentials = vi.fn();
     MockTwilioClient.prototype.listIncomingPhoneNumbers = vi.fn();
@@ -32,8 +32,8 @@ vi.mock('../dist/telephony/adapters/twilio/twilioClient.js', () => {
     };
 });
 
-import { TwilioOnboardingService } from '../dist/telephony/management/twilioOnboardingService.js';
-import { TwilioClient } from '../dist/telephony/adapters/twilio/twilioClient.js';
+import { TwilioOnboardingService } from '../src/telephony/management/twilioOnboardingService.js';
+import { TwilioClient } from '../src/telephony/adapters/twilio/twilioClient.js';
 
 const ENCRYPTION_KEY = randomBytes(32);
 const SIP_HOST = 'sip.livekit.cloud';
@@ -226,7 +226,7 @@ describe('TwilioOnboardingService', () => {
     });
 
     it('listNumbers decrypts credentials and calls client', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({
                 accountSid: 'AC123',
@@ -255,7 +255,7 @@ describe('TwilioOnboardingService', () => {
     });
 
     it('connectNumber ensures trunk and attaches phone number, then upserts binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({
                 accountSid: 'AC123',
@@ -296,7 +296,7 @@ describe('TwilioOnboardingService', () => {
     });
 
     it('connectNumber rejects when requested e164 does not match provider number', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({
                 accountSid: 'AC123',
@@ -328,7 +328,7 @@ describe('TwilioOnboardingService', () => {
     });
 
     it('connectNumber stores the provided agentId on the binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({
                 accountSid: 'AC123',
@@ -366,7 +366,7 @@ describe('TwilioOnboardingService', () => {
     });
 
     it('disconnectNumber deprovisions and deletes binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({
                 accountSid: 'AC123',
@@ -394,7 +394,7 @@ describe('TwilioOnboardingService', () => {
     });
 
     it('disconnectNumber calls removeInboundSetupForDid and detaches from trunk', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({ accountSid: 'AC123', authToken: 'secret' }),
             ENCRYPTION_KEY
@@ -465,7 +465,7 @@ describe('TwilioOnboardingService', () => {
     });
 
     it('disconnectNumber does not delete binding when detach fails', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({ accountSid: 'AC123', authToken: 'secret' }),
             ENCRYPTION_KEY
@@ -491,7 +491,7 @@ describe('TwilioOnboardingService', () => {
     });
 
     it('disconnectNumber does not detach or delete when removeInboundSetupForDid fails', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({ accountSid: 'AC123', authToken: 'secret' }),
             ENCRYPTION_KEY
@@ -527,7 +527,7 @@ describe('TwilioOnboardingService', () => {
     });
 
     it('disconnectNumber skips provider detach when trunkSid missing but still deletes binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({ accountSid: 'AC123', authToken: 'secret' }),
             ENCRYPTION_KEY
@@ -575,7 +575,7 @@ describe('TwilioOnboardingService', () => {
     });
 
     it('deleteIntegration cascades number disconnects then deletes integration', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({
                 accountSid: 'AC123',
@@ -603,7 +603,7 @@ describe('TwilioOnboardingService', () => {
     });
 
     it('deleteIntegration calls removeInboundSetupForDid for each binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({ accountSid: 'AC123', authToken: 'secret' }),
             ENCRYPTION_KEY

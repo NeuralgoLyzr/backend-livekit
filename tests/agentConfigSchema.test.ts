@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('AgentConfigSchema pipeline voice_id validation', () => {
     it('rejects pipeline engine when voice_id is missing', async () => {
-        const { AgentConfigSchema } = await import('../dist/types/index.js');
+        const { AgentConfigSchema } = await import('../src/types/index.js');
 
         const result = AgentConfigSchema.safeParse({
             engine: {
@@ -17,7 +17,7 @@ describe('AgentConfigSchema pipeline voice_id validation', () => {
     });
 
     it('rejects engine_pipeline stash when voice_id is missing', async () => {
-        const { AgentConfigSchema } = await import('../dist/types/index.js');
+        const { AgentConfigSchema } = await import('../src/types/index.js');
 
         const result = AgentConfigSchema.safeParse({
             engine_pipeline: {

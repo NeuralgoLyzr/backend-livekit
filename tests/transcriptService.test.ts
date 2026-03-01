@@ -20,7 +20,7 @@ describe('transcriptService (unit)', () => {
 
     it('parses observability report and computes transcript fields', async () => {
         setRequiredEnv();
-        const { createTranscriptService } = await import('../dist/services/transcriptService.js');
+        const { createTranscriptService } = await import('../src/services/transcriptService.js');
 
         const store = buildStore();
         store.save.mockResolvedValue({ id: 'tr-1' });
@@ -96,7 +96,7 @@ describe('transcriptService (unit)', () => {
 
     it('falls back to timestamp when events are empty', async () => {
         setRequiredEnv();
-        const { createTranscriptService } = await import('../dist/services/transcriptService.js');
+        const { createTranscriptService } = await import('../src/services/transcriptService.js');
 
         const store = buildStore();
         store.save.mockResolvedValue({ id: 'tr-2' });
@@ -129,7 +129,7 @@ describe('transcriptService (unit)', () => {
 
     it('rejects report when first event timestamp is not numeric', async () => {
         setRequiredEnv();
-        const { createTranscriptService } = await import('../dist/services/transcriptService.js');
+        const { createTranscriptService } = await import('../src/services/transcriptService.js');
 
         const store = buildStore();
         const service = createTranscriptService({
@@ -158,7 +158,7 @@ describe('transcriptService (unit)', () => {
 
     it('rejects report when last event timestamp is not numeric', async () => {
         setRequiredEnv();
-        const { createTranscriptService } = await import('../dist/services/transcriptService.js');
+        const { createTranscriptService } = await import('../src/services/transcriptService.js');
 
         const store = buildStore();
         const service = createTranscriptService({
@@ -187,7 +187,7 @@ describe('transcriptService (unit)', () => {
 
     it('returns null and skips persistence when report is invalid', async () => {
         setRequiredEnv();
-        const { createTranscriptService } = await import('../dist/services/transcriptService.js');
+        const { createTranscriptService } = await import('../src/services/transcriptService.js');
 
         const store = buildStore();
         const service = createTranscriptService({
@@ -210,9 +210,9 @@ describe('transcriptService (unit)', () => {
 
     it('logs validation warnings with bounded issues for invalid reports', async () => {
         setRequiredEnv();
-        const { logger } = await import('../dist/lib/logger.js');
+        const { logger } = await import('../src/lib/logger.js');
         const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
-        const { createTranscriptService } = await import('../dist/services/transcriptService.js');
+        const { createTranscriptService } = await import('../src/services/transcriptService.js');
 
         const store = buildStore();
         const service = createTranscriptService({
@@ -243,9 +243,9 @@ describe('transcriptService (unit)', () => {
 
     it('logs at most 5 validation issues when report has many issues', async () => {
         setRequiredEnv();
-        const { logger } = await import('../dist/lib/logger.js');
+        const { logger } = await import('../src/lib/logger.js');
         const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
-        const { createTranscriptService } = await import('../dist/services/transcriptService.js');
+        const { createTranscriptService } = await import('../src/services/transcriptService.js');
 
         const store = buildStore();
         const service = createTranscriptService({
@@ -291,7 +291,7 @@ describe('transcriptService (unit)', () => {
 
     it('delegates read/list calls to transcript store', async () => {
         setRequiredEnv();
-        const { createTranscriptService } = await import('../dist/services/transcriptService.js');
+        const { createTranscriptService } = await import('../src/services/transcriptService.js');
 
         const store = buildStore();
         store.findBySessionId.mockResolvedValue({ id: 'a' });

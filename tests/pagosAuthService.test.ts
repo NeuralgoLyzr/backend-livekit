@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createPagosAuthService } from '../dist/services/pagosAuthService.js';
+import { createPagosAuthService } from '../src/services/pagosAuthService.js';
 
 function okJson(payload: unknown): Response {
     return new Response(JSON.stringify(payload), {

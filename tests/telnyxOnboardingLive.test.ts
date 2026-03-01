@@ -19,14 +19,14 @@ import type {
     StoredIntegration,
     TelephonyIntegrationStorePort,
     TelephonyProvider,
-} from '../dist/telephony/ports/telephonyIntegrationStorePort.js';
+} from '../src/telephony/ports/telephonyIntegrationStorePort.js';
 import type {
     StoredBinding,
     TelephonyBindingStorePort,
     UpsertBindingInput,
-} from '../dist/telephony/ports/telephonyBindingStorePort.js';
-import type { LiveKitTelephonyProvisioningPort } from '../dist/telephony/management/livekitTelephonyProvisioningService.js';
-import { TelnyxOnboardingService } from '../dist/telephony/management/telnyxOnboardingService.js';
+} from '../src/telephony/ports/telephonyBindingStorePort.js';
+import type { LiveKitTelephonyProvisioningPort } from '../src/telephony/management/livekitTelephonyProvisioningService.js';
+import { TelnyxOnboardingService } from '../src/telephony/management/telnyxOnboardingService.js';
 
 const API_KEY = process.env.TELNYX_API_KEY || '';
 const TEST_PHONE_NUMBER = process.env.TELNYX_TEST_PHONE_NUMBER || '';
@@ -162,23 +162,24 @@ describe.skipIf(!API_KEY || !TEST_PHONE_NUMBER)(
 
         it(
             'verifyApiKey succeeds with valid key',
+            { timeout: 30_000 },
             async () => {
                 const result = await service.verifyApiKey(API_KEY);
                 expect(result).toEqual({ valid: true });
-            },
-            { timeout: 30_000 }
+            }
         );
 
         it(
             'verifyApiKey rejects invalid key',
+            { timeout: 30_000 },
             async () => {
                 await expect(service.verifyApiKey('KEY_invalid_12345')).rejects.toThrow();
-            },
-            { timeout: 30_000 }
+            }
         );
 
         it(
             'full lifecycle: createIntegration → listNumbers → connectNumber → disconnectNumber → deleteIntegration',
+            { timeout: 120_000 },
             async () => {
                 // 1. Create integration
                 const integration = await service.createIntegration({
@@ -231,12 +232,12 @@ describe.skipIf(!API_KEY || !TEST_PHONE_NUMBER)(
                     await service.deleteIntegration(integration.id).catch(() => {});
                     throw err;
                 }
-            },
-            { timeout: 120_000 }
+            }
         );
 
         it(
             'deleteIntegration cascades: auto-disconnects bound numbers',
+            { timeout: 120_000 },
             async () => {
                 // 1. Create integration
                 const integration = await service.createIntegration({
@@ -267,8 +268,7 @@ describe.skipIf(!API_KEY || !TEST_PHONE_NUMBER)(
                     await service.deleteIntegration(integration.id).catch(() => {});
                     throw err;
                 }
-            },
-            { timeout: 120_000 }
+            }
         );
     }
 );

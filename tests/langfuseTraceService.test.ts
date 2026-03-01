@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createLangfuseTraceService } from '../dist/services/langfuseTraceService.js';
+import { createLangfuseTraceService } from '../src/services/langfuseTraceService.js';
 
 function okJson(payload: unknown): Response {
     return new Response(JSON.stringify(payload), {

@@ -17,7 +17,7 @@ describe('agentService (unit)', () => {
 
     it('dispatches agent with correct metadata', async () => {
         setRequiredEnv();
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'dispatch-1' });
         const svc = createAgentService({
@@ -48,8 +48,8 @@ describe('agentService (unit)', () => {
 
     it('applies AGENT_DEFAULTS for missing fields in metadata', async () => {
         setRequiredEnv();
-        const { createAgentService } = await import('../dist/services/agentService.js');
-        const { AGENT_DEFAULTS } = await import('../dist/CONSTS.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
+        const { AGENT_DEFAULTS } = await import('../src/CONSTS.js');
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-2' });
         const svc = createAgentService({
@@ -69,7 +69,7 @@ describe('agentService (unit)', () => {
 
     it('forwards background_audio only when enabled', async () => {
         setRequiredEnv();
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-3' });
         const svc = createAgentService({
@@ -98,7 +98,7 @@ describe('agentService (unit)', () => {
 
     it('forwards avatar config when provided', async () => {
         setRequiredEnv();
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-4' });
         const svc = createAgentService({
@@ -124,7 +124,7 @@ describe('agentService (unit)', () => {
 
     it('omits avatar when not provided', async () => {
         setRequiredEnv();
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-5' });
         const svc = createAgentService({
@@ -139,7 +139,7 @@ describe('agentService (unit)', () => {
 
     it('forwards provider-specific avatar payloads for all supported providers', async () => {
         setRequiredEnv();
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-avatar' });
         const svc = createAgentService({
@@ -177,7 +177,7 @@ describe('agentService (unit)', () => {
 
     it('defaults avatar provider to anam and enabled to false when omitted', async () => {
         setRequiredEnv();
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-avatar-default' });
         const svc = createAgentService({
@@ -199,7 +199,7 @@ describe('agentService (unit)', () => {
 
     it('falls back to base avatar shape for unknown provider values', async () => {
         setRequiredEnv();
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-avatar-unknown-provider' });
         const svc = createAgentService({
@@ -225,7 +225,7 @@ describe('agentService (unit)', () => {
 
     it('forwards managed_agents only when enabled', async () => {
         setRequiredEnv();
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-6' });
         const svc = createAgentService({
@@ -259,7 +259,7 @@ describe('agentService (unit)', () => {
 
     it('rethrows client errors', async () => {
         setRequiredEnv();
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
 
         const createDispatch = vi.fn().mockRejectedValue(new Error('network fail'));
         const svc = createAgentService({
@@ -272,7 +272,7 @@ describe('agentService (unit)', () => {
 
     it('maps apiKey correctly in metadata', async () => {
         setRequiredEnv();
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-7' });
         const svc = createAgentService({
@@ -287,7 +287,7 @@ describe('agentService (unit)', () => {
 
     it('forwards pronunciation fields', async () => {
         setRequiredEnv();
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-8' });
         const svc = createAgentService({
@@ -307,7 +307,7 @@ describe('agentService (unit)', () => {
 
     it('forwards audio_recording_enabled flag', async () => {
         setRequiredEnv();
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-9' });
         const svc = createAgentService({
@@ -322,9 +322,9 @@ describe('agentService (unit)', () => {
 
     it('logs dispatch attempt only in development mode', async () => {
         setRequiredEnv({ APP_ENV: 'production' });
-        const { logger } = await import('../dist/lib/logger.js');
+        const { logger } = await import('../src/lib/logger.js');
         const debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => undefined);
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'd-prod' });
         const svc = createAgentService({
@@ -359,12 +359,12 @@ describe('agentService (unit)', () => {
 
     it('logs successful dispatch details with dispatch id and duration', async () => {
         setRequiredEnv();
-        const { logger } = await import('../dist/lib/logger.js');
+        const { logger } = await import('../src/lib/logger.js');
         const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
         const nowSpy = vi.spyOn(Date, 'now');
         nowSpy.mockReturnValueOnce(1000).mockReturnValueOnce(1250);
 
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
         const createDispatch = vi.fn().mockResolvedValue({ id: 'dispatch-42' });
         const svc = createAgentService({
             client: { createDispatch } as unknown as AgentDispatchClient,
@@ -394,12 +394,12 @@ describe('agentService (unit)', () => {
 
     it('logs fallback dispatchId when client returns undefined', async () => {
         setRequiredEnv();
-        const { logger } = await import('../dist/lib/logger.js');
+        const { logger } = await import('../src/lib/logger.js');
         const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
         const nowSpy = vi.spyOn(Date, 'now');
         nowSpy.mockReturnValueOnce(2000).mockReturnValueOnce(2060);
 
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
         const createDispatch = vi.fn().mockResolvedValue(undefined);
         const svc = createAgentService({
             client: { createDispatch } as unknown as AgentDispatchClient,
@@ -425,10 +425,10 @@ describe('agentService (unit)', () => {
 
     it('rethrows dispatch client errors without logging (error handler logs them)', async () => {
         setRequiredEnv();
-        const { logger } = await import('../dist/lib/logger.js');
+        const { logger } = await import('../src/lib/logger.js');
         const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
 
-        const { createAgentService } = await import('../dist/services/agentService.js');
+        const { createAgentService } = await import('../src/services/agentService.js');
         const createDispatch = vi.fn().mockRejectedValue(new Error('network fail'));
         const svc = createAgentService({
             client: { createDispatch } as unknown as AgentDispatchClient,

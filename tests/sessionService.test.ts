@@ -66,7 +66,7 @@ describe('sessionService (unit)', () => {
         const dispatchAgent = vi.fn().mockResolvedValue(undefined);
         const deps = buildDeps({ dispatchAgent });
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const svc = createSessionService(deps);
 
         const agentConfig: Record<string, unknown> = {
@@ -106,7 +106,7 @@ describe('sessionService (unit)', () => {
         const dispatchAgent = vi.fn().mockResolvedValue(undefined);
         const deps = buildDeps({ createUserToken, dispatchAgent });
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const svc = createSessionService(deps);
 
         const result = await svc.createSession({
@@ -142,7 +142,7 @@ describe('sessionService (unit)', () => {
         const nowValues = [1000.2, 1001.0, 1003.9, 1005.2, 1008.6, 1010.1, 1015.4, 1020.2, 1026.8, 1030.3, 1035.9, 1040.4];
         const now = vi.fn(() => nowValues.shift() ?? 1040.4);
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const svc = createSessionService(deps);
 
         await svc.createSession({ userIdentity: 'user_timing' }, { timingsMs, now });
@@ -165,7 +165,7 @@ describe('sessionService (unit)', () => {
             dispatchAgent: vi.fn().mockRejectedValue(new Error('nope')),
         });
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const svc = createSessionService(deps);
 
         await expect(svc.createSession({ userIdentity: 'user_1' })).rejects.toMatchObject({
@@ -188,7 +188,7 @@ describe('sessionService (unit)', () => {
         const nowValues = [2000, 2001, 2004, 2005, 2008, 2010, 2012, 2015, 2022, 2025];
         const now = vi.fn(() => nowValues.shift() ?? 2025);
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const svc = createSessionService(deps);
 
         await expect(
@@ -210,11 +210,11 @@ describe('sessionService (unit)', () => {
         vi.resetModules();
         setRequiredEnv({ APP_ENV: 'production' });
 
-        const { logger } = await import('../dist/lib/logger.js');
+        const { logger } = await import('../src/lib/logger.js');
         const debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => undefined);
 
         const deps = buildDeps();
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const svc = createSessionService(deps);
 
         await svc.createSession({ userIdentity: 'user_prod', agentConfig: {} });
@@ -247,7 +247,7 @@ describe('sessionService (unit)', () => {
         const dispatchAgent = vi.fn().mockResolvedValue(undefined);
         const deps = buildDeps({ resolveByAgentId, dispatchAgent });
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const svc = createSessionService(deps);
 
         await svc.createSession({
@@ -282,7 +282,7 @@ describe('sessionService (unit)', () => {
         });
         const deps = buildDeps({ resolveByAgentId });
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const svc = createSessionService(deps);
 
         await svc.createSession({
@@ -308,7 +308,7 @@ describe('sessionService (unit)', () => {
         const resolveByAgentId = vi.fn().mockResolvedValue({});
         const deps = buildDeps({ resolveByAgentId });
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const svc = createSessionService(deps);
 
         await expect(
@@ -328,7 +328,7 @@ describe('sessionService (unit)', () => {
         vi.resetModules();
         setRequiredEnv();
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const deps = buildDeps();
         const svc = createSessionService(deps);
 
@@ -342,7 +342,7 @@ describe('sessionService (unit)', () => {
         vi.resetModules();
         setRequiredEnv();
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const deps = buildDeps();
         deps.store.set('room-1', {
             userIdentity: 'u',
@@ -362,7 +362,7 @@ describe('sessionService (unit)', () => {
         vi.resetModules();
         setRequiredEnv();
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const deps = buildDeps();
         deps.store.set('room-trim-end', {
             userIdentity: 'u',
@@ -382,7 +382,7 @@ describe('sessionService (unit)', () => {
         vi.resetModules();
         setRequiredEnv();
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const deps = buildDeps();
         const svc = createSessionService(deps);
 
@@ -399,7 +399,7 @@ describe('sessionService (unit)', () => {
         vi.resetModules();
         setRequiredEnv();
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const deps = buildDeps();
         deps.store.set('room-1', {
             userIdentity: 'u',
@@ -426,7 +426,7 @@ describe('sessionService (unit)', () => {
         vi.resetModules();
         setRequiredEnv();
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const deps = buildDeps();
         deps.store.set('room-1', {
             userIdentity: 'u',
@@ -453,7 +453,7 @@ describe('sessionService (unit)', () => {
         vi.resetModules();
         setRequiredEnv();
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const deps = buildDeps();
         deps.store.set('room-1', {
             userIdentity: 'u',
@@ -473,7 +473,7 @@ describe('sessionService (unit)', () => {
         vi.resetModules();
         setRequiredEnv();
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const deps = buildDeps();
         deps.store.set('room-trim-sid', {
             userIdentity: 'u',
@@ -493,7 +493,7 @@ describe('sessionService (unit)', () => {
         vi.resetModules();
         setRequiredEnv();
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const deps = buildDeps();
         deps.store.set('room-a', {
             userIdentity: 'u',
@@ -523,7 +523,7 @@ describe('sessionService (unit)', () => {
         vi.resetModules();
         setRequiredEnv();
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const store = createStore();
         store.set('room-direct-lookup', {
             userIdentity: 'u',
@@ -563,7 +563,7 @@ describe('sessionService (unit)', () => {
             createdAt: new Date().toISOString(),
         });
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const svc = createSessionService(deps);
 
         const result = await svc.cleanupSession('room-1');
@@ -585,7 +585,7 @@ describe('sessionService (unit)', () => {
             createdAt: new Date().toISOString(),
         });
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const svc = createSessionService(deps);
 
         const result = await svc.cleanupSession('  room-trim-clean  ');
@@ -607,7 +607,7 @@ describe('sessionService (unit)', () => {
             createdAt: new Date().toISOString(),
         });
 
-        const { createSessionService } = await import('../dist/services/sessionService.js');
+        const { createSessionService } = await import('../src/services/sessionService.js');
         const svc = createSessionService(deps);
 
         const result = await svc.cleanupSession('room-delete-fail');

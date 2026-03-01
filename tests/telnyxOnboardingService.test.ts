@@ -5,14 +5,14 @@ import type {
     TelephonyIntegrationStorePort,
     StoredIntegration,
     CreateIntegrationInput,
-} from '../dist/telephony/ports/telephonyIntegrationStorePort.js';
+} from '../src/telephony/ports/telephonyIntegrationStorePort.js';
 import type {
     TelephonyBindingStorePort,
     StoredBinding,
     UpsertBindingInput,
-} from '../dist/telephony/ports/telephonyBindingStorePort.js';
+} from '../src/telephony/ports/telephonyBindingStorePort.js';
 
-vi.mock('../dist/telephony/adapters/telnyx/telnyxClient.js', () => {
+vi.mock('../src/telephony/adapters/telnyx/telnyxClient.js', () => {
     const MockTelnyxClient = vi.fn();
     MockTelnyxClient.prototype.verifyCredentials = vi.fn();
     MockTelnyxClient.prototype.listPhoneNumbers = vi.fn();
@@ -34,8 +34,8 @@ vi.mock('../dist/telephony/adapters/telnyx/telnyxClient.js', () => {
     };
 });
 
-import { TelnyxOnboardingService } from '../dist/telephony/management/telnyxOnboardingService.js';
-import { TelnyxClient } from '../dist/telephony/adapters/telnyx/telnyxClient.js';
+import { TelnyxOnboardingService } from '../src/telephony/management/telnyxOnboardingService.js';
+import { TelnyxClient } from '../src/telephony/adapters/telnyx/telnyxClient.js';
 
 const ENCRYPTION_KEY = randomBytes(32);
 const SIP_HOST = 'sip.livekit.cloud';
@@ -224,7 +224,7 @@ describe('TelnyxOnboardingService', () => {
     // ── listNumbers ───────────────────────────────────────────────────
 
     it('listNumbers decrypts key and calls client', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_list_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -255,7 +255,7 @@ describe('TelnyxOnboardingService', () => {
     // ── connectNumber ─────────────────────────────────────────────────
 
     it('connectNumber assigns number and creates binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_connect_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -289,7 +289,7 @@ describe('TelnyxOnboardingService', () => {
     });
 
     it('connectNumber rejects when requested e164 does not match provider number', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_connect_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -315,7 +315,7 @@ describe('TelnyxOnboardingService', () => {
     });
 
     it('connectNumber stores the provided agentId on the binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_connect_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -349,7 +349,7 @@ describe('TelnyxOnboardingService', () => {
     // ── disconnectNumber ──────────────────────────────────────────────
 
     it('disconnectNumber deprovisions and deletes binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_disconnect_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -371,7 +371,7 @@ describe('TelnyxOnboardingService', () => {
     });
 
     it('disconnectNumber calls removeInboundSetupForDid before unassigning from provider', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_order_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -430,7 +430,7 @@ describe('TelnyxOnboardingService', () => {
     });
 
     it('disconnectNumber does not delete binding when unassign fails', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_unassign_fail', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -453,7 +453,7 @@ describe('TelnyxOnboardingService', () => {
     });
 
     it('disconnectNumber does not delete binding when removeInboundSetupForDid fails', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_lk_fail', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -510,7 +510,7 @@ describe('TelnyxOnboardingService', () => {
     });
 
     it('deleteIntegration cascades number disconnects then deletes integration', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_delete_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -533,7 +533,7 @@ describe('TelnyxOnboardingService', () => {
     });
 
     it('deleteIntegration calls removeInboundSetupForDid for each binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_cascade_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -581,7 +581,7 @@ describe('TelnyxOnboardingService', () => {
     });
 
     it('deleteIntegration skips non-telnyx bindings in cascade', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_skip_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();

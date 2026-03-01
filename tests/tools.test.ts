@@ -6,14 +6,14 @@ describe('config/tools', () => {
     describe('normalizeTools', () => {
         it('returns empty array when no tools provided', async () => {
             setRequiredEnv();
-            const { normalizeTools } = await import('../dist/config/tools.js');
+            const { normalizeTools } = await import('../src/config/tools.js');
             expect(normalizeTools({})).toEqual([]);
             expect(normalizeTools()).toEqual([]);
         });
 
         it('returns empty array when tools is not an array', async () => {
             setRequiredEnv();
-            const { normalizeTools } = await import('../dist/config/tools.js');
+            const { normalizeTools } = await import('../src/config/tools.js');
             expect(normalizeTools({ tools: '*' as unknown as string[] })).toEqual([]);
             expect(normalizeTools({ tools: null as unknown as string[] })).toEqual([]);
             expect(normalizeTools({ tools: { value: 'get_weather' } as unknown as string[] })).toEqual(
@@ -23,7 +23,7 @@ describe('config/tools', () => {
 
         it('adds knowledge-base tool when tools is non-array and KB is enabled', async () => {
             setRequiredEnv();
-            const { normalizeTools } = await import('../dist/config/tools.js');
+            const { normalizeTools } = await import('../src/config/tools.js');
             expect(
                 normalizeTools({
                     tools: '*' as unknown as string[],
@@ -34,7 +34,7 @@ describe('config/tools', () => {
 
         it('filters out unknown tool IDs', async () => {
             setRequiredEnv();
-            const { normalizeTools } = await import('../dist/config/tools.js');
+            const { normalizeTools } = await import('../src/config/tools.js');
             expect(normalizeTools({ tools: ['get_weather', 'fake_tool'] })).toEqual([
                 'get_weather',
             ]);
@@ -42,7 +42,7 @@ describe('config/tools', () => {
 
         it('deduplicates tool IDs', async () => {
             setRequiredEnv();
-            const { normalizeTools } = await import('../dist/config/tools.js');
+            const { normalizeTools } = await import('../src/config/tools.js');
             expect(normalizeTools({ tools: ['get_weather', 'get_weather'] })).toEqual([
                 'get_weather',
             ]);
@@ -50,7 +50,7 @@ describe('config/tools', () => {
 
         it('auto-adds search_knowledge_base when KB is enabled', async () => {
             setRequiredEnv();
-            const { normalizeTools } = await import('../dist/config/tools.js');
+            const { normalizeTools } = await import('../src/config/tools.js');
             const result = normalizeTools({
                 tools: ['get_weather'],
                 knowledge_base: { enabled: true },
@@ -61,7 +61,7 @@ describe('config/tools', () => {
 
         it('does not add search_knowledge_base when KB is disabled', async () => {
             setRequiredEnv();
-            const { normalizeTools } = await import('../dist/config/tools.js');
+            const { normalizeTools } = await import('../src/config/tools.js');
             const result = normalizeTools({
                 tools: ['get_weather'],
                 knowledge_base: { enabled: false },
@@ -71,7 +71,7 @@ describe('config/tools', () => {
 
         it('wildcard "*" enables all registry tools (except KB when KB not enabled)', async () => {
             setRequiredEnv();
-            const { normalizeTools, toolRegistry } = await import('../dist/config/tools.js');
+            const { normalizeTools, toolRegistry } = await import('../src/config/tools.js');
             const result = normalizeTools({ tools: ['*'] });
             const expected = toolRegistry
                 .map((t: { id: string }) => t.id)
@@ -81,7 +81,7 @@ describe('config/tools', () => {
 
         it('wildcard "all" enables all registry tools', async () => {
             setRequiredEnv();
-            const { normalizeTools } = await import('../dist/config/tools.js');
+            const { normalizeTools } = await import('../src/config/tools.js');
             const result = normalizeTools({ tools: ['all'] });
             expect(result.length).toBeGreaterThan(0);
             expect(result).not.toContain('search_knowledge_base');
@@ -89,7 +89,7 @@ describe('config/tools', () => {
 
         it('wildcard behavior still applies when mixed with non-wildcard entries', async () => {
             setRequiredEnv();
-            const { normalizeTools, toolRegistry } = await import('../dist/config/tools.js');
+            const { normalizeTools, toolRegistry } = await import('../src/config/tools.js');
             const result = normalizeTools({ tools: ['get_weather', '*', 'unknown_tool'] });
             const expected = toolRegistry
                 .map((t: { id: string }) => t.id)
@@ -99,7 +99,7 @@ describe('config/tools', () => {
 
         it('trims wildcard values before matching', async () => {
             setRequiredEnv();
-            const { normalizeTools } = await import('../dist/config/tools.js');
+            const { normalizeTools } = await import('../src/config/tools.js');
             const result = normalizeTools({ tools: ['  all  '] });
             expect(result.length).toBeGreaterThan(0);
             expect(result).not.toContain('search_knowledge_base');
@@ -107,7 +107,7 @@ describe('config/tools', () => {
 
         it('wildcard with KB enabled includes search_knowledge_base', async () => {
             setRequiredEnv();
-            const { normalizeTools, toolRegistry } = await import('../dist/config/tools.js');
+            const { normalizeTools, toolRegistry } = await import('../src/config/tools.js');
             const result = normalizeTools({
                 tools: ['*'],
                 knowledge_base: { enabled: true },
@@ -117,7 +117,7 @@ describe('config/tools', () => {
 
         it('ignores non-string tool entries', async () => {
             setRequiredEnv();
-            const { normalizeTools } = await import('../dist/config/tools.js');
+            const { normalizeTools } = await import('../src/config/tools.js');
             const result = normalizeTools({
                 tools: [42, null, 'get_weather', undefined] as unknown as string[],
             });
@@ -126,7 +126,7 @@ describe('config/tools', () => {
 
         it('does not duplicate knowledge-base tool when already requested', async () => {
             setRequiredEnv();
-            const { normalizeTools } = await import('../dist/config/tools.js');
+            const { normalizeTools } = await import('../src/config/tools.js');
             const result = normalizeTools({
                 tools: ['search_knowledge_base', 'get_weather'],
                 knowledge_base: { enabled: true },
@@ -139,7 +139,7 @@ describe('config/tools', () => {
     describe('deriveRagConfigFromKnowledgeBase', () => {
         it('returns empty object when KB is not enabled', async () => {
             setRequiredEnv();
-            const { deriveRagConfigFromKnowledgeBase } = await import('../dist/config/tools.js');
+            const { deriveRagConfigFromKnowledgeBase } = await import('../src/config/tools.js');
             expect(deriveRagConfigFromKnowledgeBase({})).toEqual({});
             expect(
                 deriveRagConfigFromKnowledgeBase({ knowledge_base: { enabled: false } })
@@ -148,7 +148,7 @@ describe('config/tools', () => {
 
         it('extracts lyzr_rag when KB is enabled', async () => {
             setRequiredEnv();
-            const { deriveRagConfigFromKnowledgeBase } = await import('../dist/config/tools.js');
+            const { deriveRagConfigFromKnowledgeBase } = await import('../src/config/tools.js');
             const lyzr_rag = { base_url: 'http://x', rag_id: 'r', rag_name: 'n' };
             const result = deriveRagConfigFromKnowledgeBase({
                 knowledge_base: { enabled: true, lyzr_rag },
@@ -158,7 +158,7 @@ describe('config/tools', () => {
 
         it('defaults agentic_rag to empty array when KB enabled but none provided', async () => {
             setRequiredEnv();
-            const { deriveRagConfigFromKnowledgeBase } = await import('../dist/config/tools.js');
+            const { deriveRagConfigFromKnowledgeBase } = await import('../src/config/tools.js');
             const result = deriveRagConfigFromKnowledgeBase({
                 knowledge_base: { enabled: true },
             });
@@ -170,7 +170,7 @@ describe('config/tools', () => {
     describe('finalizeAgentConfig', () => {
         it('normalizes tools and derives RAG fields in one pass', async () => {
             setRequiredEnv();
-            const { finalizeAgentConfig } = await import('../dist/config/tools.js');
+            const { finalizeAgentConfig } = await import('../src/config/tools.js');
             const result = finalizeAgentConfig({
                 tools: ['get_weather', 'unknown'],
                 knowledge_base: {
@@ -185,7 +185,7 @@ describe('config/tools', () => {
 
         it('preserves other config fields unchanged', async () => {
             setRequiredEnv();
-            const { finalizeAgentConfig } = await import('../dist/config/tools.js');
+            const { finalizeAgentConfig } = await import('../src/config/tools.js');
             const result = finalizeAgentConfig({
                 prompt: 'hello',
                 vad_enabled: false,

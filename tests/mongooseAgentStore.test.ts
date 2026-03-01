@@ -53,8 +53,8 @@ const Agent: {
     create: vi.fn(),
 };
 
-vi.mock('../dist/db/mongoose.js', () => ({ connectMongo }));
-vi.mock('../dist/models/agentModel.js', () => ({
+vi.mock('../src/db/mongoose.js', () => ({ connectMongo }));
+vi.mock('../src/models/agentModel.js', () => ({
     getAgentModel: () => Agent as unknown as AgentModelStub,
 }));
 
@@ -87,7 +87,7 @@ describe('MongooseAgentStore (unit)', () => {
         Agent.find.mockReturnValue(findQuery);
 
         const { MongooseAgentStore } =
-            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+            await import('../src/adapters/mongoose/mongooseAgentStore.js');
         const store = new MongooseAgentStore();
 
         const result = await store.list({
@@ -130,7 +130,7 @@ describe('MongooseAgentStore (unit)', () => {
         Agent.findOne.mockReturnValue({ lean: vi.fn(async () => row) });
 
         const { MongooseAgentStore } =
-            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+            await import('../src/adapters/mongoose/mongooseAgentStore.js');
         const store = new MongooseAgentStore();
 
         await store.getById('507f1f77bcf86cd799439011', {
@@ -151,7 +151,7 @@ describe('MongooseAgentStore (unit)', () => {
         Agent.findOne.mockReturnValue({ lean: vi.fn(async () => null) });
 
         const { MongooseAgentStore } =
-            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+            await import('../src/adapters/mongoose/mongooseAgentStore.js');
         const store = new MongooseAgentStore();
 
         const result = await store.update(
@@ -180,7 +180,7 @@ describe('MongooseAgentStore (unit)', () => {
         Agent.create.mockResolvedValue({ toObject: () => storedRow });
 
         const { MongooseAgentStore } =
-            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+            await import('../src/adapters/mongoose/mongooseAgentStore.js');
         const store = new MongooseAgentStore();
 
         const created = await store.create({
@@ -246,7 +246,7 @@ describe('MongooseAgentStore (unit)', () => {
         Agent.findOneAndUpdate.mockReturnValue({ lean: vi.fn(async () => updated) });
 
         const { MongooseAgentStore } =
-            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+            await import('../src/adapters/mongoose/mongooseAgentStore.js');
         const store = new MongooseAgentStore();
 
         await store.update(
@@ -314,7 +314,7 @@ describe('MongooseAgentStore (unit)', () => {
         });
 
         const { MongooseAgentStore } =
-            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+            await import('../src/adapters/mongoose/mongooseAgentStore.js');
         const store = new MongooseAgentStore();
 
         const versions = await store.listVersions('507f1f77bcf86cd799439011', {
@@ -392,7 +392,7 @@ describe('MongooseAgentStore (unit)', () => {
         });
 
         const { MongooseAgentStore } =
-            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+            await import('../src/adapters/mongoose/mongooseAgentStore.js');
         const store = new MongooseAgentStore();
 
         const activated = await store.activateVersion(
@@ -438,7 +438,7 @@ describe('MongooseAgentStore (unit)', () => {
         Agent.updateOne.mockResolvedValue({ modifiedCount: 1 });
 
         const { MongooseAgentStore } =
-            await import('../dist/adapters/mongoose/mongooseAgentStore.js');
+            await import('../src/adapters/mongoose/mongooseAgentStore.js');
         const store = new MongooseAgentStore();
 
         const deleted = await store.delete('507f1f77bcf86cd799439011', {

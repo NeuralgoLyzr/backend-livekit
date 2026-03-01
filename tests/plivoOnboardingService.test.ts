@@ -5,14 +5,14 @@ import type {
     CreateIntegrationInput,
     StoredIntegration,
     TelephonyIntegrationStorePort,
-} from '../dist/telephony/ports/telephonyIntegrationStorePort.js';
+} from '../src/telephony/ports/telephonyIntegrationStorePort.js';
 import type {
     StoredBinding,
     TelephonyBindingStorePort,
     UpsertBindingInput,
-} from '../dist/telephony/ports/telephonyBindingStorePort.js';
+} from '../src/telephony/ports/telephonyBindingStorePort.js';
 
-vi.mock('../dist/telephony/adapters/plivo/plivoClient.js', () => {
+vi.mock('../src/telephony/adapters/plivo/plivoClient.js', () => {
     const MockPlivoClient = vi.fn();
     MockPlivoClient.prototype.verifyCredentials = vi.fn();
     MockPlivoClient.prototype.listPhoneNumbers = vi.fn();
@@ -31,8 +31,8 @@ vi.mock('../dist/telephony/adapters/plivo/plivoClient.js', () => {
     };
 });
 
-import { PlivoOnboardingService } from '../dist/telephony/management/plivoOnboardingService.js';
-import { PlivoClient } from '../dist/telephony/adapters/plivo/plivoClient.js';
+import { PlivoOnboardingService } from '../src/telephony/management/plivoOnboardingService.js';
+import { PlivoClient } from '../src/telephony/adapters/plivo/plivoClient.js';
 
 const ENCRYPTION_KEY = randomBytes(32);
 const SIP_HOST = 'sip.livekit.cloud';
@@ -222,7 +222,7 @@ describe('PlivoOnboardingService', () => {
     });
 
     it('listNumbers decrypts credentials and calls client', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({
                 authId: 'MAUTH123',
@@ -249,7 +249,7 @@ describe('PlivoOnboardingService', () => {
     });
 
     it('connectNumber sets app_id to trunk and upserts binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({
                 authId: 'MAUTH123',
@@ -292,7 +292,7 @@ describe('PlivoOnboardingService', () => {
     });
 
     it('connectNumber rejects when requested e164 does not match provider number', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({
                 authId: 'MAUTH123',
@@ -322,7 +322,7 @@ describe('PlivoOnboardingService', () => {
     });
 
     it('disconnectNumber deprovisions, clears app_id, and deletes binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({
                 authId: 'MAUTH123',
@@ -349,7 +349,7 @@ describe('PlivoOnboardingService', () => {
     });
 
     it('deleteIntegration cascades number disconnects and deletes provider resources', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({ authId: 'MAUTH123', authToken: 'secret' }),
             ENCRYPTION_KEY

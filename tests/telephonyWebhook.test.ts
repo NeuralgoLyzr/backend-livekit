@@ -15,7 +15,7 @@ describe('telephony webhook', () => {
         setRequiredEnv({ TELEPHONY_ENABLED: 'true' });
 
         // Avoid pulling in LiveKit SDK wiring.
-        vi.doMock('../dist/telephony/telephonyModule.js', () => ({
+        vi.doMock('../src/telephony/telephonyModule.js', () => ({
             telephonyModule: {
                 webhookVerifier: { verifyAndDecode: vi.fn() },
                 sessionService: { handleLiveKitEvent: vi.fn().mockResolvedValue(undefined) },
@@ -25,11 +25,11 @@ describe('telephony webhook', () => {
                 },
             },
         }));
-        vi.doMock('../dist/telephony/adapters/livekit/eventNormalizer.js', () => ({
+        vi.doMock('../src/telephony/adapters/livekit/eventNormalizer.js', () => ({
             normalizeLiveKitWebhookEvent: vi.fn((evt: unknown) => evt),
         }));
 
-        const telephonyRouter = (await import('../dist/routes/telephony.js')).default;
+        const telephonyRouter = (await import('../src/routes/telephony.js')).default;
 
         const bare = express();
         bare.use(express.json());
@@ -47,7 +47,7 @@ describe('telephony webhook', () => {
         vi.resetModules();
         setRequiredEnv({ TELEPHONY_ENABLED: 'true', APP_ENV: 'dev' });
 
-        vi.doMock('../dist/telephony/telephonyModule.js', () => ({
+        vi.doMock('../src/telephony/telephonyModule.js', () => ({
             telephonyModule: {
                 webhookVerifier: {
                     verifyAndDecode: vi.fn().mockRejectedValue(new Error('bad signature')),
@@ -59,11 +59,11 @@ describe('telephony webhook', () => {
                 },
             },
         }));
-        vi.doMock('../dist/telephony/adapters/livekit/eventNormalizer.js', () => ({
+        vi.doMock('../src/telephony/adapters/livekit/eventNormalizer.js', () => ({
             normalizeLiveKitWebhookEvent: vi.fn((evt: unknown) => evt),
         }));
 
-        const app = (await import('../dist/app.js')).app;
+        const app = (await import('../src/app.js')).app;
 
         const res = await request(app)
             .post('/telephony/livekit-webhook')
@@ -86,7 +86,7 @@ describe('telephony webhook', () => {
         const handleLiveKitEvent = vi.fn().mockResolvedValue(undefined);
         const normalizeLiveKitWebhookEvent = vi.fn((evt: unknown) => ({ normalized: evt }));
 
-        vi.doMock('../dist/telephony/telephonyModule.js', () => ({
+        vi.doMock('../src/telephony/telephonyModule.js', () => ({
             telephonyModule: {
                 webhookVerifier: { verifyAndDecode },
                 sessionService: { handleLiveKitEvent },
@@ -96,11 +96,11 @@ describe('telephony webhook', () => {
                 },
             },
         }));
-        vi.doMock('../dist/telephony/adapters/livekit/eventNormalizer.js', () => ({
+        vi.doMock('../src/telephony/adapters/livekit/eventNormalizer.js', () => ({
             normalizeLiveKitWebhookEvent,
         }));
 
-        const app = (await import('../dist/app.js')).app;
+        const app = (await import('../src/app.js')).app;
 
         const res = await request(app)
             .post('/telephony/livekit-webhook')

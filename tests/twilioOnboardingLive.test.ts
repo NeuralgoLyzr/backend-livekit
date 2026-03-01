@@ -19,14 +19,14 @@ import type {
     StoredIntegration,
     TelephonyIntegrationStorePort,
     TelephonyProvider,
-} from '../dist/telephony/ports/telephonyIntegrationStorePort.js';
+} from '../src/telephony/ports/telephonyIntegrationStorePort.js';
 import type {
     StoredBinding,
     TelephonyBindingStorePort,
     UpsertBindingInput,
-} from '../dist/telephony/ports/telephonyBindingStorePort.js';
-import type { LiveKitTelephonyProvisioningPort } from '../dist/telephony/management/livekitTelephonyProvisioningService.js';
-import { TwilioOnboardingService } from '../dist/telephony/management/twilioOnboardingService.js';
+} from '../src/telephony/ports/telephonyBindingStorePort.js';
+import type { LiveKitTelephonyProvisioningPort } from '../src/telephony/management/livekitTelephonyProvisioningService.js';
+import { TwilioOnboardingService } from '../src/telephony/management/twilioOnboardingService.js';
 
 const ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || '';
 const AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || '';
@@ -163,18 +163,19 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN || !TEST_PHONE_NUMBER)(
 
         it(
             'verifyCredentials succeeds with valid credentials',
+            { timeout: 30_000 },
             async () => {
                 const result = await service.verifyCredentials({
                     accountSid: ACCOUNT_SID,
                     authToken: AUTH_TOKEN,
                 });
                 expect(result).toEqual({ valid: true });
-            },
-            { timeout: 30_000 }
+            }
         );
 
         it(
             'verifyCredentials rejects invalid credentials',
+            { timeout: 30_000 },
             async () => {
                 await expect(
                     service.verifyCredentials({
@@ -182,12 +183,12 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN || !TEST_PHONE_NUMBER)(
                         authToken: 'invalid_token_12345',
                     })
                 ).rejects.toThrow();
-            },
-            { timeout: 30_000 }
+            }
         );
 
         it(
             'full lifecycle: createIntegration → listNumbers → connectNumber → disconnectNumber → deleteIntegration',
+            { timeout: 120_000 },
             async () => {
                 // 1. Create integration
                 const integration = await service.createIntegration({
@@ -240,12 +241,12 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN || !TEST_PHONE_NUMBER)(
                     await service.deleteIntegration(integration.id).catch(() => {});
                     throw err;
                 }
-            },
-            { timeout: 120_000 }
+            }
         );
 
         it(
             'deleteIntegration cascades: auto-disconnects bound numbers',
+            { timeout: 120_000 },
             async () => {
                 // 1. Create integration
                 const integration = await service.createIntegration({
@@ -277,8 +278,7 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN || !TEST_PHONE_NUMBER)(
                     await service.deleteIntegration(integration.id).catch(() => {});
                     throw err;
                 }
-            },
-            { timeout: 120_000 }
+            }
         );
     }
 );

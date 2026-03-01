@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ListUpdate } from '@livekit/protocol';
 import type { SIPDispatchRuleInfo, SIPInboundTrunkInfo } from 'livekit-server-sdk';
 
-import { LiveKitTelephonyProvisioningService } from '../dist/telephony/management/livekitTelephonyProvisioningService.js';
+import { LiveKitTelephonyProvisioningService } from '../src/telephony/management/livekitTelephonyProvisioningService.js';
 
 function makeTrunk(
     overrides?: Partial<{ sipTrunkId: string; name: string; numbers: string[] }>

@@ -155,15 +155,15 @@ describe('session routes (integration)', () => {
             { InMemorySessionStore },
             { getErrorStatus, formatErrorResponse },
         ] = await Promise.all([
-            import('../dist/routes/session.js'),
-            import('../dist/services/sessionService.js'),
-            import('../dist/services/tokenService.js'),
-            import('../dist/services/agentService.js'),
-            import('../dist/services/roomService.js'),
-            import('../dist/services/agentConfigResolverService.js'),
-            import('../dist/services/transcriptService.js'),
-            import('../dist/lib/storage.js'),
-            import('../dist/lib/httpErrors.js'),
+            import('../src/routes/session.js'),
+            import('../src/services/sessionService.js'),
+            import('../src/services/tokenService.js'),
+            import('../src/services/agentService.js'),
+            import('../src/services/roomService.js'),
+            import('../src/services/agentConfigResolverService.js'),
+            import('../src/services/transcriptService.js'),
+            import('../src/lib/storage.js'),
+            import('../src/lib/httpErrors.js'),
         ]);
 
         const sessionStore = new InMemorySessionStore();
@@ -300,15 +300,15 @@ describe('session routes (integration)', () => {
             { InMemorySessionStore },
             { getErrorStatus, formatErrorResponse },
         ] = await Promise.all([
-            import('../dist/routes/session.js'),
-            import('../dist/services/sessionService.js'),
-            import('../dist/services/tokenService.js'),
-            import('../dist/services/agentService.js'),
-            import('../dist/services/roomService.js'),
-            import('../dist/services/agentConfigResolverService.js'),
-            import('../dist/services/transcriptService.js'),
-            import('../dist/lib/storage.js'),
-            import('../dist/lib/httpErrors.js'),
+            import('../src/routes/session.js'),
+            import('../src/services/sessionService.js'),
+            import('../src/services/tokenService.js'),
+            import('../src/services/agentService.js'),
+            import('../src/services/roomService.js'),
+            import('../src/services/agentConfigResolverService.js'),
+            import('../src/services/transcriptService.js'),
+            import('../src/lib/storage.js'),
+            import('../src/lib/httpErrors.js'),
         ]);
 
         const sessionStore = new InMemorySessionStore();

@@ -154,8 +154,8 @@ describe('agent dispatch metadata contract', () => {
         setRequiredEnv();
 
         const [{ createAgentService }, { AgentConfigSchema }] = await Promise.all([
-            import('../dist/services/agentService.js'),
-            import('../dist/types/index.js'),
+            import('../src/services/agentService.js'),
+            import('../src/types/index.js'),
         ]);
 
         const configResult = AgentConfigSchema.safeParse({
@@ -281,8 +281,8 @@ describe('agent dispatch metadata contract', () => {
         setRequiredEnv();
 
         const [{ createAgentService }, { AGENT_DEFAULTS }] = await Promise.all([
-            import('../dist/services/agentService.js'),
-            import('../dist/CONSTS.js'),
+            import('../src/services/agentService.js'),
+            import('../src/CONSTS.js'),
         ]);
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'dispatch-contract-2' });

@@ -766,11 +766,7 @@ export const SessionObservabilityIngestSchema = z
                 VALID_IDENTIFIER_REGEX,
                 'roomName can only contain letters, numbers, underscores, and hyphens'
             ),
-        sessionId: SessionIdSchema.optional(),
-        /**
-         * Optional org identifier for transcript persistence and filtering.
-         * If omitted, the backend will attempt to derive it from the session store.
-         */
+        sessionId: SessionIdSchema,
         orgId: z.string().uuid().optional(),
         sessionReport: SessionReportSchema.optional(),
         closeReason: z.string().nullable().optional(),

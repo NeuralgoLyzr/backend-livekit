@@ -20,6 +20,7 @@ import { formatZodError } from '../lib/zod.js';
 import type { HttpWideEvent } from '../middleware/requestLogging.js';
 import { apiKeyAuthMiddleware } from '../middleware/apiKeyAuth.js';
 import type { RequestAuthLocals } from '../middleware/apiKeyAuth.js';
+import { observabilityAuthMiddleware } from '../middleware/observabilityAuth.js';
 import { HttpError } from '../lib/httpErrors.js';
 import { createSessionObservabilityService } from '../services/sessionObservabilityService.js';
 
@@ -41,6 +42,7 @@ export function createSessionRouter(
         sessionStore?: SessionStorePort;
         pagosAuthService?: PagosAuthService;
         audioStorageService?: AudioStorageService;
+        observabilityIngestKey?: string;
     }
 ): Router {
     const router: Router = Router();
@@ -201,8 +203,13 @@ export function createSessionRouter(
         })
     );
 
+    const requireObservabilityAuth = observabilityAuthMiddleware(
+        deps?.observabilityIngestKey ?? ''
+    );
+
     router.post(
         '/observability',
+        requireObservabilityAuth,
         upload.single('audio'),
         asyncHandler(async (req, res) => {
             // Support both JSON and multipart payloads.
@@ -235,7 +242,7 @@ export function createSessionRouter(
             const wideEvent = res.locals.wideEvent as HttpWideEvent | undefined;
             if (wideEvent) {
                 wideEvent.roomName = payload.roomName;
-                wideEvent.sessionId = payload.sessionId ?? undefined;
+                wideEvent.sessionId = payload.sessionId;
                 wideEvent.observabilityHasErrors = result.hasErrors;
             }
 

@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type * as Crypto from 'crypto';
 
 import { setRequiredEnv } from './testUtils.js';
 
@@ -33,7 +32,7 @@ describe('sessionObservabilityService (unit)', () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
         const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
         const get = vi.fn().mockResolvedValue({
-            sessionId: '00000000-0000-4000-8000-000000000099',
+            sessionId: '00000000-0000-4000-8000-000000000000',
             orgId: '96f0cee4-bb87-4477-8eff-577ef2780615',
             createdByUserId: 'member_1',
             createdAt: new Date().toISOString(),
@@ -72,15 +71,39 @@ describe('sessionObservabilityService (unit)', () => {
         expect(cleanupSession).toHaveBeenCalledWith('room-abc');
     });
 
-    it('falls back to randomUUID when no sessionId is available', async () => {
-        vi.doMock('crypto', async () => {
-            const actual = await vi.importActual<Crypto>('crypto');
-            return {
-                ...actual,
-                randomUUID: () => '00000000-0000-4000-8000-000000000123',
-            };
+    it('uses store orgId and ignores payload orgId', async () => {
+        const saveFromObservability = vi.fn().mockResolvedValue(null);
+        const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
+        const storeOrgId = '11111111-1111-1111-1111-111111111111';
+        const payloadOrgId = '22222222-2222-2222-2222-222222222222';
+        const get = vi.fn().mockResolvedValue({
+            sessionId: '00000000-0000-4000-8000-000000000000',
+            orgId: storeOrgId,
+            createdByUserId: 'member_1',
+            createdAt: new Date().toISOString(),
+            userIdentity: 'user_1',
         });
 
+        const { createSessionObservabilityService } = await import(
+            '../src/services/sessionObservabilityService.ts'
+        );
+
+        const service = createSessionObservabilityService({
+            sessionService: { cleanupSession } as never,
+            transcriptService: { saveFromObservability } as never,
+            sessionStore: { get } as never,
+        });
+
+        await service.ingestObservability({
+            payload: makePayload({ orgId: payloadOrgId }),
+        });
+
+        expect(saveFromObservability).toHaveBeenCalledWith(
+            expect.objectContaining({ orgId: storeOrgId })
+        );
+    });
+
+    it('skips transcript when no session found in store', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
         const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
         const get = vi.fn().mockResolvedValue(undefined);
@@ -95,22 +118,58 @@ describe('sessionObservabilityService (unit)', () => {
             sessionStore: { get } as never,
         });
 
-        await service.ingestObservability({
-            payload: makePayload({ sessionId: undefined }),
+        const result = await service.ingestObservability({
+            payload: makePayload(),
         });
 
-        expect(saveFromObservability).toHaveBeenCalledWith(
-            expect.objectContaining({
-                sessionId: '00000000-0000-4000-8000-000000000123',
-            })
+        expect(result.steps.transcript.status).toBe('skipped');
+        expect(result.steps.transcript.reason).toBe('no_session_in_store');
+        expect(saveFromObservability).not.toHaveBeenCalled();
+        expect(cleanupSession).toHaveBeenCalledWith('room-abc');
+    });
+
+    it('rejects when sessionId does not match stored session', async () => {
+        const saveFromObservability = vi.fn().mockResolvedValue(null);
+        const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
+        const get = vi.fn().mockResolvedValue({
+            sessionId: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',
+            orgId: '96f0cee4-bb87-4477-8eff-577ef2780615',
+            createdByUserId: 'member_1',
+            createdAt: new Date().toISOString(),
+            userIdentity: 'user_1',
+        });
+
+        const { createSessionObservabilityService } = await import(
+            '../src/services/sessionObservabilityService.ts'
         );
+
+        const service = createSessionObservabilityService({
+            sessionService: { cleanupSession } as never,
+            transcriptService: { saveFromObservability } as never,
+            sessionStore: { get } as never,
+        });
+
+        await expect(
+            service.ingestObservability({
+                payload: makePayload({
+                    sessionId: '00000000-0000-4000-8000-000000000000',
+                }),
+            })
+        ).rejects.toThrow('sessionId does not match the session for this room');
+
+        expect(saveFromObservability).not.toHaveBeenCalled();
     });
 
     it('skips transcript persistence when orgId cannot be resolved', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
         const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
         const saveAudio = vi.fn().mockResolvedValue('audio.ogg');
-        const get = vi.fn().mockResolvedValue(undefined);
+        const get = vi.fn().mockResolvedValue({
+            sessionId: '00000000-0000-4000-8000-000000000000',
+            orgId: undefined,
+            createdAt: new Date().toISOString(),
+            userIdentity: 'user_1',
+        });
 
         const { createSessionObservabilityService } = await import(
             '../src/services/sessionObservabilityService.ts'
@@ -147,7 +206,14 @@ describe('sessionObservabilityService (unit)', () => {
         const service = createSessionObservabilityService({
             sessionService: { cleanupSession } as never,
             transcriptService: { saveFromObservability } as never,
-            sessionStore: { get: vi.fn().mockResolvedValue(undefined) } as never,
+            sessionStore: {
+                get: vi.fn().mockResolvedValue({
+                    sessionId: '00000000-0000-4000-8000-000000000000',
+                    orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                    createdAt: new Date().toISOString(),
+                    userIdentity: 'user_1',
+                }),
+            } as never,
             audioStorageService: { save: saveAudio } as never,
         });
 
@@ -178,7 +244,14 @@ describe('sessionObservabilityService (unit)', () => {
         const service = createSessionObservabilityService({
             sessionService: { cleanupSession } as never,
             transcriptService: { saveFromObservability } as never,
-            sessionStore: { get: vi.fn().mockResolvedValue(undefined) } as never,
+            sessionStore: {
+                get: vi.fn().mockResolvedValue({
+                    sessionId: '00000000-0000-4000-8000-000000000000',
+                    orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                    createdAt: new Date().toISOString(),
+                    userIdentity: 'user_1',
+                }),
+            } as never,
             audioStorageService: { save: saveAudio } as never,
         });
 
@@ -211,7 +284,14 @@ describe('sessionObservabilityService (unit)', () => {
         const service = createSessionObservabilityService({
             sessionService: { cleanupSession } as never,
             transcriptService: { saveFromObservability } as never,
-            sessionStore: { get: vi.fn().mockResolvedValue(undefined) } as never,
+            sessionStore: {
+                get: vi.fn().mockResolvedValue({
+                    sessionId: '00000000-0000-4000-8000-000000000000',
+                    orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                    createdAt: new Date().toISOString(),
+                    userIdentity: 'user_1',
+                }),
+            } as never,
         });
 
         const result = await service.ingestObservability({
@@ -246,7 +326,14 @@ describe('sessionObservabilityService (unit)', () => {
         const service = createSessionObservabilityService({
             sessionService: { cleanupSession } as never,
             transcriptService: { saveFromObservability } as never,
-            sessionStore: { get: vi.fn().mockResolvedValue(undefined) } as never,
+            sessionStore: {
+                get: vi.fn().mockResolvedValue({
+                    sessionId: '00000000-0000-4000-8000-000000000000',
+                    orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                    createdAt: new Date().toISOString(),
+                    userIdentity: 'user_1',
+                }),
+            } as never,
         });
 
         const result = await service.ingestObservability({
@@ -266,7 +353,12 @@ describe('sessionObservabilityService (unit)', () => {
     it('does not persist when sessionReport is missing and still cleans up', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
         const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
-        const get = vi.fn().mockResolvedValue(undefined);
+        const get = vi.fn().mockResolvedValue({
+            sessionId: '00000000-0000-4000-8000-000000000000',
+            orgId: '96f0cee4-bb87-4477-8eff-577ef2780615',
+            createdAt: new Date().toISOString(),
+            userIdentity: 'user_1',
+        });
 
         const { createSessionObservabilityService } = await import(
             '../src/services/sessionObservabilityService.ts'
@@ -283,8 +375,35 @@ describe('sessionObservabilityService (unit)', () => {
         });
 
         expect(result.steps.transcript.status).toBe('skipped');
-        expect(get).not.toHaveBeenCalled();
+        expect(get).toHaveBeenCalledWith('room-abc');
         expect(saveFromObservability).not.toHaveBeenCalled();
         expect(cleanupSession).toHaveBeenCalledWith('room-abc');
+    });
+
+    it('rejects when sessionId mismatches even without sessionReport', async () => {
+        const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
+        const get = vi.fn().mockResolvedValue({
+            sessionId: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',
+            orgId: '96f0cee4-bb87-4477-8eff-577ef2780615',
+            createdAt: new Date().toISOString(),
+            userIdentity: 'user_1',
+        });
+
+        const { createSessionObservabilityService } = await import(
+            '../src/services/sessionObservabilityService.ts'
+        );
+
+        const service = createSessionObservabilityService({
+            sessionService: { cleanupSession } as never,
+            sessionStore: { get } as never,
+        });
+
+        await expect(
+            service.ingestObservability({
+                payload: makePayload({ sessionReport: undefined }),
+            })
+        ).rejects.toThrow('sessionId does not match the session for this room');
+
+        expect(cleanupSession).not.toHaveBeenCalled();
     });
 });

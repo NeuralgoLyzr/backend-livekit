@@ -174,6 +174,9 @@ export const config = {
     telnyx: {
         devApiKey: process.env.TELNYX_API_KEY || '',
     },
+    observability: {
+        ingestKey: process.env.OBSERVABILITY_INGEST_KEY?.trim() || '',
+    },
     ttsVoicesProxy: {
         /**
          * Optional provider API keys used by voice-agent-server to proxy TTS voice lists.

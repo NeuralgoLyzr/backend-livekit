@@ -20,7 +20,7 @@ export const app: Express = express();
 app.use(
     cors({
         origin: true,
-        allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-observability-key'],
     })
 );
 
@@ -44,6 +44,7 @@ app.use(
         sessionStore: services.sessionStore,
         pagosAuthService: services.pagosAuthService,
         audioStorageService: services.audioStorageService,
+        observabilityIngestKey: config.observability.ingestKey,
     })
 );
 app.use('/health', healthRouter);

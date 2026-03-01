@@ -1,6 +1,5 @@
 import request from 'supertest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type * as Crypto from 'crypto';
 
 import { importFreshApp } from './testUtils';
 
@@ -26,26 +25,15 @@ describe('POST /session/observability (transcripts)', () => {
         vi.doUnmock('crypto');
     });
 
-    it('generates a random UUID sessionId when missing and persists transcript', async () => {
-        vi.doMock('crypto', async () => {
-            const actual = await vi.importActual<Crypto>('crypto');
-            return {
-                ...actual,
-                randomUUID: () => '00000000-0000-4000-8000-000000000000',
-            };
-        });
-
-        const saveFromObservability = vi.fn().mockResolvedValue(null);
+    it('rejects payloads missing required sessionId', async () => {
         const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
-        const sessionStoreGet = vi.fn().mockReturnValue(undefined);
 
         const app = await importFreshApp({
             sessionServiceMock: { cleanupSession },
-            transcriptServiceMock: { saveFromObservability },
-            sessionStoreMock: { get: sessionStoreGet },
+            sessionStoreMock: { get: vi.fn().mockReturnValue(undefined) },
         });
 
-        await request(app)
+        const res = await request(app)
             .post('/session/observability')
             .send({
                 roomName: 'room-abc',
@@ -58,7 +46,30 @@ describe('POST /session/observability (transcripts)', () => {
                     events: [{ type: 'unknown_event', created_at: 1 }],
                     timestamp: 2,
                 },
-            })
+            });
+
+        expect(res.status).toBe(400);
+    });
+
+    it('persists transcript with required sessionId', async () => {
+        const saveFromObservability = vi.fn().mockResolvedValue(null);
+        const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
+        const sessionStoreGet = vi.fn().mockReturnValue({
+            sessionId: '00000000-0000-4000-8000-000000000000',
+            orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+            createdAt: new Date().toISOString(),
+            userIdentity: 'user_1',
+        });
+
+        const app = await importFreshApp({
+            sessionServiceMock: { cleanupSession },
+            transcriptServiceMock: { saveFromObservability },
+            sessionStoreMock: { get: sessionStoreGet },
+        });
+
+        await request(app)
+            .post('/session/observability')
+            .send(makeObservabilityPayload())
             .expect(204);
 
         expect(sessionStoreGet).toHaveBeenCalledWith('room-abc');
@@ -80,7 +91,14 @@ describe('POST /session/observability (transcripts)', () => {
         const app = await importFreshApp({
             sessionServiceMock: { cleanupSession },
             transcriptServiceMock: { saveFromObservability },
-            sessionStoreMock: { get: vi.fn().mockReturnValue(undefined) },
+            sessionStoreMock: {
+                get: vi.fn().mockReturnValue({
+                    sessionId: '00000000-0000-4000-8000-000000000000',
+                    orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                    createdAt: new Date().toISOString(),
+                    userIdentity: 'user_1',
+                }),
+            },
             audioStorageServiceMock: { save: saveAudio },
         });
 
@@ -110,7 +128,14 @@ describe('POST /session/observability (transcripts)', () => {
         const app = await importFreshApp({
             sessionServiceMock: { cleanupSession },
             transcriptServiceMock: { saveFromObservability },
-            sessionStoreMock: { get: vi.fn().mockReturnValue(undefined) },
+            sessionStoreMock: {
+                get: vi.fn().mockReturnValue({
+                    sessionId: '00000000-0000-4000-8000-000000000000',
+                    orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                    createdAt: new Date().toISOString(),
+                    userIdentity: 'user_1',
+                }),
+            },
             audioStorageServiceMock: { save: saveAudio },
         });
 
@@ -129,7 +154,14 @@ describe('POST /session/observability (transcripts)', () => {
         const app = await importFreshApp({
             sessionServiceMock: { cleanupSession },
             transcriptServiceMock: { saveFromObservability },
-            sessionStoreMock: { get: vi.fn().mockReturnValue(undefined) },
+            sessionStoreMock: {
+                get: vi.fn().mockReturnValue({
+                    sessionId: '00000000-0000-4000-8000-000000000000',
+                    orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                    createdAt: new Date().toISOString(),
+                    userIdentity: 'user_1',
+                }),
+            },
             audioStorageServiceMock: { save: saveAudio },
         });
 

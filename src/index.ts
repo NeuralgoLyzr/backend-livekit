@@ -17,10 +17,10 @@ const server = app.listen(configuredPort);
 
 server.once('listening', () => {
     const address = server.address();
-    const actualPort =
-        address && typeof address !== 'string' ? address.port : configuredPort;
+    const actualPort = address && typeof address !== 'string' ? address.port : configuredPort;
 
     const baseUrl = `http://localhost:${actualPort}`;
+    const apiBaseUrl = `${baseUrl}/v1`;
 
     logger.info(
         {
@@ -30,11 +30,15 @@ server.once('listening', () => {
             livekitUrl: config.livekit.url,
             telephonyEnabled: config.telephony.enabled,
             endpoints: {
-                health: `GET ${baseUrl}/health`,
-                root: `GET ${baseUrl}/`,
-                createSession: `POST ${baseUrl}/session`,
+                openApiSpec: `GET ${apiBaseUrl}/openapi.json`,
+                swaggerUi: `GET ${apiBaseUrl}/docs`,
+                redoc: `GET ${apiBaseUrl}/redoc`,
+                scalarDocs: `GET ${apiBaseUrl}/scalar-docs`,
+                health: `GET ${apiBaseUrl}/health`,
+                root: `GET ${apiBaseUrl}/`,
+                createSession: `POST ${apiBaseUrl}/session`,
                 ...(config.telephony.enabled
-                    ? { livekitWebhook: `POST ${baseUrl}/telephony/livekit-webhook` }
+                    ? { livekitWebhook: `POST ${apiBaseUrl}/telephony/livekit-webhook` }
                     : {}),
             },
         },

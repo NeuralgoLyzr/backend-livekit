@@ -7,7 +7,7 @@ import { importFreshApp, setRequiredEnv } from './testUtils';
 describe('telephony webhook', () => {
     it('returns 503 when telephony is disabled', async () => {
         const app = await importFreshApp({ env: { TELEPHONY_ENABLED: 'false' } });
-        await request(app).post('/telephony/livekit-webhook').send({}).expect(503);
+        await request(app).post('/v1/telephony/livekit-webhook').send({}).expect(503);
     });
 
     it('requires express.raw body (route-level guard)', async () => {
@@ -33,10 +33,10 @@ describe('telephony webhook', () => {
 
         const bare = express();
         bare.use(express.json());
-        bare.use('/telephony', telephonyRouter);
+        bare.use('/v1/telephony', telephonyRouter);
 
         const res = await request(bare)
-            .post('/telephony/livekit-webhook')
+            .post('/v1/telephony/livekit-webhook')
             .send({ hello: 'world' })
             .expect(400);
 
@@ -66,7 +66,7 @@ describe('telephony webhook', () => {
         const app = (await import('../src/app.js')).app;
 
         const res = await request(app)
-            .post('/telephony/livekit-webhook')
+            .post('/v1/telephony/livekit-webhook')
             .set('Authorization', 'Bearer test')
             .send({ hello: 'world' })
             .expect(401);
@@ -103,7 +103,7 @@ describe('telephony webhook', () => {
         const app = (await import('../src/app.js')).app;
 
         const res = await request(app)
-            .post('/telephony/livekit-webhook')
+            .post('/v1/telephony/livekit-webhook')
             .set('Authorization', 'Bearer test')
             .send({ hello: 'world' })
             .expect(200);

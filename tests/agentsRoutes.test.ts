@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { importFreshApp } from './testUtils';
 
 describe('agents routes (HTTP)', () => {
-    it('GET /agents forwards auth context and pagination to listAgents', async () => {
+    it('GET /v1/agents forwards auth context and pagination to listAgents', async () => {
         const listAgents = vi.fn().mockResolvedValue([]);
         const app = await importFreshApp({
             sessionServiceMock: {},
@@ -19,7 +19,7 @@ describe('agents routes (HTTP)', () => {
             },
         });
 
-        await request(app).get('/agents?limit=10&offset=5').set('x-api-key', 'dev').expect(200);
+        await request(app).get('/v1/agents?limit=10&offset=5').set('x-api-key', 'dev').expect(200);
 
         expect(listAgents).toHaveBeenCalledWith(
             {
@@ -35,7 +35,7 @@ describe('agents routes (HTTP)', () => {
         );
     });
 
-    it('POST /agents forwards auth context to createAgent', async () => {
+    it('POST /v1/agents forwards auth context to createAgent', async () => {
         const createAgent = vi.fn().mockResolvedValue({
             id: '507f1f77bcf86cd799439011',
             createdAt: new Date().toISOString(),
@@ -57,7 +57,7 @@ describe('agents routes (HTTP)', () => {
         });
 
         await request(app)
-            .post('/agents')
+            .post('/v1/agents')
             .set('x-api-key', 'dev')
             .send({ config: { agent_name: 'A', tools: [] } })
             .expect(201);
@@ -75,7 +75,7 @@ describe('agents routes (HTTP)', () => {
         );
     });
 
-    it('GET /agents/:agentId/versions forwards auth context to listAgentVersions', async () => {
+    it('GET /v1/agents/:agentId/versions forwards auth context to listAgentVersions', async () => {
         const listAgentVersions = vi.fn().mockResolvedValue([
             {
                 versionId: '6ca631d2-7f1f-4dbd-9b66-d3c0ecae0136',
@@ -98,7 +98,7 @@ describe('agents routes (HTTP)', () => {
         });
 
         const response = await request(app)
-            .get('/agents/507f1f77bcf86cd799439011/versions')
+            .get('/v1/agents/507f1f77bcf86cd799439011/versions')
             .set('x-api-key', 'dev')
             .expect(200);
 
@@ -125,7 +125,7 @@ describe('agents routes (HTTP)', () => {
         );
     });
 
-    it('POST /agents/:agentId/versions/:versionId/activate forwards auth context', async () => {
+    it('POST /v1/agents/:agentId/versions/:versionId/activate forwards auth context', async () => {
         const activateAgentVersion = vi.fn().mockResolvedValue({
             id: '507f1f77bcf86cd799439011',
             createdAt: new Date().toISOString(),
@@ -147,7 +147,7 @@ describe('agents routes (HTTP)', () => {
 
         await request(app)
             .post(
-                '/agents/507f1f77bcf86cd799439011/versions/6ca631d2-7f1f-4dbd-9b66-d3c0ecae0136/activate'
+                '/v1/agents/507f1f77bcf86cd799439011/versions/6ca631d2-7f1f-4dbd-9b66-d3c0ecae0136/activate'
             )
             .set('x-api-key', 'dev')
             .expect(200);
@@ -164,7 +164,7 @@ describe('agents routes (HTTP)', () => {
         );
     });
 
-    it('GET /agents/:agentId/shares forwards auth context and returns user_ids', async () => {
+    it('GET /v1/agents/:agentId/shares forwards auth context and returns user_ids', async () => {
         const listAgentShares = vi.fn().mockResolvedValue(['user_1', 'user_2']);
         const app = await importFreshApp({
             sessionServiceMock: {},
@@ -180,7 +180,7 @@ describe('agents routes (HTTP)', () => {
         });
 
         const response = await request(app)
-            .get('/agents/507f1f77bcf86cd799439011/shares')
+            .get('/v1/agents/507f1f77bcf86cd799439011/shares')
             .set('x-api-key', 'dev')
             .expect(200);
 
@@ -199,7 +199,7 @@ describe('agents routes (HTTP)', () => {
         );
     });
 
-    it('POST /agents/:agentId/share forwards payload and bearer token', async () => {
+    it('POST /v1/agents/:agentId/share forwards payload and bearer token', async () => {
         const shareAgent = vi.fn().mockResolvedValue({ message: 'shared' });
         const app = await importFreshApp({
             sessionServiceMock: {},
@@ -215,7 +215,7 @@ describe('agents routes (HTTP)', () => {
         });
 
         await request(app)
-            .post('/agents/507f1f77bcf86cd799439011/share')
+            .post('/v1/agents/507f1f77bcf86cd799439011/share')
             .set('x-api-key', 'dev')
             .set('Authorization', 'Bearer token-abc')
             .send({ email_ids: ['a@example.com'], admin_user_id: 'admin_123' })
@@ -237,7 +237,7 @@ describe('agents routes (HTTP)', () => {
         );
     });
 
-    it('POST /agents/:agentId/unshare forwards payload and bearer token', async () => {
+    it('POST /v1/agents/:agentId/unshare forwards payload and bearer token', async () => {
         const unshareAgent = vi.fn().mockResolvedValue({ message: 'unshared' });
         const app = await importFreshApp({
             sessionServiceMock: {},
@@ -253,7 +253,7 @@ describe('agents routes (HTTP)', () => {
         });
 
         await request(app)
-            .post('/agents/507f1f77bcf86cd799439011/unshare')
+            .post('/v1/agents/507f1f77bcf86cd799439011/unshare')
             .set('x-api-key', 'dev')
             .set('Authorization', 'Bearer token-xyz')
             .send({ email_ids: ['a@example.com'] })

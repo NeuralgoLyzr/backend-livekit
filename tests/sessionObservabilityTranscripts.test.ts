@@ -34,7 +34,7 @@ describe('POST /session/observability (transcripts)', () => {
         });
 
         const res = await request(app)
-            .post('/session/observability')
+            .post('/v1/session/observability')
             .send({
                 roomName: 'room-abc',
                 orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
@@ -68,7 +68,7 @@ describe('POST /session/observability (transcripts)', () => {
         });
 
         await request(app)
-            .post('/session/observability')
+            .post('/v1/session/observability')
             .send(makeObservabilityPayload())
             .expect(204);
 
@@ -103,7 +103,7 @@ describe('POST /session/observability (transcripts)', () => {
         });
 
         await request(app)
-            .post('/session/observability')
+            .post('/v1/session/observability')
             .field('payload', JSON.stringify(makeObservabilityPayload()))
             .attach('audio', Buffer.from('fake-ogg-data'), {
                 filename: 'recording.ogg',
@@ -139,7 +139,10 @@ describe('POST /session/observability (transcripts)', () => {
             audioStorageServiceMock: { save: saveAudio },
         });
 
-        await request(app).post('/session/observability').send(makeObservabilityPayload()).expect(204);
+        await request(app)
+            .post('/v1/session/observability')
+            .send(makeObservabilityPayload())
+            .expect(204);
 
         expect(saveFromObservability).toHaveBeenCalledTimes(1);
         expect(saveAudio).not.toHaveBeenCalled();
@@ -166,7 +169,7 @@ describe('POST /session/observability (transcripts)', () => {
         });
 
         await request(app)
-            .post('/session/observability')
+            .post('/v1/session/observability')
             .field('payload', JSON.stringify(makeObservabilityPayload()))
             .attach('audio', Buffer.from('fake-ogg-data'), {
                 filename: 'recording.ogg',

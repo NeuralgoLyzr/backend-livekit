@@ -14,7 +14,7 @@ describe.skipIf(!CARTESIA_API_KEY)('TTS voice preview (live)', () => {
             const app = await importFreshApp({ env: { CARTESIA_API_KEY } });
 
             const listRes = await request(app)
-                .get('/config/tts-voices')
+                .get('/v1/config/tts-voices')
                 .query({ providerId: 'cartesia', limit: 25 });
 
             expect(listRes.status).toBe(200);
@@ -27,7 +27,7 @@ describe.skipIf(!CARTESIA_API_KEY)('TTS voice preview (live)', () => {
 
             const previewUrl = voiceWithPreview!.previewUrl!;
             const previewRes = await request(app)
-                .get('/config/tts-voice-preview')
+                .get('/v1/config/tts-voice-preview')
                 .query({ providerId: 'cartesia', url: previewUrl });
 
             expect(previewRes.status).toBe(200);

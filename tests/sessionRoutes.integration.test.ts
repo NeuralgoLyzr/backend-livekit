@@ -15,7 +15,7 @@ function buildApp(harness: Harness) {
     app.use(express.json({ limit: '10mb' }));
 
     app.use(
-        '/session',
+        '/v1/session',
         harness.createSessionRouter(harness.sessionService, {
             transcriptService: harness.transcriptService,
             sessionStore: harness.sessionStore,
@@ -216,7 +216,7 @@ describe('session routes (integration)', () => {
         });
 
         const createRes = await request(app)
-            .post('/session')
+            .post('/v1/session')
             .set('x-api-key', 'integration-key')
             .send({
                 userIdentity: 'user_1',
@@ -251,7 +251,7 @@ describe('session routes (integration)', () => {
         });
 
         await request(app)
-            .post('/session/end')
+            .post('/v1/session/end')
             .set('x-api-key', 'integration-key')
             .send({ roomName: 'room-int-1' })
             .expect(204);
@@ -260,7 +260,7 @@ describe('session routes (integration)', () => {
         expect(endedSession?.endedAt).toBeDefined();
 
         await request(app)
-            .post('/session/observability')
+            .post('/v1/session/observability')
             .send({
                 roomName: 'room-int-1',
                 sessionId: createRes.body.sessionId,
@@ -361,7 +361,7 @@ describe('session routes (integration)', () => {
         });
 
         await request(app)
-            .post('/session')
+            .post('/v1/session')
             .set('x-api-key', 'integration-key')
             .send({
                 userIdentity: 'user_1',

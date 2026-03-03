@@ -3,7 +3,7 @@
 This runbook validates:
 - Redis-backed session store adapter
 - S3-backed recording storage adapter (using MinIO)
-- Backend `/session/observability` recording upload path
+- Backend `/v1/session/observability` recording upload path
 
 ### Prereqs
 
@@ -38,10 +38,10 @@ S3_TEST_SECRET_ACCESS_KEY=minioadmin \
 pnpm -C voice-agent-server exec vitest run tests/storageBackends.integration.test.ts
 ```
 
-### 2) Verify backend `/session/observability` stores audio into S3 (MinIO)
+### 2) Verify backend `/v1/session/observability` stores audio into S3 (MinIO)
 
 ```bash
-curl -i -X POST http://localhost:4000/session/observability \
+curl -i -X POST http://localhost:4000/v1/session/observability \
   -F 'payload={"roomName":"room-storage-1","sessionId":"00000000-0000-4000-8000-000000000000","orgId":"96f0cee4-bb87-4477-8eff-577ef2780614","closeReason":null,"sessionReport":{"job_id":"job-1","room_id":"rid-1","room":"room-storage-1","events":[{"type":"unknown_event","created_at":1}],"timestamp":2}}' \
   -F "audio=@voice-agent-server/data/recordings/sample.ogg;type=audio/ogg"
 ```

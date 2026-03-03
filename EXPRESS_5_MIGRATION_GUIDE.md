@@ -5,7 +5,7 @@ This guide is written for an AI coding agent that will migrate `voice-agent-serv
 ## Goals
 
 - Upgrade `voice-agent-server` to Express 5 (currently `express@latest`).
-- Keep behavior consistent (especially `/telephony/livekit-webhook` raw-body handling).
+- Keep behavior consistent (especially `/v1/telephony/livekit-webhook` raw-body handling).
 - Ensure `pnpm dev`, `pnpm build`, and `pnpm start` work.
 - Prefer minimal, mechanical changes; avoid refactors unless required by Express 5.
 
@@ -13,7 +13,7 @@ This guide is written for an AI coding agent that will migrate `voice-agent-serv
 
 - Use **pnpm** for installs and dependency changes.
 - Don’t break the LiveKit webhook signature validation flow:
-    - `express.raw()` must remain mounted **before** `express.json()` for `/telephony/livekit-webhook`.
+    - `express.raw()` must remain mounted **before** `express.json()` for `/v1/telephony/livekit-webhook`.
 
 ## Preflight checklist (before making changes)
 
@@ -40,8 +40,8 @@ pnpm dev
 
 Verify at least:
 
-- `GET /health` returns JSON
-- `POST /session` returns 400 on invalid input
+- `POST /v1/session` returns 400 on invalid input
+- `GET /v1/health` returns JSON
 
 ## Step-by-step migration plan
 
@@ -94,7 +94,7 @@ Search for and fix:
 
 Expected status for this repo:
 
-- Routes are mostly simple (`/session`, `/health`, `/telephony/...`), so there may be **no** route syntax changes needed. Still, explicitly search to confirm.
+- Routes are mostly simple (`/v1/session`, `/v1/health`, `/v1/telephony/...`), so there may be **no** route syntax changes needed. Still, explicitly search to confirm.
 
 #### B) Removed methods / deprecated signatures
 
@@ -122,7 +122,7 @@ Express 5 changes:
 Repo-specific must-not-break constraint:
 
 - Keep ordering in `src/app.ts`:
-    - `app.use('/telephony/livekit-webhook', express.raw(...))` **before** `app.use(express.json())`
+    - `app.use('/v1/telephony/livekit-webhook', express.raw(...))` **before** `app.use(express.json())`
 - Keep the telephony route check that enforces raw body as a Buffer.
 
 #### D) `req.params` behavioral changes
@@ -176,11 +176,11 @@ pnpm start
 
 Smoke tests:
 
-- `GET /health` returns `{ status: "ok", ... }`
-- `POST /session` with invalid payload returns 400 with Zod issues
-- `POST /session` with valid payload still returns `userToken`, `roomName`, `livekitUrl` (requires LiveKit envs)
+- `GET /v1/health` returns `{ status: "ok", ... }`
+- `POST /v1/session` with invalid payload returns 400 with Zod issues
+- `POST /v1/session` with valid payload still returns `userToken`, `roomName`, `livekitUrl` (requires LiveKit envs)
 - Telephony (if enabled):
-    - `POST /telephony/livekit-webhook` still expects a raw body (Buffer)
+    - `POST /v1/telephony/livekit-webhook` still expects a raw body (Buffer)
     - invalid signature still returns 401 quickly
 
 ## “Can we fix async handler caveats without upgrading?” (Express 4 note)

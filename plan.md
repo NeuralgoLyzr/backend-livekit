@@ -6,8 +6,8 @@
 
 This repo is an Express + TypeScript backend that currently supports:
 
-- `POST /session`: generates/accepts a `roomName`, creates a LiveKit user token, stores session metadata in an in-memory store, and dispatches a LiveKit agent via `agentService.dispatchAgent(roomName, agentConfig)`.
-- `POST /session/end`: deletes a LiveKit room via `roomService.deleteRoom(roomName)` and removes session metadata.
+- `POST /v1/session`: generates/accepts a `roomName`, creates a LiveKit user token, stores session metadata in an in-memory store, and dispatches a LiveKit agent via `agentService.dispatchAgent(roomName, agentConfig)`.
+- `POST /v1/session/end`: deletes a LiveKit room via `roomService.deleteRoom(roomName)` and removes session metadata.
 
 Key existing components:
 
@@ -34,7 +34,7 @@ We want to add **telephony** so PSTN callers can talk to the LiveKit agent.
 
 ## Non-goals (v1)
 
-- Provider-specific webhook endpoints (do **not** build `/telephony/webhooks/:provider`).
+- Provider-specific webhook endpoints (do **not** build `/v1/telephony/webhooks/:provider`).
 - Mode B “media streaming → bridge → LiveKit”.
 - Billing, CRM, complex routing trees, multi-tenant DID management.
 - Perfect cross-provider feature parity; this v1 normalizes around **LiveKit SIP + LiveKit webhooks**.
@@ -62,7 +62,7 @@ With SIP trunking, “provider” differences are mostly **configuration**, not 
     - `LiveKitWebhookVerifierPort`: verify webhook authenticity.
     - (Optional) `LiveKitSipPort`: initiate/terminate outbound PSTN calls via LiveKit SIP APIs.
 - **Adapters**
-    - HTTP adapter: Express router (`/telephony/*`).
+    - HTTP adapter: Express router (`/v1/telephony/*`).
     - LiveKit webhook verifier adapter.
     - In-memory store adapter (PoC).
     - (Optional) LiveKit SIP adapter for outbound dialing.
@@ -73,7 +73,7 @@ With SIP trunking, “provider” differences are mostly **configuration**, not 
 
 ### 1) LiveKit webhook endpoint (required)
 
-**`POST /telephony/livekit-webhook`**
+**`POST /v1/telephony/livekit-webhook`**
 
 - Verify LiveKit webhook signature (reject if invalid).
 - Parse + normalize event shape.
@@ -83,7 +83,7 @@ With SIP trunking, “provider” differences are mostly **configuration**, not 
 
 ### 2) Outbound call endpoint (optional v1 — can defer)
 
-**`POST /telephony/calls`**
+**`POST /v1/telephony/calls`**
 
 - Body:
     - `to` (E.164)
@@ -97,7 +97,7 @@ With SIP trunking, “provider” differences are mostly **configuration**, not 
 
 ### 3) Minimal diagnostics (recommended, non-prod gated)
 
-**`GET /telephony/calls/:callId`** (or lookup by `roomName`)
+**`GET /v1/telephony/calls/:callId`** (or lookup by `roomName`)
 
 - Returns the internal call record to help debug event ordering and agent dispatch.
 
@@ -190,9 +190,9 @@ Routing must be separate from webhook parsing so it can evolve (config → DB).
 Add new modules while keeping style consistent with existing `routes/` and `services/` patterns.
 
 - `src/routes/telephony.ts`
-    - `POST /telephony/livekit-webhook`
-    - (optional) `POST /telephony/calls`
-    - (optional) `GET /telephony/calls/:callId` (non-prod)
+    - `POST /v1/telephony/livekit-webhook`
+    - (optional) `POST /v1/telephony/calls`
+    - (optional) `GET /v1/telephony/calls/:callId` (non-prod)
 - `src/services/telephonySessionService.ts`
     - `handleLiveKitEvent(normalizedEvent)`
     - `dispatchAgentIfNeeded(roomName, agentConfig)`

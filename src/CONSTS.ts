@@ -18,7 +18,6 @@ export const AGENT_DEFAULTS = {
         greeting: undefined as string | undefined,
     },
     tools: [] as string[],
-    agentic_rag: [] as unknown[],
     vad_enabled: true,
 } as const;
 

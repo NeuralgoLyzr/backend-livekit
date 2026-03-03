@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { setRequiredEnv } from './testUtils';
 
 describe('agentConfigResolverService (unit)', () => {
-    it('merges overrides and normalizes tools + KB-derived RAG fields', async () => {
+    it('merges overrides and normalizes tools', async () => {
         setRequiredEnv();
         const { createAgentConfigResolverService } =
             await import('../src/services/agentConfigResolverService.js');
@@ -49,7 +49,6 @@ describe('agentConfigResolverService (unit)', () => {
 
         // Unknown tool removed; KB tool auto-added because KB enabled
         expect(resolved.tools).toEqual(['search_wikipedia', 'search_knowledge_base']);
-        expect(resolved.lyzr_rag).toEqual({ base_url: 'x', rag_id: 'r', rag_name: 'n' });
         expect(getById).toHaveBeenCalledWith('507f1f77bcf86cd799439011', {
             orgId: 'org-a',
             createdByUserId: 'user-a',

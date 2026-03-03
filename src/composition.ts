@@ -5,6 +5,7 @@ import { createTokenService } from './services/tokenService.js';
 import { createRoomService } from './services/roomService.js';
 import { createSessionService } from './services/sessionService.js';
 import { createAgentRegistryService } from './services/agentRegistryService.js';
+import { createCorrectionService } from './services/correctionService.js';
 import { createAgentConfigResolverService } from './services/agentConfigResolverService.js';
 import { createTranscriptService } from './services/transcriptService.js';
 import { createLangfuseTraceService } from './services/langfuseTraceService.js';
@@ -53,6 +54,10 @@ const agentAccessService = createAgentAccessService({
 const agentRegistryService = createAgentRegistryService({
     store: agentStore,
     access: agentAccessService,
+});
+
+const correctionService = createCorrectionService({
+    agentStore,
 });
 
 const sessionService = createSessionService({
@@ -106,6 +111,7 @@ export const services = {
     roomService,
     agentConfigResolver,
     agentRegistryService,
+    correctionService,
     sessionService,
     pagosAuthService,
     pagosPolicyService,

@@ -80,13 +80,28 @@ function buildAvatarConfig(avatar?: AgentConfig['avatar']): ForwardedAvatarConfi
     }
 }
 
+function buildCorrectionsPromptSection(
+    corrections: Array<{ enabled: boolean; correctedRule: string }> | undefined,
+): string {
+    if (!corrections) return '';
+    const enabledRules = corrections.filter((c) => c.enabled).map((c) => c.correctedRule);
+    if (enabledRules.length === 0) return '';
+
+    return (
+        '\n\n## Answer Corrections\nThe following rules override your default behavior. Always follow these:\n' +
+        enabledRules.map((rule) => `- ${rule}`).join('\n')
+    );
+}
+
 function buildMetadataObject(agentConfig: AgentConfig): Record<string, unknown> {
     const background_audio = buildBackgroundAudioConfig(agentConfig.background_audio);
     const avatar = buildAvatarConfig(agentConfig.avatar);
 
     return {
         engine: agentConfig.engine ?? AGENT_DEFAULTS.engine,
-        prompt: agentConfig.prompt ?? AGENT_DEFAULTS.prompt,
+        prompt:
+            (agentConfig.prompt ?? AGENT_DEFAULTS.prompt) +
+            buildCorrectionsPromptSection(agentConfig.corrections),
         dynamic_variables: agentConfig.dynamic_variables,
         dynamic_variable_defaults: agentConfig.dynamic_variable_defaults,
         turn_detection: agentConfig.turn_detection ?? AGENT_DEFAULTS.turn_detection,
@@ -103,8 +118,8 @@ function buildMetadataObject(agentConfig: AgentConfig): Record<string, unknown> 
         session_id: agentConfig.session_id,
         tools: agentConfig.tools ?? AGENT_DEFAULTS.tools,
         lyzr_tools: agentConfig.lyzr_tools,
-        lyzr_rag: agentConfig.lyzr_rag,
-        agentic_rag: agentConfig.agentic_rag ?? AGENT_DEFAULTS.agentic_rag,
+        lyzr_rag: agentConfig.knowledge_base?.enabled ? agentConfig.knowledge_base.lyzr_rag : undefined,
+        agentic_rag: agentConfig.knowledge_base?.enabled ? (agentConfig.knowledge_base.agentic_rag ?? []) : [],
         vad_enabled: agentConfig.vad_enabled ?? AGENT_DEFAULTS.vad_enabled,
         preemptive_generation: agentConfig.preemptive_generation ?? false,
         pronunciation_correction: agentConfig.pronunciation_correction ?? false,

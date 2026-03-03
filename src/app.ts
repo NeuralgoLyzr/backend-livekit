@@ -5,14 +5,17 @@ import healthRouter from './routes/health.js';
 import { createConfigRouter } from './routes/config.js';
 import telephonyRouter from './routes/telephony.js';
 import { createAgentsRouter } from './routes/agents.js';
+import { createCorrectionsRouter } from './routes/corrections.js';
 import { createTranscriptsRouter } from './routes/transcripts.js';
 import { createSessionTracesRouter } from './routes/sessionTraces.js';
+import { createInternalRouter } from './routes/internal.js';
 import { config } from './config/index.js';
 import { services } from './composition.js';
 import { formatErrorResponse, getErrorStatus } from './lib/httpErrors.js';
 import { requestLoggingMiddleware } from './middleware/requestLogging.js';
 import type { HttpWideEvent } from './middleware/requestLogging.js';
 import { apiKeyAuthMiddleware } from './middleware/apiKeyAuth.js';
+import { globalRateLimit } from './middleware/rateLimit.js';
 import { createDocsRouter } from './docs/router.js';
 
 export const app: Express = express();
@@ -41,16 +44,14 @@ app.use(requestLoggingMiddleware);
 // Routes (v1 only)
 const v1 = express.Router();
 
+v1.use(globalRateLimit);
+
 v1.use(createDocsRouter());
 
 v1.use(
-    '/session',
+    '/sessions',
     createSessionRouter(services.sessionService, {
-        transcriptService: services.transcriptService,
-        sessionStore: services.sessionStore,
         pagosAuthService: services.pagosAuthService,
-        audioStorageService: services.audioStorageService,
-        observabilityIngestKey: config.observability.ingestKey,
     })
 );
 
@@ -81,16 +82,22 @@ v1.use(
 v1.use('/agents', requireApiKey, createAgentsRouter(services.agentRegistryService));
 
 v1.use(
-    '/api/transcripts',
+    '/agents/:agentId/corrections',
+    requireApiKey,
+    createCorrectionsRouter(services.correctionService),
+);
+
+v1.use(
+    '/transcripts',
     requireApiKey,
     createTranscriptsRouter(services.transcriptService, services.audioStorageService)
 );
 
-v1.use('/api/traces', requireApiKey, createSessionTracesRouter(services.sessionTraceService));
+v1.use('/traces', requireApiKey, createSessionTracesRouter(services.sessionTraceService));
 
 v1.get('/', (_req: Request, res: Response) => {
     res.json({
-        name: 'LiveKit Backend API',
+        name: 'Lyzr Voice API',
         version: '1.0.0',
         endpoints: {
             openApiSpec: `GET ${API_PREFIX}/openapi.json`,
@@ -99,17 +106,16 @@ v1.get('/', (_req: Request, res: Response) => {
             scalarDocs: `GET ${API_PREFIX}/scalar-docs`,
             health: `GET ${API_PREFIX}/health`,
             root: `GET ${API_PREFIX}/`,
-            createSession: `POST ${API_PREFIX}/session`,
-            endSession: `POST ${API_PREFIX}/session/end`,
-            sessionObservability: `POST ${API_PREFIX}/session/observability`,
+            createSession: `POST ${API_PREFIX}/sessions/start`,
+            endSession: `POST ${API_PREFIX}/sessions/end`,
             agents: `GET ${API_PREFIX}/agents`,
-            transcripts: `GET ${API_PREFIX}/api/transcripts`,
-            transcriptBySession: `GET ${API_PREFIX}/api/transcripts/:sessionId`,
-            transcriptAudio: `GET ${API_PREFIX}/api/transcripts/:sessionId/audio`,
-            transcriptsByAgent: `GET ${API_PREFIX}/api/transcripts/agent/:agentId`,
-            transcriptAgentStats: `GET ${API_PREFIX}/api/transcripts/agent/:agentId/stats`,
-            sessionTraces: `GET ${API_PREFIX}/api/traces/session/:sessionId`,
-            sessionTraceById: `GET ${API_PREFIX}/api/traces/session/:sessionId/:traceId`,
+            transcripts: `GET ${API_PREFIX}/transcripts`,
+            transcriptBySession: `GET ${API_PREFIX}/transcripts/:sessionId`,
+            transcriptAudio: `GET ${API_PREFIX}/transcripts/:sessionId/audio`,
+            transcriptsByAgent: `GET ${API_PREFIX}/transcripts/agent/:agentId`,
+            transcriptAgentStats: `GET ${API_PREFIX}/transcripts/agent/:agentId/stats`,
+            sessionTraces: `GET ${API_PREFIX}/traces/session/:sessionId`,
+            sessionTraceById: `GET ${API_PREFIX}/traces/session/:sessionId/:traceId`,
             ...(config.telephony.enabled
                 ? { telephonyWebhook: `POST ${API_PREFIX}/telephony/livekit-webhook` }
                 : {}),
@@ -122,6 +128,17 @@ v1.get('/', (_req: Request, res: Response) => {
         },
     });
 });
+
+app.use(
+    '/internal',
+    createInternalRouter({
+        sessionService: services.sessionService,
+        transcriptService: services.transcriptService,
+        sessionStore: services.sessionStore,
+        audioStorageService: services.audioStorageService,
+        observabilityIngestKey: config.observability.ingestKey,
+    })
+);
 
 app.use(API_PREFIX, v1);
 

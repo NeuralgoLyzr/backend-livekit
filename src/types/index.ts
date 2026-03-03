@@ -410,6 +410,39 @@ const BackgroundAudioSchema = z.object({
         .optional(),
 });
 
+// ── Answer Corrections ──────────────────────────────────────────────────────
+
+export const CorrectionSchema = z.object({
+    id: z.string().uuid(),
+    sourceSessionId: z.string().uuid(),
+    sourceMessageId: z.string(),
+    originalAnswer: z.string().max(4_096),
+    userFeedback: z.string().min(1).max(2_048),
+    correctedRule: z.string().min(1).max(1_024),
+    enabled: z.boolean(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+});
+export type Correction = z.infer<typeof CorrectionSchema>;
+
+export const CreateCorrectionRequestSchema = z
+    .object({
+        sourceSessionId: z.string().uuid(),
+        sourceMessageId: z.string().min(1),
+        originalAnswer: z.string().max(4_096),
+        userFeedback: z.string().min(1, 'userFeedback is required').max(2_048),
+    })
+    .strict();
+export type CreateCorrectionRequest = z.infer<typeof CreateCorrectionRequestSchema>;
+
+export const UpdateCorrectionRequestSchema = z
+    .object({
+        correctedRule: z.string().min(1).max(1_024).optional(),
+        enabled: z.boolean().optional(),
+    })
+    .strict();
+export type UpdateCorrectionRequest = z.infer<typeof UpdateCorrectionRequestSchema>;
+
 export const AgentConfigSchema = z
     .object({
         /**
@@ -541,19 +574,8 @@ export const AgentConfigSchema = z
         api_key: z.string().optional(),
         /**
          * Optional knowledge base (RAG) config provided by the client.
-         *
-         * Note: the backend normalizes this into runtime fields like `lyzr_rag` / `agentic_rag`
-         * before dispatching the agent.
          */
         knowledge_base: KnowledgeBaseConfigSchema.optional(),
-        /**
-         * Optional RAG config (derived from `knowledge_base` or directly provided).
-         */
-        lyzr_rag: LyzrRagSchema.optional(),
-        /**
-         * Agentic RAG skeleton (unused for now, but kept for compatibility).
-         */
-        agentic_rag: z.array(AgenticRagEntrySchema).optional(),
         /**
          * Optional config for managed specialized sub-agents available to this agent.
          */
@@ -610,6 +632,11 @@ export const AgentConfigSchema = z
          * Optional background audio config (ambient + thinking SFX).
          */
         background_audio: BackgroundAudioSchema.optional(),
+        /**
+         * Answer corrections: reviewer-provided rules that override agent behavior.
+         * Managed via dedicated CRUD endpoints, not through agent config updates.
+         */
+        corrections: z.array(CorrectionSchema).optional(),
     })
     .strict();
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;

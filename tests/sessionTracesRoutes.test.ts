@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { importFreshApp } from './testUtils';
 
 describe('session traces routes (HTTP)', () => {
-    it('GET /v1/api/traces/session/:sessionId validates and forwards to sessionTraceService.listBySession', async () => {
+    it('GET /v1/traces/session/:sessionId validates and forwards to sessionTraceService.listBySession', async () => {
         const listBySession = vi.fn().mockResolvedValue({
             traces: [],
             pagination: {
@@ -21,7 +21,7 @@ describe('session traces routes (HTTP)', () => {
 
         const sessionId = '00000000-0000-4000-8000-000000000000';
         const res = await request(app)
-            .get(`/v1/api/traces/session/${sessionId}?page=2&limit=15`)
+            .get(`/v1/traces/session/${sessionId}?page=2&limit=15`)
             .set('x-api-key', 'dev')
             .expect(200);
 
@@ -47,7 +47,7 @@ describe('session traces routes (HTTP)', () => {
         });
     });
 
-    it('GET /v1/api/traces/session/:sessionId/:traceId forwards to sessionTraceService.getBySessionAndTraceId', async () => {
+    it('GET /v1/traces/session/:sessionId/:traceId forwards to sessionTraceService.getBySessionAndTraceId', async () => {
         const getBySessionAndTraceId = vi.fn().mockResolvedValue({
             trace: {
                 traceId: 'trace_1',
@@ -69,7 +69,7 @@ describe('session traces routes (HTTP)', () => {
         const traceId = 'trace_1';
 
         const res = await request(app)
-            .get(`/v1/api/traces/session/${sessionId}/${traceId}`)
+            .get(`/v1/traces/session/${sessionId}/${traceId}`)
             .set('x-api-key', 'dev')
             .expect(200);
 
@@ -86,7 +86,7 @@ describe('session traces routes (HTTP)', () => {
         expect(res.body.trace.traceId).toBe('trace_1');
     });
 
-    it('GET /v1/api/traces/session/:sessionId rejects invalid sessionId', async () => {
+    it('GET /v1/traces/session/:sessionId rejects invalid sessionId', async () => {
         const app = await importFreshApp({
             sessionTraceServiceMock: {
                 listBySession: vi.fn(),
@@ -94,7 +94,7 @@ describe('session traces routes (HTTP)', () => {
         });
 
         const res = await request(app)
-            .get('/v1/api/traces/session/not-a-uuid')
+            .get('/v1/traces/session/not-a-uuid')
             .set('x-api-key', 'dev')
             .expect(400);
 
@@ -102,7 +102,7 @@ describe('session traces routes (HTTP)', () => {
         expect(res.body.issues).toBeTruthy();
     });
 
-    it('GET /v1/api/traces/session/:sessionId rejects invalid pagination', async () => {
+    it('GET /v1/traces/session/:sessionId rejects invalid pagination', async () => {
         const app = await importFreshApp({
             sessionTraceServiceMock: {
                 listBySession: vi.fn(),
@@ -111,7 +111,7 @@ describe('session traces routes (HTTP)', () => {
 
         const sessionId = '00000000-0000-4000-8000-000000000000';
         const res = await request(app)
-            .get(`/v1/api/traces/session/${sessionId}?page=0`)
+            .get(`/v1/traces/session/${sessionId}?page=0`)
             .set('x-api-key', 'dev')
             .expect(400);
 

@@ -20,7 +20,7 @@ function makeObservabilityPayload(overrides?: Record<string, unknown>) {
     };
 }
 
-describe('POST /session/observability (transcripts)', () => {
+describe('POST /internal/sessions/observability (transcripts)', () => {
     afterEach(() => {
         vi.doUnmock('crypto');
     });
@@ -34,7 +34,7 @@ describe('POST /session/observability (transcripts)', () => {
         });
 
         const res = await request(app)
-            .post('/v1/session/observability')
+            .post('/internal/sessions/observability')
             .send({
                 roomName: 'room-abc',
                 orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
@@ -68,7 +68,7 @@ describe('POST /session/observability (transcripts)', () => {
         });
 
         await request(app)
-            .post('/v1/session/observability')
+            .post('/internal/sessions/observability')
             .send(makeObservabilityPayload())
             .expect(204);
 
@@ -103,7 +103,7 @@ describe('POST /session/observability (transcripts)', () => {
         });
 
         await request(app)
-            .post('/v1/session/observability')
+            .post('/internal/sessions/observability')
             .field('payload', JSON.stringify(makeObservabilityPayload()))
             .attach('audio', Buffer.from('fake-ogg-data'), {
                 filename: 'recording.ogg',
@@ -140,7 +140,7 @@ describe('POST /session/observability (transcripts)', () => {
         });
 
         await request(app)
-            .post('/v1/session/observability')
+            .post('/internal/sessions/observability')
             .send(makeObservabilityPayload())
             .expect(204);
 
@@ -149,7 +149,7 @@ describe('POST /session/observability (transcripts)', () => {
         expect(cleanupSession).toHaveBeenCalledWith('room-abc');
     });
 
-    it('keeps /session/observability successful when audio save fails', async () => {
+    it('keeps /internal/sessions/observability successful when audio save fails', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
         const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
         const saveAudio = vi.fn().mockRejectedValue(new Error('disk full'));
@@ -169,7 +169,7 @@ describe('POST /session/observability (transcripts)', () => {
         });
 
         await request(app)
-            .post('/v1/session/observability')
+            .post('/internal/sessions/observability')
             .field('payload', JSON.stringify(makeObservabilityPayload()))
             .attach('audio', Buffer.from('fake-ogg-data'), {
                 filename: 'recording.ogg',

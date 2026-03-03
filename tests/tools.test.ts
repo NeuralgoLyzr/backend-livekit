@@ -135,40 +135,9 @@ describe('config/tools', () => {
         });
     });
 
-    // deriveRagConfigFromKnowledgeBase
-    describe('deriveRagConfigFromKnowledgeBase', () => {
-        it('returns empty object when KB is not enabled', async () => {
-            setRequiredEnv();
-            const { deriveRagConfigFromKnowledgeBase } = await import('../src/config/tools.js');
-            expect(deriveRagConfigFromKnowledgeBase({})).toEqual({});
-            expect(
-                deriveRagConfigFromKnowledgeBase({ knowledge_base: { enabled: false } })
-            ).toEqual({});
-        });
-
-        it('extracts lyzr_rag when KB is enabled', async () => {
-            setRequiredEnv();
-            const { deriveRagConfigFromKnowledgeBase } = await import('../src/config/tools.js');
-            const lyzr_rag = { base_url: 'http://x', rag_id: 'r', rag_name: 'n' };
-            const result = deriveRagConfigFromKnowledgeBase({
-                knowledge_base: { enabled: true, lyzr_rag },
-            });
-            expect(result.lyzr_rag).toEqual(lyzr_rag);
-        });
-
-        it('defaults agentic_rag to empty array when KB enabled but none provided', async () => {
-            setRequiredEnv();
-            const { deriveRagConfigFromKnowledgeBase } = await import('../src/config/tools.js');
-            const result = deriveRagConfigFromKnowledgeBase({
-                knowledge_base: { enabled: true },
-            });
-            expect(result.agentic_rag).toEqual([]);
-        });
-    });
-
     // finalizeAgentConfig
     describe('finalizeAgentConfig', () => {
-        it('normalizes tools and derives RAG fields in one pass', async () => {
+        it('normalizes tools in one pass', async () => {
             setRequiredEnv();
             const { finalizeAgentConfig } = await import('../src/config/tools.js');
             const result = finalizeAgentConfig({
@@ -179,8 +148,6 @@ describe('config/tools', () => {
                 },
             });
             expect(result.tools).toEqual(['get_weather', 'search_knowledge_base']);
-            expect(result.lyzr_rag).toEqual({ base_url: 'x', rag_id: 'r', rag_name: 'n' });
-            expect(result.agentic_rag).toEqual([]);
         });
 
         it('preserves other config fields unchanged', async () => {

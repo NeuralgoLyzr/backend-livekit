@@ -11,15 +11,15 @@ describe('backend HTTP contract', () => {
 
         const res = await request(app).get('/v1').expect(200);
 
-        expect(res.body.name).toBe('LiveKit Backend API');
+        expect(res.body.name).toBe('Lyzr Voice API');
         expect(res.body.version).toBe('1.0.0');
         expect(res.body.endpoints).toMatchObject({
             health: 'GET /v1/health',
-            createSession: 'POST /v1/session',
-            endSession: 'POST /v1/session/end',
+            createSession: 'POST /v1/sessions/start',
+            endSession: 'POST /v1/sessions/end',
             agents: 'GET /v1/agents',
-            sessionTraces: 'GET /v1/api/traces/session/:sessionId',
-            sessionTraceById: 'GET /v1/api/traces/session/:sessionId/:traceId',
+            sessionTraces: 'GET /v1/traces/session/:sessionId',
+            sessionTraceById: 'GET /v1/traces/session/:sessionId/:traceId',
         });
         expect(res.body.endpoints.telephonyWebhook).toBeUndefined();
     });
@@ -162,11 +162,11 @@ describe('backend HTTP contract', () => {
         expect(res.body).toEqual({ error: 'Not found', path: '/nope' });
     });
 
-    it('POST /v1/session validates and returns example on 400', async () => {
+    it('POST /v1/sessions/start validates and returns example on 400', async () => {
         const createSession = vi.fn();
         const app = await importFreshApp({ sessionServiceMock: { createSession } });
 
-        const res = await request(app).post('/v1/session').set('x-api-key', 'dev').send({}).expect(400);
+        const res = await request(app).post('/v1/sessions/start').set('x-api-key', 'dev').send({}).expect(400);
         expect(res.body.error).toBeTruthy();
         expect(res.body.issues).toBeTruthy();
         expect(res.body.example?.userIdentity).toBeTruthy();
@@ -174,7 +174,7 @@ describe('backend HTTP contract', () => {
         expect(createSession).not.toHaveBeenCalled();
     });
 
-    it('POST /v1/session returns the session service response on success', async () => {
+    it('POST /v1/sessions/start returns the session service response on success', async () => {
         const createSession = vi.fn().mockResolvedValue({
             userToken: 'tok',
             roomName: 'room-123',
@@ -188,7 +188,7 @@ describe('backend HTTP contract', () => {
         const app = await importFreshApp({ sessionServiceMock: { createSession } });
 
         const res = await request(app)
-            .post('/v1/session')
+            .post('/v1/sessions/start')
             .set('x-api-key', 'dev')
             .send({ userIdentity: 'user_1', roomName: 'room-123' })
             .expect(200);
@@ -201,12 +201,12 @@ describe('backend HTTP contract', () => {
         expect(createSession).toHaveBeenCalledTimes(1);
     });
 
-    it('POST /v1/session/end validates and returns 204 on success', async () => {
+    it('POST /v1/sessions/end validates and returns 204 on success', async () => {
         const endSession = vi.fn().mockResolvedValue(undefined);
         const app = await importFreshApp({ sessionServiceMock: { endSession } });
 
         await request(app)
-            .post('/v1/session/end')
+            .post('/v1/sessions/end')
             .set('x-api-key', 'dev')
             .send({ roomName: 'room-123' })
             .expect(204);

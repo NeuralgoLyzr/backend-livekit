@@ -9,7 +9,6 @@ import {
     AgentVersionResponseSchema,
     CreateAgentRequestSchema,
     EndSessionRequestSchema,
-    SessionObservabilityIngestSchema,
     SessionRequestSchema,
     UpdateAgentRequestSchema,
 } from '../types/index.js';
@@ -198,7 +197,7 @@ const SessionTraceDetailSchema = {
 export const openApiDocument = {
     openapi: '3.1.0',
     info: {
-        title: 'LiveKit Voice Agent Server API',
+        title: 'Lyzr Voice API',
         version: '1.0.0',
         description:
             'REST API for creating voice sessions, dispatching LiveKit agents, managing saved agents, and fetching transcripts/traces.',
@@ -221,13 +220,6 @@ export const openApiDocument = {
                 name: 'x-api-key',
                 description: 'Required for most non-public API endpoints.',
             },
-            ObservabilityKeyAuth: {
-                type: 'apiKey',
-                in: 'header',
-                name: 'x-observability-key',
-                description:
-                    'Required only when observability ingest key is configured on the server.',
-            },
             LiveKitWebhookAuth: {
                 type: 'apiKey',
                 in: 'header',
@@ -241,7 +233,6 @@ export const openApiDocument = {
             ValidationErrorResponse: ValidationErrorResponseSchema,
             SessionRequest: toOpenApiSchema(SessionRequestSchema),
             EndSessionRequest: toOpenApiSchema(EndSessionRequestSchema),
-            SessionObservabilityIngest: toOpenApiSchema(SessionObservabilityIngestSchema),
             CreateSessionResponse: CreateSessionResponseSchema,
             AgentConfig: toOpenApiSchema(AgentConfigSchema),
             CreateAgentRequest: toOpenApiSchema(CreateAgentRequestSchema),
@@ -303,7 +294,7 @@ export const openApiDocument = {
                 },
             },
         },
-        '/session': {
+        '/sessions/start': {
             post: {
                 tags: ['Session'],
                 summary: 'Create a LiveKit session and dispatch an agent',
@@ -352,7 +343,7 @@ export const openApiDocument = {
                 },
             },
         },
-        '/session/end': {
+        '/sessions/end': {
             post: {
                 tags: ['Session'],
                 summary: 'End a session by room name or session id',
@@ -385,58 +376,6 @@ export const openApiDocument = {
                     },
                     '404': {
                         description: 'Session not found for caller scope.',
-                        content: {
-                            'application/json': {
-                                schema: { $ref: '#/components/schemas/ErrorResponse' },
-                            },
-                        },
-                    },
-                },
-            },
-        },
-        '/session/observability': {
-            post: {
-                tags: ['Session'],
-                summary: 'Ingest session observability report (+ optional audio)',
-                security: [{ ObservabilityKeyAuth: [] }],
-                requestBody: {
-                    required: true,
-                    content: {
-                        'application/json': {
-                            schema: { $ref: '#/components/schemas/SessionObservabilityIngest' },
-                        },
-                        'multipart/form-data': {
-                            schema: {
-                                type: 'object',
-                                required: ['payload'],
-                                properties: {
-                                    payload: {
-                                        type: 'string',
-                                        description:
-                                            'JSON string matching SessionObservabilityIngest schema.',
-                                    },
-                                    audio: {
-                                        type: 'string',
-                                        format: 'binary',
-                                        description: 'Optional audio attachment.',
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-                responses: {
-                    '204': { description: 'Observability payload ingested.' },
-                    '400': {
-                        description: 'Invalid payload or malformed multipart payload JSON.',
-                        content: {
-                            'application/json': {
-                                schema: { $ref: '#/components/schemas/ValidationErrorResponse' },
-                            },
-                        },
-                    },
-                    '401': {
-                        description: 'Invalid or missing x-observability-key.',
                         content: {
                             'application/json': {
                                 schema: { $ref: '#/components/schemas/ErrorResponse' },
@@ -1067,7 +1006,7 @@ export const openApiDocument = {
                 },
             },
         },
-        '/api/transcripts': {
+        '/transcripts': {
             get: {
                 tags: ['Transcripts'],
                 summary: 'List transcripts in caller scope',
@@ -1122,7 +1061,7 @@ export const openApiDocument = {
                 },
             },
         },
-        '/api/transcripts/{sessionId}': {
+        '/transcripts/{sessionId}': {
             get: {
                 tags: ['Transcripts'],
                 summary: 'Get transcript by session id',
@@ -1161,7 +1100,7 @@ export const openApiDocument = {
                 },
             },
         },
-        '/api/transcripts/{sessionId}/audio': {
+        '/transcripts/{sessionId}/audio': {
             get: {
                 tags: ['Transcripts'],
                 summary: 'Stream transcript audio recording by session id',
@@ -1198,7 +1137,7 @@ export const openApiDocument = {
                 },
             },
         },
-        '/api/transcripts/agent/{agentId}': {
+        '/transcripts/agent/{agentId}': {
             get: {
                 tags: ['Transcripts'],
                 summary: 'List transcripts for a specific agent',
@@ -1224,7 +1163,7 @@ export const openApiDocument = {
                 },
             },
         },
-        '/api/transcripts/agent/{agentId}/stats': {
+        '/transcripts/agent/{agentId}/stats': {
             get: {
                 tags: ['Transcripts'],
                 summary: 'Aggregate transcript stats for one agent',
@@ -1263,7 +1202,7 @@ export const openApiDocument = {
                 },
             },
         },
-        '/api/traces/session/{sessionId}': {
+        '/traces/session/{sessionId}': {
             get: {
                 tags: ['Traces'],
                 summary: 'List Langfuse traces for a session',
@@ -1327,7 +1266,7 @@ export const openApiDocument = {
                 },
             },
         },
-        '/api/traces/session/{sessionId}/{traceId}': {
+        '/traces/session/{sessionId}/{traceId}': {
             get: {
                 tags: ['Traces'],
                 summary: 'Get one trace by trace id in a session',

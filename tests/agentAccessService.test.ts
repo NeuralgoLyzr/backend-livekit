@@ -76,9 +76,9 @@ describe('agentAccessService (unit)', () => {
         await expect(svc.hasSharedAccess(auth, '507f1f77bcf86cd799439011', 'read')).resolves.toBe(
             true
         );
-        await expect(
-            svc.hasSharedAccess(auth, '507f1f77bcf86cd799439011', 'delete')
-        ).resolves.toBe(false);
+        await expect(svc.hasSharedAccess(auth, '507f1f77bcf86cd799439011', 'delete')).resolves.toBe(
+            false
+        );
     });
 
     it('lists unique shared user ids for an agent', async () => {
@@ -110,8 +110,8 @@ describe('agentAccessService (unit)', () => {
         };
 
         const svc = createAgentAccessService({ policyService });
-        await expect(svc.listSharedUserIdsForAgent(auth, '507f1f77bcf86cd799439011')).resolves.toEqual(
-            ['user_a', 'user_b']
-        );
+        await expect(
+            svc.listSharedUserIdsForAgent(auth, '507f1f77bcf86cd799439011')
+        ).resolves.toEqual(['user_a', 'user_b']);
     });
 });

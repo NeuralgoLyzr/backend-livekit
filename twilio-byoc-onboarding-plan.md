@@ -1,6 +1,6 @@
 # Twilio BYOC (Bring Your Own Number) Onboarding Plan — LiveKit Telephony (Mode A)
 
-This plan describes how to onboard a customer who already owns phone numbers in Twilio and wants inbound calls routed to a LiveKit SIP ingress, where our LiveKit agent is dispatched using the existing backend webhook: `POST /telephony/livekit-webhook`.
+This plan describes how to onboard a customer who already owns phone numbers in Twilio and wants inbound calls routed to a LiveKit SIP ingress, where our LiveKit agent is dispatched using the existing backend webhook: `POST /v1/telephony/livekit-webhook`.
 
 **Key constraint:** we do **not** purchase phone numbers for customers; we only connect **existing** Twilio numbers to a SIP trunk that forwards calls to LiveKit.
 
@@ -34,15 +34,15 @@ For each customer, we will:
 1. PSTN caller dials the customer’s Twilio number (DID).
 2. Twilio forwards the call via SIP to **LiveKit SIP ingress** (via trunk origination).
 3. LiveKit places the SIP participant into a room (via LiveKit SIP dispatch rules / ingress behavior).
-4. LiveKit sends webhook events to our backend at `POST /telephony/livekit-webhook`.
+4. LiveKit sends webhook events to our backend at `POST /v1/telephony/livekit-webhook`.
 5. Our backend dedupes events and dispatches the agent to that room exactly once.
 
 ### Existing backend endpoints (already present)
 
-- `POST /telephony/livekit-webhook` (required, LiveKit → backend)
+- `POST /v1/telephony/livekit-webhook` (required, LiveKit → backend)
 - Diagnostics (non-prod):
-    - `GET /telephony/calls/:callId`
-    - `GET /telephony/calls/by-room/:roomName`
+    - `GET /v1/telephony/calls/:callId`
+    - `GET /v1/telephony/calls/by-room/:roomName`
 
 ### New responsibility we’re adding
 
@@ -128,7 +128,7 @@ All routes below are **frontend → backend** (customer onboarding), and should 
 
 ### 1) Twilio credentials
 
-#### `POST /telephony/providers/twilio/credentials:verify`
+#### `POST /v1/telephony/providers/twilio/credentials:verify`
 
 Purpose: verify provided credentials are valid without saving them.
 
@@ -140,7 +140,7 @@ Purpose: verify provided credentials are valid without saving them.
 - Output:
     - `{ ok: true, accountSid, friendlyName? }` or `{ ok: false, errorCode, message }`
 
-#### `POST /telephony/providers/twilio/credentials`
+#### `POST /v1/telephony/providers/twilio/credentials`
 
 Purpose: store/replace customer credentials securely.
 
@@ -152,13 +152,13 @@ Purpose: store/replace customer credentials securely.
 - Output:
     - `{ integrationId, accountSid }`
 
-#### `DELETE /telephony/providers/twilio/credentials`
+#### `DELETE /v1/telephony/providers/twilio/credentials`
 
 Purpose: disconnect Twilio integration (does not necessarily revert Twilio trunk config).
 
 ### 2) Discover existing numbers
 
-#### `GET /telephony/providers/twilio/numbers`
+#### `GET /v1/telephony/providers/twilio/numbers`
 
 Purpose: list existing Twilio Incoming Phone Numbers in the connected account.
 
@@ -171,7 +171,7 @@ Purpose: list existing Twilio Incoming Phone Numbers in the connected account.
 
 ### 3) Connect a number to LiveKit SIP ingress
 
-#### `POST /telephony/providers/twilio/numbers/:phoneNumberSid/connect`
+#### `POST /v1/telephony/providers/twilio/numbers/:phoneNumberSid/connect`
 
 Purpose: connect an existing Twilio number to LiveKit by configuring Twilio SIP trunking.
 
@@ -192,13 +192,13 @@ Purpose: connect an existing Twilio number to LiveKit by configuring Twilio SIP 
     - `sipTarget`
     - `status`
 
-#### `POST /telephony/providers/twilio/numbers/:phoneNumberSid/disconnect`
+#### `POST /v1/telephony/providers/twilio/numbers/:phoneNumberSid/disconnect`
 
 Purpose: detach number from trunk (optional in v1; can be admin-only).
 
 ### 4) Status & diagnostics
 
-#### `GET /telephony/providers/twilio/numbers/:phoneNumberSid/status`
+#### `GET /v1/telephony/providers/twilio/numbers/:phoneNumberSid/status`
 
 Returns:
 
@@ -249,17 +249,17 @@ Even if the PoC currently uses in-memory call state, onboarding config should be
 ### Step 0: Customer enters Twilio credentials
 
 - UI collects: `Account SID`, `API Key SID`, `API Key Secret`.
-- Frontend calls `POST /telephony/providers/twilio/credentials:verify`.
-- On success, frontend calls `POST /telephony/providers/twilio/credentials` to save.
+- Frontend calls `POST /v1/telephony/providers/twilio/credentials:verify`.
+- On success, frontend calls `POST /v1/telephony/providers/twilio/credentials` to save.
 
 ### Step 1: Choose an existing number
 
-- Frontend calls `GET /telephony/providers/twilio/numbers`.
+- Frontend calls `GET /v1/telephony/providers/twilio/numbers`.
 - User selects a number to connect.
 
 ### Step 2: Connect the number
 
-- Frontend calls `POST /telephony/providers/twilio/numbers/:phoneNumberSid/connect`.
+- Frontend calls `POST /v1/telephony/providers/twilio/numbers/:phoneNumberSid/connect`.
 - UI shows “Connected” + a test call checklist.
 
 ### Step 3: Test call
@@ -345,7 +345,7 @@ Suggested structure:
 
 ### 2) Add new router
 
-- `src/routes/telephonyTwilio.ts` (mounted under `/telephony/providers/twilio`)
+- `src/routes/telephonyTwilio.ts` (mounted under `/v1/telephony/providers/twilio`)
     - Implements routes defined above.
 
 ### 3) Add persistence

@@ -116,7 +116,8 @@ export async function importFreshApp(options?: {
                 storeDelete: { status: 'ok' },
             });
 
-        const saveFromObservability = options.transcriptServiceMock?.saveFromObservability ?? vi.fn();
+        const saveFromObservability =
+            options.transcriptServiceMock?.saveFromObservability ?? vi.fn();
         const getBySessionId = options.transcriptServiceMock?.getBySessionId ?? vi.fn();
         const listByAgentId = options.transcriptServiceMock?.listByAgentId ?? vi.fn();
         const getAgentStats = options.transcriptServiceMock?.getAgentStats ?? vi.fn();
@@ -145,8 +146,10 @@ export async function importFreshApp(options?: {
         const saveAudioRecording = options.audioStorageServiceMock?.save ?? vi.fn();
         const getAudio = options.audioStorageServiceMock?.get ?? vi.fn();
 
-        const listAgents = options.agentRegistryServiceMock?.listAgents ?? vi.fn().mockResolvedValue([]);
-        const getAgent = options.agentRegistryServiceMock?.getAgent ?? vi.fn().mockResolvedValue(null);
+        const listAgents =
+            options.agentRegistryServiceMock?.listAgents ?? vi.fn().mockResolvedValue([]);
+        const getAgent =
+            options.agentRegistryServiceMock?.getAgent ?? vi.fn().mockResolvedValue(null);
         const listAgentVersions =
             options.agentRegistryServiceMock?.listAgentVersions ?? vi.fn().mockResolvedValue([]);
         const createAgent = options.agentRegistryServiceMock?.createAgent ?? vi.fn();

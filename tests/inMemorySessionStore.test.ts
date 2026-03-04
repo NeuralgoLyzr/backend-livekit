@@ -10,7 +10,8 @@ function makeSessionData(overrides?: { sessionId?: string }) {
 
 describe('InMemorySessionStore', () => {
     it('supports lookup by sessionId', async () => {
-        const { InMemorySessionStore } = await import('../dist/adapters/sessionStore/inMemorySessionStore.js');
+        const { InMemorySessionStore } =
+            await import('../src/adapters/sessionStore/inMemorySessionStore.js');
         const store = new InMemorySessionStore();
 
         const data = makeSessionData();
@@ -23,7 +24,8 @@ describe('InMemorySessionStore', () => {
     });
 
     it('updates sessionId index when room sessionId changes', async () => {
-        const { InMemorySessionStore } = await import('../dist/adapters/sessionStore/inMemorySessionStore.js');
+        const { InMemorySessionStore } =
+            await import('../src/adapters/sessionStore/inMemorySessionStore.js');
         const store = new InMemorySessionStore();
 
         await store.set('room-1', makeSessionData({ sessionId: 'session-old' }));
@@ -37,7 +39,8 @@ describe('InMemorySessionStore', () => {
     });
 
     it('clears sessionId index on delete', async () => {
-        const { InMemorySessionStore } = await import('../dist/adapters/sessionStore/inMemorySessionStore.js');
+        const { InMemorySessionStore } =
+            await import('../src/adapters/sessionStore/inMemorySessionStore.js');
         const store = new InMemorySessionStore();
 
         await store.set('room-1', makeSessionData());

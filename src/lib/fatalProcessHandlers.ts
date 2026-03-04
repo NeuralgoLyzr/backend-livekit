@@ -69,7 +69,8 @@ export function installFatalProcessHandlers(options: InstallFatalProcessHandlers
                     {
                         event: 'process_fatal',
                         kind: event.kind,
-                        reason: event.reason instanceof Error ? event.reason : toError(event.reason),
+                        reason:
+                            event.reason instanceof Error ? event.reason : toError(event.reason),
                     },
                     'Unhandled promise rejection'
                 );
@@ -100,4 +101,3 @@ export function installFatalProcessHandlers(options: InstallFatalProcessHandlers
         void handleFatal({ kind: 'unhandledRejection', reason });
     });
 }
-

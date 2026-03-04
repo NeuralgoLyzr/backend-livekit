@@ -22,7 +22,10 @@ export interface AgentRegistryService {
         auth: AgentRegistryAuthContext,
         agentId: string
     ): Promise<StoredAgentVersion[] | null>;
-    createAgent(auth: AgentRegistryAuthContext, input: Pick<CreateAgentInput, 'config'>): Promise<StoredAgent>;
+    createAgent(
+        auth: AgentRegistryAuthContext,
+        input: Pick<CreateAgentInput, 'config'>
+    ): Promise<StoredAgent>;
     updateAgent(
         auth: AgentRegistryAuthContext,
         agentId: string,
@@ -52,7 +55,9 @@ function normalizeAgentName(name: string): string {
 }
 
 function toReadScope(auth: AgentRegistryAuthContext): { orgId: string; createdByUserId?: string } {
-    return auth.isAdmin ? { orgId: auth.orgId } : { orgId: auth.orgId, createdByUserId: auth.userId };
+    return auth.isAdmin
+        ? { orgId: auth.orgId }
+        : { orgId: auth.orgId, createdByUserId: auth.userId };
 }
 
 function normalizePagination(input?: ListAgentsInput): { limit: number; offset: number } {
@@ -91,7 +96,8 @@ async function listAllAgentsInScope(
     const pageSize = 200;
     let offset = 0;
     const results: StoredAgent[] = [];
-    const minimumCount = targetCount === undefined ? Number.POSITIVE_INFINITY : Math.max(targetCount, 0);
+    const minimumCount =
+        targetCount === undefined ? Number.POSITIVE_INFINITY : Math.max(targetCount, 0);
 
     while (true) {
         const page = await store.list({
@@ -166,7 +172,10 @@ export function createAgentRegistryService(deps: {
         } satisfies AgentAccessService);
 
     return {
-        async listAgents(auth: AgentRegistryAuthContext, input?: ListAgentsInput): Promise<StoredAgent[]> {
+        async listAgents(
+            auth: AgentRegistryAuthContext,
+            input?: ListAgentsInput
+        ): Promise<StoredAgent[]> {
             if (auth.isAdmin) {
                 return deps.store.list({
                     ...input,
@@ -193,7 +202,10 @@ export function createAgentRegistryService(deps: {
             return merged.slice(offset, offset + limit);
         },
 
-        async getAgent(auth: AgentRegistryAuthContext, agentId: string): Promise<StoredAgent | null> {
+        async getAgent(
+            auth: AgentRegistryAuthContext,
+            agentId: string
+        ): Promise<StoredAgent | null> {
             if (auth.isAdmin) {
                 return deps.store.getById(agentId, { orgId: auth.orgId });
             }
@@ -283,7 +295,11 @@ export function createAgentRegistryService(deps: {
                 return deps.store.activateVersion(agentId, versionId, { orgId: auth.orgId });
             }
 
-            const activatedOwned = await deps.store.activateVersion(agentId, versionId, toReadScope(auth));
+            const activatedOwned = await deps.store.activateVersion(
+                agentId,
+                versionId,
+                toReadScope(auth)
+            );
             if (activatedOwned) return activatedOwned;
 
             const canUpdateShared = await access.hasSharedAccess(auth, agentId, 'update');
@@ -305,7 +321,10 @@ export function createAgentRegistryService(deps: {
             return deps.store.delete(agentId, toReadScope(auth));
         },
 
-        async listAgentShares(auth: AgentRegistryAuthContext, agentId: string): Promise<string[] | null> {
+        async listAgentShares(
+            auth: AgentRegistryAuthContext,
+            agentId: string
+        ): Promise<string[] | null> {
             const agent = await this.getAgent(auth, agentId);
             if (!agent) return null;
 

@@ -5,14 +5,14 @@ import type {
     TelephonyIntegrationStorePort,
     StoredIntegration,
     CreateIntegrationInput,
-} from '../dist/telephony/ports/telephonyIntegrationStorePort.js';
+} from '../src/telephony/ports/telephonyIntegrationStorePort.js';
 import type {
     TelephonyBindingStorePort,
     StoredBinding,
     UpsertBindingInput,
-} from '../dist/telephony/ports/telephonyBindingStorePort.js';
+} from '../src/telephony/ports/telephonyBindingStorePort.js';
 
-vi.mock('../dist/telephony/adapters/telnyx/telnyxClient.js', () => {
+vi.mock('../src/telephony/adapters/telnyx/telnyxClient.js', () => {
     const MockTelnyxClient = vi.fn();
     MockTelnyxClient.prototype.verifyCredentials = vi.fn();
     MockTelnyxClient.prototype.listPhoneNumbers = vi.fn();
@@ -34,11 +34,12 @@ vi.mock('../dist/telephony/adapters/telnyx/telnyxClient.js', () => {
     };
 });
 
-import { TelnyxOnboardingService } from '../dist/telephony/management/telnyxOnboardingService.js';
-import { TelnyxClient } from '../dist/telephony/adapters/telnyx/telnyxClient.js';
+import { TelnyxOnboardingService } from '../src/telephony/management/telnyxOnboardingService.js';
+import { TelnyxClient } from '../src/telephony/adapters/telnyx/telnyxClient.js';
 
 const ENCRYPTION_KEY = randomBytes(32);
 const SIP_HOST = 'sip.livekit.cloud';
+const ORG_SCOPE = { orgId: '00000000-0000-0000-0000-000000000001' };
 
 function setupDefaultClientMocks() {
     (TelnyxClient.prototype.verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -89,6 +90,7 @@ function makeIntegration(
 ): StoredIntegration & { encryptedApiKey: string } {
     return {
         id: 'int_1',
+        orgId: ORG_SCOPE.orgId,
         provider: 'telnyx',
         name: 'Test',
         apiKeyFingerprint: 'fp_abc',
@@ -104,6 +106,7 @@ function makeIntegration(
 function makeBinding(overrides?: Partial<StoredBinding>): StoredBinding {
     return {
         id: 'bind_1',
+        orgId: ORG_SCOPE.orgId,
         integrationId: 'int_1',
         provider: 'telnyx',
         providerNumberId: 'pn_1',
@@ -121,17 +124,20 @@ function stubIntegrationStore(): TelephonyIntegrationStorePort {
     return {
         create: vi.fn(async (input: CreateIntegrationInput) => ({
             ...stored,
+            orgId: input.orgId,
             provider: input.provider,
             name: input.name ?? null,
             apiKeyFingerprint: input.apiKeyFingerprint,
         })),
-        getById: vi.fn(async () => stored),
-        updateProviderResources: vi.fn(async (_id: string, resources: Record<string, unknown>) => ({
+        getById: vi.fn(async (_id: string, _scope: { orgId: string }) => stored),
+        updateProviderResources: vi.fn(
+            async (_id: string, resources: Record<string, unknown>, _scope: { orgId: string }) => ({
             ...stored,
             providerResources: resources,
-        })),
-        deleteById: vi.fn(async () => true),
-        listByProvider: vi.fn(async () => [stored]),
+            })
+        ),
+        deleteById: vi.fn(async (_id: string, _scope: { orgId: string }) => true),
+        listByProvider: vi.fn(async (_provider, _scope: { orgId: string }) => [stored]),
     };
 }
 
@@ -144,10 +150,10 @@ function stubBindingStore(): TelephonyBindingStorePort {
             agentId: input.agentId ?? null,
         })),
         getBindingByE164: vi.fn(async () => binding),
-        getBindingById: vi.fn(async () => binding),
-        listBindings: vi.fn(async () => [binding]),
-        listBindingsByIntegrationId: vi.fn(async () => [binding]),
-        deleteBinding: vi.fn(async () => true),
+        getBindingById: vi.fn(async (_id: string, _scope: { orgId: string }) => binding),
+        listBindings: vi.fn(async (_scope: { orgId: string }) => [binding]),
+        listBindingsByIntegrationId: vi.fn(async (_id: string, _scope: { orgId: string }) => [binding]),
+        deleteBinding: vi.fn(async (_id: string, _scope: { orgId: string }) => true),
     };
 }
 
@@ -199,12 +205,16 @@ describe('TelnyxOnboardingService', () => {
         const integrationStore = stubIntegrationStore();
         const service = createService({ integrationStore });
 
-        const result = await service.createIntegration({ apiKey: 'key_test', name: 'My Telnyx' });
+        const result = await service.createIntegration(
+            { apiKey: 'key_test', name: 'My Telnyx' },
+            ORG_SCOPE
+        );
 
         expect(result.provider).toBe('telnyx');
         expect(result.name).toBe('My Telnyx');
         expect(integrationStore.create).toHaveBeenCalledWith(
             expect.objectContaining({
+                orgId: ORG_SCOPE.orgId,
                 provider: 'telnyx',
                 name: 'My Telnyx',
                 encryptedApiKey: expect.stringContaining('v1.'),
@@ -217,14 +227,15 @@ describe('TelnyxOnboardingService', () => {
             expect.objectContaining({
                 fqdnConnectionId: 'conn_1',
                 fqdnId: 'fqdn_1',
-            })
+            }),
+            ORG_SCOPE
         );
     });
 
     // ── listNumbers ───────────────────────────────────────────────────
 
     it('listNumbers decrypts key and calls client', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_list_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -246,7 +257,7 @@ describe('TelnyxOnboardingService', () => {
         );
 
         const service = createService({ integrationStore });
-        const numbers = await service.listNumbers('int_1');
+        const numbers = await service.listNumbers('int_1', ORG_SCOPE);
 
         expect(numbers).toEqual(mockNumbers);
         expect(TelnyxClient.prototype.listPhoneNumbers).toHaveBeenCalledOnce();
@@ -255,7 +266,7 @@ describe('TelnyxOnboardingService', () => {
     // ── connectNumber ─────────────────────────────────────────────────
 
     it('connectNumber assigns number and creates binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_connect_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -269,16 +280,22 @@ describe('TelnyxOnboardingService', () => {
         const bindingStore = stubBindingStore();
         const service = createService({ integrationStore, bindingStore });
 
-        const result = await service.connectNumber('int_1', {
-            providerNumberId: 'pn_1',
-            e164: '+15551234567',
-        });
+        const result = await service.connectNumber(
+            'int_1',
+            {
+                providerNumberId: 'pn_1',
+                e164: '+15551234567',
+            },
+            ORG_SCOPE
+        );
 
-        expect(
-            TelnyxClient.prototype.assignPhoneNumberToConnection
-        ).toHaveBeenCalledWith('pn_1', 'conn_existing');
+        expect(TelnyxClient.prototype.assignPhoneNumberToConnection).toHaveBeenCalledWith(
+            'pn_1',
+            'conn_existing'
+        );
         expect(bindingStore.upsertBinding).toHaveBeenCalledWith(
             expect.objectContaining({
+                orgId: ORG_SCOPE.orgId,
                 integrationId: 'int_1',
                 provider: 'telnyx',
                 providerNumberId: 'pn_1',
@@ -289,7 +306,7 @@ describe('TelnyxOnboardingService', () => {
     });
 
     it('connectNumber rejects when requested e164 does not match provider number', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_connect_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -307,7 +324,7 @@ describe('TelnyxOnboardingService', () => {
             service.connectNumber('int_1', {
                 providerNumberId: 'pn_1',
                 e164: '+15559999999',
-            })
+            }, ORG_SCOPE)
         ).rejects.toMatchObject({
             status: 422,
         });
@@ -315,7 +332,7 @@ describe('TelnyxOnboardingService', () => {
     });
 
     it('connectNumber stores the provided agentId on the binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_connect_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -329,14 +346,19 @@ describe('TelnyxOnboardingService', () => {
         const bindingStore = stubBindingStore();
         const service = createService({ integrationStore, bindingStore });
 
-        await service.connectNumber('int_1', {
-            providerNumberId: 'pn_1',
-            e164: '+15551234567',
-            agentId: 'agent-1',
-        });
+        await service.connectNumber(
+            'int_1',
+            {
+                providerNumberId: 'pn_1',
+                e164: '+15551234567',
+                agentId: 'agent-1',
+            },
+            ORG_SCOPE
+        );
 
         expect(bindingStore.upsertBinding).toHaveBeenCalledWith(
             expect.objectContaining({
+                orgId: ORG_SCOPE.orgId,
                 integrationId: 'int_1',
                 provider: 'telnyx',
                 providerNumberId: 'pn_1',
@@ -349,7 +371,7 @@ describe('TelnyxOnboardingService', () => {
     // ── disconnectNumber ──────────────────────────────────────────────
 
     it('disconnectNumber deprovisions and deletes binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_disconnect_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -362,16 +384,16 @@ describe('TelnyxOnboardingService', () => {
 
         const bindingStore = stubBindingStore();
         const service = createService({ integrationStore, bindingStore });
-        await service.disconnectNumber('bind_1');
+        await service.disconnectNumber('bind_1', ORG_SCOPE);
 
         expect(TelnyxClient.prototype.unassignPhoneNumberFromConnection).toHaveBeenCalledWith(
             'pn_1'
         );
-        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1', ORG_SCOPE);
     });
 
     it('disconnectNumber calls removeInboundSetupForDid before unassigning from provider', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_order_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -419,18 +441,21 @@ describe('TelnyxOnboardingService', () => {
             callOrder.push('unassignPhoneNumberFromConnection');
         });
 
-        await service.disconnectNumber('bind_1');
+        await service.disconnectNumber('bind_1', ORG_SCOPE);
 
         expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledWith('+15551234567');
         expect(TelnyxClient.prototype.unassignPhoneNumberFromConnection).toHaveBeenCalledWith(
             'pn_1'
         );
-        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
-        expect(callOrder).toEqual(['removeInboundSetupForDid', 'unassignPhoneNumberFromConnection']);
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1', ORG_SCOPE);
+        expect(callOrder).toEqual([
+            'removeInboundSetupForDid',
+            'unassignPhoneNumberFromConnection',
+        ]);
     });
 
     it('disconnectNumber does not delete binding when unassign fails', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_unassign_fail', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -448,12 +473,12 @@ describe('TelnyxOnboardingService', () => {
             TelnyxClient.prototype.unassignPhoneNumberFromConnection as ReturnType<typeof vi.fn>
         ).mockRejectedValue(new Error('provider unavailable'));
 
-        await expect(service.disconnectNumber('bind_1')).rejects.toThrow();
+        await expect(service.disconnectNumber('bind_1', ORG_SCOPE)).rejects.toThrow();
         expect(bindingStore.deleteBinding).not.toHaveBeenCalled();
     });
 
     it('disconnectNumber does not delete binding when removeInboundSetupForDid fails', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_lk_fail', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -480,7 +505,7 @@ describe('TelnyxOnboardingService', () => {
             livekitProvisioning,
         });
 
-        await expect(service.disconnectNumber('bind_1')).rejects.toThrow();
+        await expect(service.disconnectNumber('bind_1', ORG_SCOPE)).rejects.toThrow();
         expect(TelnyxClient.prototype.unassignPhoneNumberFromConnection).not.toHaveBeenCalled();
         expect(bindingStore.deleteBinding).not.toHaveBeenCalled();
     });
@@ -491,7 +516,7 @@ describe('TelnyxOnboardingService', () => {
 
         const service = createService({ bindingStore });
 
-        await expect(service.disconnectNumber('bind_missing')).rejects.toMatchObject({
+        await expect(service.disconnectNumber('bind_missing', ORG_SCOPE)).rejects.toMatchObject({
             status: 404,
         });
     });
@@ -504,13 +529,13 @@ describe('TelnyxOnboardingService', () => {
 
         const service = createService({ bindingStore });
 
-        await expect(service.disconnectNumber('bind_1')).rejects.toMatchObject({
+        await expect(service.disconnectNumber('bind_1', ORG_SCOPE)).rejects.toMatchObject({
             status: 400,
         });
     });
 
     it('deleteIntegration cascades number disconnects then deletes integration', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_delete_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -524,16 +549,16 @@ describe('TelnyxOnboardingService', () => {
         const bindingStore = stubBindingStore();
         const service = createService({ integrationStore, bindingStore });
 
-        const result = await service.deleteIntegration('int_1');
+        const result = await service.deleteIntegration('int_1', ORG_SCOPE);
         expect(result).toEqual({ deletedBindings: 1 });
-        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1', ORG_SCOPE);
         expect(TelnyxClient.prototype.deleteFqdn).toHaveBeenCalledWith('fqdn_1');
         expect(TelnyxClient.prototype.deleteFqdnConnection).toHaveBeenCalledWith('conn_1');
-        expect(integrationStore.deleteById).toHaveBeenCalledWith('int_1');
+        expect(integrationStore.deleteById).toHaveBeenCalledWith('int_1', ORG_SCOPE);
     });
 
     it('deleteIntegration calls removeInboundSetupForDid for each binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_cascade_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -544,8 +569,16 @@ describe('TelnyxOnboardingService', () => {
             })
         );
 
-        const binding1 = makeBinding({ id: 'bind_1', e164: '+15551111111', providerNumberId: 'pn_1' });
-        const binding2 = makeBinding({ id: 'bind_2', e164: '+15552222222', providerNumberId: 'pn_2' });
+        const binding1 = makeBinding({
+            id: 'bind_1',
+            e164: '+15551111111',
+            providerNumberId: 'pn_1',
+        });
+        const binding2 = makeBinding({
+            id: 'bind_2',
+            e164: '+15552222222',
+            providerNumberId: 'pn_2',
+        });
         const bindingStore = stubBindingStore();
         (bindingStore.listBindingsByIntegrationId as ReturnType<typeof vi.fn>).mockResolvedValue([
             binding1,
@@ -571,7 +604,7 @@ describe('TelnyxOnboardingService', () => {
             livekitProvisioning,
         });
 
-        const result = await service.deleteIntegration('int_1');
+        const result = await service.deleteIntegration('int_1', ORG_SCOPE);
         expect(result).toEqual({ deletedBindings: 2 });
         expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledTimes(2);
         expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledWith('+15551111111');
@@ -581,7 +614,7 @@ describe('TelnyxOnboardingService', () => {
     });
 
     it('deleteIntegration skips non-telnyx bindings in cascade', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString('key_skip_test', ENCRYPTION_KEY);
 
         const integrationStore = stubIntegrationStore();
@@ -602,11 +635,11 @@ describe('TelnyxOnboardingService', () => {
 
         const service = createService({ integrationStore, bindingStore });
 
-        const result = await service.deleteIntegration('int_1');
+        const result = await service.deleteIntegration('int_1', ORG_SCOPE);
         // Should report 2 total bindings but only disconnect the telnyx one
         expect(result).toEqual({ deletedBindings: 2 });
         expect(TelnyxClient.prototype.unassignPhoneNumberFromConnection).toHaveBeenCalledTimes(1);
         expect(bindingStore.deleteBinding).toHaveBeenCalledTimes(1);
-        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1', ORG_SCOPE);
     });
 });

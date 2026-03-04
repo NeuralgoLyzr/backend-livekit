@@ -19,14 +19,14 @@ import type {
     StoredIntegration,
     TelephonyIntegrationStorePort,
     TelephonyProvider,
-} from '../dist/telephony/ports/telephonyIntegrationStorePort.js';
+} from '../src/telephony/ports/telephonyIntegrationStorePort.js';
 import type {
     StoredBinding,
     TelephonyBindingStorePort,
     UpsertBindingInput,
-} from '../dist/telephony/ports/telephonyBindingStorePort.js';
-import type { LiveKitTelephonyProvisioningPort } from '../dist/telephony/management/livekitTelephonyProvisioningService.js';
-import { PlivoOnboardingService } from '../dist/telephony/management/plivoOnboardingService.js';
+} from '../src/telephony/ports/telephonyBindingStorePort.js';
+import type { LiveKitTelephonyProvisioningPort } from '../src/telephony/management/livekitTelephonyProvisioningService.js';
+import { PlivoOnboardingService } from '../src/telephony/management/plivoOnboardingService.js';
 
 const AUTH_ID = process.env.PLIVO_AUTH_ID || '';
 const AUTH_TOKEN = process.env.PLIVO_AUTH_TOKEN || '';
@@ -66,7 +66,11 @@ function createInMemoryIntegrationStore(): TelephonyIntegrationStorePort {
         async updateProviderResources(id: string, resources: Record<string, unknown>) {
             const existing = store.get(id);
             if (!existing) return null;
-            const updated = { ...existing, providerResources: resources, updatedAt: new Date().toISOString() };
+            const updated = {
+                ...existing,
+                providerResources: resources,
+                updatedAt: new Date().toISOString(),
+            };
             store.set(id, updated);
             const { encryptedApiKey: _, ...stored } = updated;
             return stored;
@@ -163,33 +167,26 @@ describe.skipIf(!AUTH_ID || !AUTH_TOKEN || !TEST_PHONE_NUMBER)(
             });
         });
 
-        it(
-            'verifyCredentials succeeds with valid credentials',
-            async () => {
-                const result = await service.verifyCredentials({
-                    authId: AUTH_ID,
-                    authToken: AUTH_TOKEN,
-                });
-                expect(result).toEqual({ valid: true });
-            },
-            { timeout: 30_000 }
-        );
+        it('verifyCredentials succeeds with valid credentials', { timeout: 30_000 }, async () => {
+            const result = await service.verifyCredentials({
+                authId: AUTH_ID,
+                authToken: AUTH_TOKEN,
+            });
+            expect(result).toEqual({ valid: true });
+        });
 
-        it(
-            'verifyCredentials rejects invalid credentials',
-            async () => {
-                await expect(
-                    service.verifyCredentials({
-                        authId: AUTH_ID,
-                        authToken: 'invalid_token_12345',
-                    })
-                ).rejects.toThrow();
-            },
-            { timeout: 30_000 }
-        );
+        it('verifyCredentials rejects invalid credentials', { timeout: 30_000 }, async () => {
+            await expect(
+                service.verifyCredentials({
+                    authId: AUTH_ID,
+                    authToken: 'invalid_token_12345',
+                })
+            ).rejects.toThrow();
+        });
 
         it(
             'full lifecycle: createIntegration → listNumbers → connectNumber → disconnectNumber → deleteIntegration',
+            { timeout: 120_000 },
             async () => {
                 const integration = await service.createIntegration({
                     authId: AUTH_ID,
@@ -234,12 +231,12 @@ describe.skipIf(!AUTH_ID || !AUTH_TOKEN || !TEST_PHONE_NUMBER)(
                     await service.deleteIntegration(integration.id).catch(() => {});
                     throw err;
                 }
-            },
-            { timeout: 120_000 }
+            }
         );
 
         it(
             'deleteIntegration cascades: auto-disconnects bound numbers',
+            { timeout: 120_000 },
             async () => {
                 const integration = await service.createIntegration({
                     authId: AUTH_ID,
@@ -267,8 +264,7 @@ describe.skipIf(!AUTH_ID || !AUTH_TOKEN || !TEST_PHONE_NUMBER)(
                     await service.deleteIntegration(integration.id).catch(() => {});
                     throw err;
                 }
-            },
-            { timeout: 120_000 }
+            }
         );
     }
 );

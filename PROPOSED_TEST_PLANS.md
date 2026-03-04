@@ -88,7 +88,7 @@ Ensure Sarvam STT is supported end-to-end (config options + runtime plugin wirin
 
 ### Plan
 
-1. Backend config contract tests (`/config/pipeline-options`):
+1. Backend config contract tests (`/v1/config/pipeline-options`):
 
 - Sarvam STT provider is present.
 - Sarvam STT model `sarvam/saarika:v2.5` is returned.

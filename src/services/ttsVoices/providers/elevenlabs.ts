@@ -97,7 +97,11 @@ export function createElevenLabsVoiceProvider(deps: { apiKey: string }) {
         }
 
         const root = payload as Record<string, unknown>;
-        const rawList = Array.isArray(root.voices) ? root.voices : Array.isArray(root.data) ? root.data : [];
+        const rawList = Array.isArray(root.voices)
+            ? root.voices
+            : Array.isArray(root.data)
+              ? root.data
+              : [];
         const voices: TtsVoice[] = rawList
             .map((item) => parseElevenLabsVoice(item))
             .filter((v): v is TtsVoice => v !== null);
@@ -118,4 +122,3 @@ export function createElevenLabsVoiceProvider(deps: { apiKey: string }) {
 
     return { listVoices, providerId: 'elevenlabs' as const };
 }
-

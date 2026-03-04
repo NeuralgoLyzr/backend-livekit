@@ -87,7 +87,11 @@ export class MongooseAgentStore implements AgentStorePort {
         const _id = new mongoose.Types.ObjectId(id);
         const scopedQuery = buildScopedQuery(scope);
 
-        const row = await Agent.findOne({ _id, ...scopedQuery, deletedAt: null }).lean<AgentConfigDocument>();
+        const row = await Agent.findOne({
+            _id,
+            ...scopedQuery,
+            deletedAt: null,
+        }).lean<AgentConfigDocument>();
         if (!row) return null;
         return toStoredAgent(row);
     }
@@ -100,7 +104,11 @@ export class MongooseAgentStore implements AgentStorePort {
         const _id = new mongoose.Types.ObjectId(id);
         const scopedQuery = buildScopedQuery(scope);
 
-        const row = await Agent.findOne({ _id, ...scopedQuery, deletedAt: null }).lean<AgentConfigDocument>();
+        const row = await Agent.findOne({
+            _id,
+            ...scopedQuery,
+            deletedAt: null,
+        }).lean<AgentConfigDocument>();
         if (!row) return null;
 
         const versions = [...(row.versions ?? [])]
@@ -126,7 +134,11 @@ export class MongooseAgentStore implements AgentStorePort {
         return toStoredAgent(created.toObject() as AgentConfigDocument);
     }
 
-    async update(id: string, input: UpdateAgentInput, scope?: AgentAccessScope): Promise<StoredAgent | null> {
+    async update(
+        id: string,
+        input: UpdateAgentInput,
+        scope?: AgentAccessScope
+    ): Promise<StoredAgent | null> {
         await connectMongo();
         const Agent = getAgentModel();
 
@@ -184,10 +196,16 @@ export class MongooseAgentStore implements AgentStorePort {
         const _id = new mongoose.Types.ObjectId(id);
         const scopedQuery = buildScopedQuery(scope);
 
-        const existing = await Agent.findOne({ _id, ...scopedQuery, deletedAt: null }).lean<AgentConfigDocument>();
+        const existing = await Agent.findOne({
+            _id,
+            ...scopedQuery,
+            deletedAt: null,
+        }).lean<AgentConfigDocument>();
         if (!existing) return null;
 
-        const targetVersion = (existing.versions ?? []).find((version) => version.versionId === versionId);
+        const targetVersion = (existing.versions ?? []).find(
+            (version) => version.versionId === versionId
+        );
         if (!targetVersion) return null;
 
         const nextVersions = (existing.versions ?? []).map((version) => ({

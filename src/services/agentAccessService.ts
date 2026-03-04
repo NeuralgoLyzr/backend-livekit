@@ -75,8 +75,12 @@ function getAllowedModes(action: AgentAction): Set<string> {
     }
 }
 
-export function createAgentAccessService(deps: { policyService: PagosPolicyService }): AgentAccessService {
-    async function getUserAgentPermissions(auth: AgentRegistryAuthContext): Promise<AssignedPermission[]> {
+export function createAgentAccessService(deps: {
+    policyService: PagosPolicyService;
+}): AgentAccessService {
+    async function getUserAgentPermissions(
+        auth: AgentRegistryAuthContext
+    ): Promise<AssignedPermission[]> {
         const all = await deps.policyService.listAssignedPermissions({
             organizationId: auth.orgId,
             permissionType: AGENT_PERMISSION_TYPE,
@@ -105,18 +109,25 @@ export function createAgentAccessService(deps: { policyService: PagosPolicyServi
             const permissions = await getUserAgentPermissions(auth);
             const allowedModes = getAllowedModes(action);
             return permissions.some(
-                (permission) => permission.resourceId === agentId && hasMode(permission, allowedModes)
+                (permission) =>
+                    permission.resourceId === agentId && hasMode(permission, allowedModes)
             );
         },
 
-        async listSharedUserIdsForAgent(auth: AgentRegistryAuthContext, agentId: string): Promise<string[]> {
+        async listSharedUserIdsForAgent(
+            auth: AgentRegistryAuthContext,
+            agentId: string
+        ): Promise<string[]> {
             const permissions = await deps.policyService.listAssignedPermissions({
                 organizationId: auth.orgId,
                 permissionType: AGENT_PERMISSION_TYPE,
             });
 
             const userIds = permissions
-                .filter((permission) => isAgentPermission(permission) && permission.resourceId === agentId)
+                .filter(
+                    (permission) =>
+                        isAgentPermission(permission) && permission.resourceId === agentId
+                )
                 .map((permission) => normalizeString(permission.userId))
                 .filter((userId) => userId.length > 0);
 

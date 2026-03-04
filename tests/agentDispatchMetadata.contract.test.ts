@@ -154,8 +154,8 @@ describe('agent dispatch metadata contract', () => {
         setRequiredEnv();
 
         const [{ createAgentService }, { AgentConfigSchema }] = await Promise.all([
-            import('../dist/services/agentService.js'),
-            import('../dist/types/index.js'),
+            import('../src/services/agentService.js'),
+            import('../src/types/index.js'),
         ]);
 
         const configResult = AgentConfigSchema.safeParse({
@@ -202,19 +202,22 @@ describe('agent dispatch metadata contract', () => {
                     persist_auth: false,
                 },
             ],
-            lyzr_rag: {
-                base_url: 'https://example.com',
-                rag_id: 'rag-1',
-                rag_name: 'KB',
-            },
-            agentic_rag: [
-                {
+            knowledge_base: {
+                enabled: true,
+                lyzr_rag: {
+                    base_url: 'https://example.com',
                     rag_id: 'rag-1',
-                    top_k: 5,
-                    retrieval_type: 'hybrid',
-                    score_threshold: 0.3,
+                    rag_name: 'KB',
                 },
-            ],
+                agentic_rag: [
+                    {
+                        rag_id: 'rag-1',
+                        top_k: 5,
+                        retrieval_type: 'hybrid',
+                        score_threshold: 0.3,
+                    },
+                ],
+            },
             vad_enabled: true,
             preemptive_generation: true,
             pronunciation_correction: true,
@@ -281,8 +284,8 @@ describe('agent dispatch metadata contract', () => {
         setRequiredEnv();
 
         const [{ createAgentService }, { AGENT_DEFAULTS }] = await Promise.all([
-            import('../dist/services/agentService.js'),
-            import('../dist/CONSTS.js'),
+            import('../src/services/agentService.js'),
+            import('../src/CONSTS.js'),
         ]);
 
         const createDispatch = vi.fn().mockResolvedValue({ id: 'dispatch-contract-2' });
@@ -305,7 +308,7 @@ describe('agent dispatch metadata contract', () => {
         expect(metadata.noise_cancellation).toEqual(AGENT_DEFAULTS.noise_cancellation);
         expect(metadata.conversation_start).toEqual(AGENT_DEFAULTS.conversation_start);
         expect(metadata.tools).toEqual(AGENT_DEFAULTS.tools);
-        expect(metadata.agentic_rag).toEqual(AGENT_DEFAULTS.agentic_rag);
+        expect(metadata.agentic_rag).toEqual([]);
         expect(metadata.vad_enabled).toBe(AGENT_DEFAULTS.vad_enabled);
         expect(metadata.preemptive_generation).toBe(false);
         expect(metadata.pronunciation_correction).toBe(false);

@@ -3,10 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { setRequiredEnv } from './testUtils';
 
 describe('agentConfigResolverService (unit)', () => {
-    it('merges overrides and normalizes tools + KB-derived RAG fields', async () => {
+    it('merges overrides and normalizes tools', async () => {
         setRequiredEnv();
         const { createAgentConfigResolverService } =
-            await import('../dist/services/agentConfigResolverService.js');
+            await import('../src/services/agentConfigResolverService.js');
 
         const storedConfig = {
             tools: ['get_weather'],
@@ -49,7 +49,6 @@ describe('agentConfigResolverService (unit)', () => {
 
         // Unknown tool removed; KB tool auto-added because KB enabled
         expect(resolved.tools).toEqual(['search_wikipedia', 'search_knowledge_base']);
-        expect(resolved.lyzr_rag).toEqual({ base_url: 'x', rag_id: 'r', rag_name: 'n' });
         expect(getById).toHaveBeenCalledWith('507f1f77bcf86cd799439011', {
             orgId: 'org-a',
             createdByUserId: 'user-a',
@@ -59,7 +58,7 @@ describe('agentConfigResolverService (unit)', () => {
     it('uses org-only scope when requester is admin', async () => {
         setRequiredEnv();
         const { createAgentConfigResolverService } =
-            await import('../dist/services/agentConfigResolverService.js');
+            await import('../src/services/agentConfigResolverService.js');
 
         const getById = vi.fn().mockResolvedValue({
             id: '507f1f77bcf86cd799439011',
@@ -97,8 +96,8 @@ describe('agentConfigResolverService (unit)', () => {
     it('throws 404 when agent is missing', async () => {
         setRequiredEnv();
         const { createAgentConfigResolverService } =
-            await import('../dist/services/agentConfigResolverService.js');
-        const { HttpError } = await import('../dist/lib/httpErrors.js');
+            await import('../src/services/agentConfigResolverService.js');
+        const { HttpError } = await import('../src/lib/httpErrors.js');
 
         const resolver = createAgentConfigResolverService({
             agentStore: {

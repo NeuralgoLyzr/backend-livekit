@@ -8,34 +8,29 @@ import { importFreshApp } from './testUtils.js';
 const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY || '';
 
 describe.skipIf(!CARTESIA_API_KEY)('TTS voice preview (live)', () => {
-    it(
-        'proxies Cartesia preview audio with Authorization header',
-        async () => {
-            const app = await importFreshApp({ env: { CARTESIA_API_KEY } });
+    it('proxies Cartesia preview audio with Authorization header', async () => {
+        const app = await importFreshApp({ env: { CARTESIA_API_KEY } });
 
-            const listRes = await request(app)
-                .get('/config/tts-voices')
-                .query({ providerId: 'cartesia', limit: 25 });
+        const listRes = await request(app)
+            .get('/v1/config/tts-voices')
+            .query({ providerId: 'cartesia', limit: 25 });
 
-            expect(listRes.status).toBe(200);
-            expect(Array.isArray(listRes.body.voices)).toBe(true);
+        expect(listRes.status).toBe(200);
+        expect(Array.isArray(listRes.body.voices)).toBe(true);
 
-            const voiceWithPreview = (listRes.body.voices as Array<{ previewUrl?: string }>).find(
-                (v) => typeof v.previewUrl === 'string' && v.previewUrl.startsWith('http')
-            );
-            expect(voiceWithPreview).toBeDefined();
+        const voiceWithPreview = (listRes.body.voices as Array<{ previewUrl?: string }>).find(
+            (v) => typeof v.previewUrl === 'string' && v.previewUrl.startsWith('http')
+        );
+        expect(voiceWithPreview).toBeDefined();
 
-            const previewUrl = voiceWithPreview!.previewUrl!;
-            const previewRes = await request(app)
-                .get('/config/tts-voice-preview')
-                .query({ providerId: 'cartesia', url: previewUrl });
+        const previewUrl = voiceWithPreview!.previewUrl!;
+        const previewRes = await request(app)
+            .get('/v1/config/tts-voice-preview')
+            .query({ providerId: 'cartesia', url: previewUrl });
 
-            expect(previewRes.status).toBe(200);
-            expect(previewRes.headers['content-type']).toBeTruthy();
-            expect(previewRes.body).toBeInstanceOf(Buffer);
-            expect((previewRes.body as Buffer).length).toBeGreaterThan(500);
-        },
-        60_000
-    );
+        expect(previewRes.status).toBe(200);
+        expect(previewRes.headers['content-type']).toBeTruthy();
+        expect(previewRes.body).toBeInstanceOf(Buffer);
+        expect((previewRes.body as Buffer).length).toBeGreaterThan(500);
+    }, 60_000);
 });
-

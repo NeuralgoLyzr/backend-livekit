@@ -96,9 +96,7 @@ export class TelephonySessionService {
 
                 const call = await this.deps.store.upsertCallByRoomName(evt.roomName, {
                     status: 'sip_participant_joined',
-                    ...(isNewCall
-                        ? { sipParticipant: evt.participant, from, to }
-                        : {}),
+                    ...(isNewCall ? { sipParticipant: evt.participant, from, to } : {}),
                     raw: {
                         lastEventId: evt.eventId,
                         lastEvent: evt.event,
@@ -116,7 +114,12 @@ export class TelephonySessionService {
                     }
                 } catch (err) {
                     logger.error(
-                        { event: 'telephony.dispatch_failed', callId: call.callId, roomName: call.roomName, err },
+                        {
+                            event: 'telephony.dispatch_failed',
+                            callId: call.callId,
+                            roomName: call.roomName,
+                            err,
+                        },
                         'Agent dispatch failed'
                     );
                     dispatchSucceeded = false;
@@ -188,7 +191,8 @@ export class TelephonySessionService {
         });
 
         const sessionId =
-            typeof routing.agentConfig.session_id === 'string' && routing.agentConfig.session_id.trim()
+            typeof routing.agentConfig.session_id === 'string' &&
+            routing.agentConfig.session_id.trim()
                 ? routing.agentConfig.session_id
                 : randomUUID();
 

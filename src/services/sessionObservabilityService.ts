@@ -1,11 +1,10 @@
-import { randomUUID } from 'crypto';
-
 import type { SessionStorePort } from '../ports/sessionStorePort.js';
 import type { AudioStorageService } from './audioStorageService.js';
+import { HttpError } from '../lib/httpErrors.js';
 import { logger } from '../lib/logger.js';
 import type { SessionService } from './sessionService.js';
 import type { TranscriptService } from './transcriptService.js';
-import type { SessionObservabilityIngest } from '../types/index.js';
+import type { SessionData, SessionObservabilityIngest } from '../types/index.js';
 
 // ---------------------------------------------------------------------------
 // Step outcome types
@@ -56,58 +55,70 @@ export function createSessionObservabilityService(deps: SessionObservabilityServ
             const { payload, audioBuffer } = input;
             const start = Date.now();
 
+            // ---- Step 0: Session ownership verification ----
+            // Always verify before any mutation (transcript or cleanup).
+            // This prevents attackers from triggering cleanup by omitting sessionReport.
+
+            let sessionData: SessionData | undefined;
+
+            if (deps.sessionStore) {
+                sessionData = await deps.sessionStore.get(payload.roomName);
+
+                if (sessionData && payload.sessionId !== sessionData.sessionId) {
+                    throw new HttpError(403, 'sessionId does not match the session for this room');
+                }
+            }
+
             // ---- Step 1 & 2: Transcript + Audio ----
 
             let transcript: StepOutcome = { status: 'skipped', reason: 'no_report_or_deps' };
             let audio: StepOutcome = { status: 'skipped', reason: 'no_transcript' };
 
-            if (payload.sessionReport && deps.transcriptService && deps.sessionStore) {
+            if (payload.sessionReport && deps.transcriptService) {
                 try {
-                    const sessionData = await deps.sessionStore.get(payload.roomName);
-                    const sessionId =
-                        payload.sessionId || sessionData?.sessionId || randomUUID();
-                    const agentId = sessionData?.agentConfig?.agent_id ?? null;
-                    const orgId = sessionData?.orgId || payload.orgId || null;
-                    const createdByUserId = sessionData?.createdByUserId ?? null;
-
-                    if (!orgId) {
-                        transcript = { status: 'skipped', reason: 'missing_org_id' };
+                    if (!sessionData) {
+                        logger.warn(
+                            {
+                                event: 'observability_no_session_in_store',
+                                roomName: payload.roomName,
+                            },
+                            'No session found in store for room; skipping transcript persistence'
+                        );
+                        transcript = { status: 'skipped', reason: 'no_session_in_store' };
                     } else {
-                        if (!payload.sessionId && !sessionData?.sessionId) {
-                            logger.warn(
-                                {
-                                    event: 'transcript_persist_derived_session_id',
-                                    roomName: payload.roomName,
-                                    derivedSessionId: sessionId,
-                                },
-                                'No sessionId provided/resolved; generated a random UUID for transcript persistence'
-                            );
-                        }
+                        const sessionId = payload.sessionId;
+                        const agentId = sessionData.agentConfig?.agent_id ?? null;
+                        const orgId = sessionData.orgId ?? null;
+                        const createdByUserId = sessionData.createdByUserId ?? null;
 
-                        await deps.transcriptService.saveFromObservability({
-                            roomName: payload.roomName,
-                            sessionId,
-                            agentId,
-                            orgId,
-                            createdByUserId,
-                            rawSessionReport: payload.sessionReport,
-                            closeReason: payload.closeReason ?? null,
-                        });
-
-                        transcript = { status: 'ok' };
-
-                        // Audio (only attempted after successful transcript persistence)
-                        if (audioBuffer && deps.audioStorageService) {
-                            try {
-                                await deps.audioStorageService.save(sessionId, audioBuffer);
-                                audio = { status: 'ok' };
-                            } catch (error) {
-                                audio = { status: 'error', error: errorToString(error) };
-                            }
-                        } else if (!audioBuffer) {
-                            audio = { status: 'skipped', reason: 'no_audio' };
+                        if (!orgId) {
+                            transcript = { status: 'skipped', reason: 'missing_org_id' };
                         } else {
-                            audio = { status: 'skipped', reason: 'no_storage_service' };
+                            await deps.transcriptService.saveFromObservability({
+                                roomName: payload.roomName,
+                                sessionId,
+                                agentId,
+                                orgId,
+                                createdByUserId,
+                                rawSessionReport: payload.sessionReport,
+                                closeReason: payload.closeReason ?? null,
+                            });
+
+                            transcript = { status: 'ok' };
+
+                            // Audio (only attempted after successful transcript persistence)
+                            if (audioBuffer && deps.audioStorageService) {
+                                try {
+                                    await deps.audioStorageService.save(sessionId, audioBuffer);
+                                    audio = { status: 'ok' };
+                                } catch (error) {
+                                    audio = { status: 'error', error: errorToString(error) };
+                                }
+                            } else if (!audioBuffer) {
+                                audio = { status: 'skipped', reason: 'no_audio' };
+                            } else {
+                                audio = { status: 'skipped', reason: 'no_storage_service' };
+                            }
                         }
                     }
                 } catch (error) {

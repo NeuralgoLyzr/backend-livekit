@@ -89,8 +89,7 @@ const sessionService = new TelephonySessionService({
     sipIdentityPrefix: config.telephony.sipIdentityPrefix,
     dispatchOnAnyParticipantJoin: config.telephony.dispatchOnAnyParticipantJoin,
     onAgentDispatched: async ({ roomName, sessionId, agentConfig }) => {
-        const apiKey =
-            typeof agentConfig.api_key === 'string' ? agentConfig.api_key.trim() : '';
+        const apiKey = typeof agentConfig.api_key === 'string' ? agentConfig.api_key.trim() : '';
         if (!apiKey) {
             logger.warn(
                 { event: 'telephony.session_metadata_missing_api_key', roomName },

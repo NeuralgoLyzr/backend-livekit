@@ -1,3 +1,5 @@
+export const DEFAULT_AGENT_NAME = 'shreya-obnox';
+
 export const AGENT_DEFAULTS = {
     engine: {
         kind: 'pipeline' as const,
@@ -18,7 +20,6 @@ export const AGENT_DEFAULTS = {
         greeting: undefined as string | undefined,
     },
     tools: [] as string[],
-    agentic_rag: [] as unknown[],
     vad_enabled: true,
 } as const;
 

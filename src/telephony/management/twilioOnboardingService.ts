@@ -41,9 +41,10 @@ export interface TwilioOnboardingDeps {
 }
 
 const TRUNK_NAME_PREFIX = 'livekit-inbound-';
+type OrgScope = { orgId: string };
 
 export class TwilioOnboardingService {
-    constructor(private readonly deps: TwilioOnboardingDeps) { }
+    constructor(private readonly deps: TwilioOnboardingDeps) {}
 
     async verifyCredentials(creds: TwilioCredentials): Promise<{ valid: true }> {
         const client = new TwilioClient(creds);
@@ -58,7 +59,7 @@ export class TwilioOnboardingService {
         accountSid: string;
         authToken: string;
         name?: string;
-    }): Promise<StoredIntegration> {
+    }, scope: OrgScope): Promise<StoredIntegration> {
         const creds: TwilioCredentials = {
             accountSid: input.accountSid,
             authToken: input.authToken,
@@ -70,6 +71,7 @@ export class TwilioOnboardingService {
         const fingerprint = fingerprintSecret(`twilio:${creds.accountSid}`);
 
         const integration = await this.deps.integrationStore.create({
+            orgId: scope.orgId,
             provider: 'twilio',
             name: input.name,
             encryptedApiKey: encrypted,
@@ -77,7 +79,7 @@ export class TwilioOnboardingService {
         });
 
         try {
-            await this.ensureInboundTrunk(integration.id, creds);
+            await this.ensureInboundTrunk(integration.id, creds, scope);
         } catch (err) {
             logger.warn(
                 { event: 'twilio.trunk_setup_deferred', integrationId: integration.id, err },
@@ -92,8 +94,8 @@ export class TwilioOnboardingService {
         return integration;
     }
 
-    async listNumbers(integrationId: string): Promise<TwilioIncomingPhoneNumber[]> {
-        const creds = await this.decryptCredentials(integrationId);
+    async listNumbers(integrationId: string, scope: OrgScope): Promise<TwilioIncomingPhoneNumber[]> {
+        const creds = await this.decryptCredentials(integrationId, scope);
         const client = new TwilioClient(creds);
         try {
             return await client.listIncomingPhoneNumbers();
@@ -108,13 +110,17 @@ export class TwilioOnboardingService {
             providerNumberId: string; // Twilio IncomingPhoneNumber SID
             e164: string;
             agentId?: string;
-        }
+        },
+        scope: OrgScope
     ): Promise<StoredBinding> {
-        const integration = await this.getIntegrationOrThrow(integrationId);
+        const integration = await this.getIntegrationOrThrow(integrationId, scope);
         const creds = this.decryptCredentialsFromIntegration(integration);
         const client = new TwilioClient(creds);
 
-        const providerNumber = await this.getIncomingPhoneNumberOrThrow(client, input.providerNumberId);
+        const providerNumber = await this.getIncomingPhoneNumberOrThrow(
+            client,
+            input.providerNumberId
+        );
         const normalizedDid = this.assertRequestedDidMatchesProviderNumber(
             input.e164,
             providerNumber.phoneNumber
@@ -127,7 +133,7 @@ export class TwilioOnboardingService {
         const trunkSid =
             parsed.success && parsed.data.trunkSid
                 ? parsed.data.trunkSid
-                : (await this.ensureInboundTrunkInternal(client, integration.id)).trunkSid;
+                : (await this.ensureInboundTrunkInternal(client, integration.id, scope)).trunkSid;
 
         try {
             await client.attachPhoneNumberToTrunk(trunkSid, input.providerNumberId);
@@ -136,6 +142,7 @@ export class TwilioOnboardingService {
         }
 
         const binding = await this.deps.bindingStore.upsertBinding({
+            orgId: scope.orgId,
             integrationId,
             provider: 'twilio',
             providerNumberId: input.providerNumberId,
@@ -150,24 +157,24 @@ export class TwilioOnboardingService {
         return binding;
     }
 
-    async disconnectNumber(bindingId: string): Promise<void> {
-        const binding = await this.getBindingOrThrow(bindingId);
-        const integration = await this.getIntegrationOrThrow(binding.integrationId);
+    async disconnectNumber(bindingId: string, scope: OrgScope): Promise<void> {
+        const binding = await this.getBindingOrThrow(bindingId, scope);
+        const integration = await this.getIntegrationOrThrow(binding.integrationId, scope);
         const creds = this.decryptCredentialsFromIntegration(integration);
         const client = new TwilioClient(creds);
 
-        await this.disconnectBinding(binding, integration, client);
+        await this.disconnectBinding(binding, integration, client, scope);
     }
 
-    async deleteIntegration(integrationId: string): Promise<{ deletedBindings: number }> {
-        const integration = await this.getIntegrationOrThrow(integrationId);
+    async deleteIntegration(integrationId: string, scope: OrgScope): Promise<{ deletedBindings: number }> {
+        const integration = await this.getIntegrationOrThrow(integrationId, scope);
         const creds = this.decryptCredentialsFromIntegration(integration);
         const client = new TwilioClient(creds);
 
-        const bindings = await this.deps.bindingStore.listBindingsByIntegrationId(integrationId);
+        const bindings = await this.deps.bindingStore.listBindingsByIntegrationId(integrationId, scope);
         for (const binding of bindings) {
             if (binding.provider !== 'twilio') continue;
-            await this.disconnectBinding(binding, integration, client);
+            await this.disconnectBinding(binding, integration, client, scope);
         }
 
         const resources = parseTwilioProviderResources(integration.providerResources);
@@ -181,13 +188,17 @@ export class TwilioOnboardingService {
             }
         }
 
-        const deleted = await this.deps.integrationStore.deleteById(integrationId);
+        const deleted = await this.deps.integrationStore.deleteById(integrationId, scope);
         if (!deleted) {
             throw new HttpError(404, `Integration ${integrationId} not found`);
         }
 
         logger.info(
-            { event: 'twilio.integration.deleted', integrationId, deletedBindings: bindings.length },
+            {
+                event: 'twilio.integration.deleted',
+                integrationId,
+                deletedBindings: bindings.length,
+            },
             'Twilio integration deleted'
         );
         return { deletedBindings: bindings.length };
@@ -195,14 +206,19 @@ export class TwilioOnboardingService {
 
     // ── private helpers ───────────────────────────────────────────────────
 
-    private async ensureInboundTrunk(integrationId: string, creds: TwilioCredentials): Promise<void> {
+    private async ensureInboundTrunk(
+        integrationId: string,
+        creds: TwilioCredentials,
+        scope: OrgScope
+    ): Promise<void> {
         const client = new TwilioClient(creds);
-        await this.ensureInboundTrunkInternal(client, integrationId);
+        await this.ensureInboundTrunkInternal(client, integrationId, scope);
     }
 
     private async ensureInboundTrunkInternal(
         client: TwilioClient,
-        integrationId: string
+        integrationId: string,
+        scope: OrgScope
     ): Promise<{ trunkSid: string; originationUrlSid?: string }> {
         const trunkBaseName = `${TRUNK_NAME_PREFIX}${integrationId}`;
         const trunkDomainName = `${trunkBaseName}.pstn.twilio.com`;
@@ -215,7 +231,11 @@ export class TwilioOnboardingService {
                     friendlyName: trunkBaseName,
                     domainName: trunkDomainName,
                 });
-                trunk = { sid: created.sid, domainName: trunkDomainName, friendlyName: trunkBaseName };
+                trunk = {
+                    sid: created.sid,
+                    domainName: trunkDomainName,
+                    friendlyName: trunkBaseName,
+                };
             }
 
             const sipUrl = `sip:${this.deps.livekitSipHost}`;
@@ -240,7 +260,7 @@ export class TwilioOnboardingService {
                 trunkSid: trunk.sid,
                 originationUrlSid,
             };
-            await this.deps.integrationStore.updateProviderResources(integrationId, resources);
+            await this.deps.integrationStore.updateProviderResources(integrationId, resources, scope);
 
             return { trunkSid: trunk.sid, originationUrlSid };
         } catch (err) {
@@ -251,8 +271,8 @@ export class TwilioOnboardingService {
         }
     }
 
-    private async decryptCredentials(integrationId: string): Promise<TwilioCredentials> {
-        const integration = await this.getIntegrationOrThrow(integrationId);
+    private async decryptCredentials(integrationId: string, scope: OrgScope): Promise<TwilioCredentials> {
+        const integration = await this.getIntegrationOrThrow(integrationId, scope);
         return this.decryptCredentialsFromIntegration(integration);
     }
 
@@ -267,7 +287,10 @@ export class TwilioOnboardingService {
         }
     }
 
-    private assertRequestedDidMatchesProviderNumber(requestedDid: string, providerDid: string): string {
+    private assertRequestedDidMatchesProviderNumber(
+        requestedDid: string,
+        providerDid: string
+    ): string {
         const normalizedRequested = normalizeE164(requestedDid);
         const normalizedProvider = normalizeE164(providerDid);
 
@@ -284,20 +307,24 @@ export class TwilioOnboardingService {
     private async disconnectBinding(
         binding: StoredBinding,
         integration: StoredIntegration & { encryptedApiKey: string },
-        client: TwilioClient
+        client: TwilioClient,
+        scope: OrgScope
     ): Promise<void> {
         await this.deps.livekitProvisioning.removeInboundSetupForDid(binding.e164);
 
         const resources = parseTwilioProviderResources(integration.providerResources);
         if (resources?.trunkSid) {
             try {
-                await client.detachPhoneNumberFromTrunk(resources.trunkSid, binding.providerNumberId);
+                await client.detachPhoneNumberFromTrunk(
+                    resources.trunkSid,
+                    binding.providerNumberId
+                );
             } catch (err) {
                 throw mapTwilioError(err);
             }
         }
 
-        const deleted = await this.deps.bindingStore.deleteBinding(binding.id);
+        const deleted = await this.deps.bindingStore.deleteBinding(binding.id, scope);
         if (!deleted) {
             throw new HttpError(404, `Binding ${binding.id} not found`);
         }
@@ -313,8 +340,8 @@ export class TwilioOnboardingService {
         );
     }
 
-    private async getBindingOrThrow(bindingId: string): Promise<StoredBinding> {
-        const binding = await this.deps.bindingStore.getBindingById(bindingId);
+    private async getBindingOrThrow(bindingId: string, scope: OrgScope): Promise<StoredBinding> {
+        const binding = await this.deps.bindingStore.getBindingById(bindingId, scope);
         if (!binding) {
             throw new HttpError(404, `Binding ${bindingId} not found`);
         }
@@ -325,9 +352,10 @@ export class TwilioOnboardingService {
     }
 
     private async getIntegrationOrThrow(
-        integrationId: string
+        integrationId: string,
+        scope: OrgScope
     ): Promise<StoredIntegration & { encryptedApiKey: string }> {
-        const integration = await this.deps.integrationStore.getById(integrationId);
+        const integration = await this.deps.integrationStore.getById(integrationId, scope);
         if (!integration) {
             throw new HttpError(404, `Integration ${integrationId} not found`);
         }

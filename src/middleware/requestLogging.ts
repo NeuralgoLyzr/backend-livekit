@@ -110,8 +110,7 @@ export function requestLoggingMiddleware(req: Request, res: Response, next: Next
         if (isHealthCheck && res.statusCode < 500) return;
 
         if (shouldSample(wideEvent, req)) {
-            const level =
-                res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info';
+            const level = res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info';
             logger[level](wideEvent);
         }
     });

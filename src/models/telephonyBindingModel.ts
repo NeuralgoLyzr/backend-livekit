@@ -2,6 +2,7 @@ import mongoose, { type Model, type Types } from 'mongoose';
 
 export interface TelephonyBindingDocument {
     _id: Types.ObjectId;
+    orgId: string;
     integrationId: Types.ObjectId;
     provider: string;
     providerNumberId: string;
@@ -15,6 +16,7 @@ export interface TelephonyBindingDocument {
 
 const TelephonyBindingSchema = new mongoose.Schema<TelephonyBindingDocument>(
     {
+        orgId: { type: String, required: true, trim: true },
         integrationId: { type: mongoose.Schema.Types.ObjectId, required: true },
         provider: { type: String, required: true },
         providerNumberId: { type: String, required: true },
@@ -36,7 +38,8 @@ TelephonyBindingSchema.index(
         partialFilterExpression: { enabled: true, deletedAt: null },
     }
 );
-TelephonyBindingSchema.index({ integrationId: 1 });
+TelephonyBindingSchema.index({ orgId: 1, integrationId: 1 });
+TelephonyBindingSchema.index({ orgId: 1, updatedAt: -1 });
 TelephonyBindingSchema.index({ deletedAt: 1 });
 
 export function getBindingModel(): Model<TelephonyBindingDocument> {

@@ -10,18 +10,26 @@ const AGENT_ID = '507f1f77bcf86cd799439011';
 
 type Harness = ReturnType<typeof createHarness>;
 
-function buildApp(harness: Harness) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- integration test wires real + mock deps dynamically
+function buildApp(harness: Harness & Record<string, any>) {
     const app = express();
     app.use(express.json({ limit: '10mb' }));
 
     app.use(
-        '/session',
+        '/v1/sessions',
         harness.createSessionRouter(harness.sessionService, {
-            transcriptService: harness.transcriptService,
-            sessionStore: harness.sessionStore,
             pagosAuthService: {
                 resolveAuthContext: harness.resolveAuthContext,
             },
+        })
+    );
+
+    app.use(
+        '/internal',
+        harness.createInternalRouter({
+            sessionService: harness.sessionService,
+            transcriptService: harness.transcriptService,
+            sessionStore: harness.sessionStore,
             audioStorageService: {
                 save: harness.saveAudio,
                 get: harness.getAudio,
@@ -146,6 +154,7 @@ describe('session routes (integration)', () => {
 
         const [
             { createSessionRouter },
+            { createInternalRouter },
             { createSessionService },
             { createTokenService },
             { createAgentService },
@@ -155,15 +164,16 @@ describe('session routes (integration)', () => {
             { InMemorySessionStore },
             { getErrorStatus, formatErrorResponse },
         ] = await Promise.all([
-            import('../dist/routes/session.js'),
-            import('../dist/services/sessionService.js'),
-            import('../dist/services/tokenService.js'),
-            import('../dist/services/agentService.js'),
-            import('../dist/services/roomService.js'),
-            import('../dist/services/agentConfigResolverService.js'),
-            import('../dist/services/transcriptService.js'),
-            import('../dist/lib/storage.js'),
-            import('../dist/lib/httpErrors.js'),
+            import('../src/routes/session.js'),
+            import('../src/routes/internal.js'),
+            import('../src/services/sessionService.js'),
+            import('../src/services/tokenService.js'),
+            import('../src/services/agentService.js'),
+            import('../src/services/roomService.js'),
+            import('../src/services/agentConfigResolverService.js'),
+            import('../src/services/transcriptService.js'),
+            import('../src/lib/storage.js'),
+            import('../src/lib/httpErrors.js'),
         ]);
 
         const sessionStore = new InMemorySessionStore();
@@ -208,6 +218,7 @@ describe('session routes (integration)', () => {
         const app = buildApp({
             ...harness,
             createSessionRouter,
+            createInternalRouter,
             sessionService,
             transcriptService,
             sessionStore,
@@ -216,7 +227,7 @@ describe('session routes (integration)', () => {
         });
 
         const createRes = await request(app)
-            .post('/session')
+            .post('/v1/sessions/start')
             .set('x-api-key', 'integration-key')
             .send({
                 userIdentity: 'user_1',
@@ -251,7 +262,7 @@ describe('session routes (integration)', () => {
         });
 
         await request(app)
-            .post('/session/end')
+            .post('/v1/sessions/end')
             .set('x-api-key', 'integration-key')
             .send({ roomName: 'room-int-1' })
             .expect(204);
@@ -260,7 +271,7 @@ describe('session routes (integration)', () => {
         expect(endedSession?.endedAt).toBeDefined();
 
         await request(app)
-            .post('/session/observability')
+            .post('/internal/sessions/observability')
             .send({
                 roomName: 'room-int-1',
                 sessionId: createRes.body.sessionId,
@@ -291,6 +302,7 @@ describe('session routes (integration)', () => {
 
         const [
             { createSessionRouter },
+            { createInternalRouter },
             { createSessionService },
             { createTokenService },
             { createAgentService },
@@ -300,15 +312,16 @@ describe('session routes (integration)', () => {
             { InMemorySessionStore },
             { getErrorStatus, formatErrorResponse },
         ] = await Promise.all([
-            import('../dist/routes/session.js'),
-            import('../dist/services/sessionService.js'),
-            import('../dist/services/tokenService.js'),
-            import('../dist/services/agentService.js'),
-            import('../dist/services/roomService.js'),
-            import('../dist/services/agentConfigResolverService.js'),
-            import('../dist/services/transcriptService.js'),
-            import('../dist/lib/storage.js'),
-            import('../dist/lib/httpErrors.js'),
+            import('../src/routes/session.js'),
+            import('../src/routes/internal.js'),
+            import('../src/services/sessionService.js'),
+            import('../src/services/tokenService.js'),
+            import('../src/services/agentService.js'),
+            import('../src/services/roomService.js'),
+            import('../src/services/agentConfigResolverService.js'),
+            import('../src/services/transcriptService.js'),
+            import('../src/lib/storage.js'),
+            import('../src/lib/httpErrors.js'),
         ]);
 
         const sessionStore = new InMemorySessionStore();
@@ -353,6 +366,7 @@ describe('session routes (integration)', () => {
         const app = buildApp({
             ...harness,
             createSessionRouter,
+            createInternalRouter,
             sessionService,
             transcriptService,
             sessionStore,
@@ -361,7 +375,7 @@ describe('session routes (integration)', () => {
         });
 
         await request(app)
-            .post('/session')
+            .post('/v1/sessions/start')
             .set('x-api-key', 'integration-key')
             .send({
                 userIdentity: 'user_1',

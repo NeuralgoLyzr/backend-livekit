@@ -9,8 +9,9 @@ Express 5 + TypeScript (ESM) service that manages LiveKit voice-agent sessions: 
 ### Composition Root (`src/composition.ts`)
 
 All services are wired via factory functions (no class instantiation). The composition root creates:
+
 - `InMemorySessionStore` — ephemeral session tracking (survives only as long as the process).
-- `MongooseAgentStore` / `MongooseTranscriptStore` — MongoDB-backed persistence (optional; if `MONGODB_URI` is unset, `/agents` returns 503, sessions still work).
+- `MongooseAgentStore` / `MongooseTranscriptStore` — MongoDB-backed persistence (optional; if `MONGODB_URI` is unset, `/v1/agents` returns 503, sessions still work).
 - Service factories (`createSessionService`, `createAgentService`, `createTokenService`, etc.) receive their dependencies explicitly.
 
 ### Hexagonal Architecture
@@ -41,6 +42,9 @@ src/
 ├── app.ts                      # Middleware, CORS, routing, error handling
 ├── composition.ts              # DI composition root (wires services + stores)
 ├── CONSTS.ts                   # Agent defaults, MongoDB fallback, logging constants
+├── docs/
+│   ├── openApi.ts              # OpenAPI 3.1 document
+│   └── router.ts               # /v1/openapi.json, /v1/docs, /v1/redoc, /v1/scalar-docs
 │
 ├── config/
 │   ├── index.ts                # Env validation (fails fast on missing vars)
@@ -50,10 +54,10 @@ src/
 │   └── *Voices.ts              # Voice option lists per provider
 │
 ├── routes/
-│   ├── session.ts              # POST /session, /session/end, /session/observability
-│   ├── health.ts               # GET /health
-│   ├── config.ts               # GET /config/tools, /config/realtime-options, /config/pipeline-options
-│   ├── agents.ts               # CRUD /agents
+│   ├── session.ts              # POST /v1/session, /v1/session/end, /v1/session/observability
+│   ├── health.ts               # GET /v1/health
+│   ├── config.ts               # GET /v1/config/tools, /v1/config/realtime-options, /v1/config/pipeline-options
+│   ├── agents.ts               # CRUD /v1/agents
 │   ├── transcripts.ts          # Transcript API
 │   └── telephony.ts            # Webhook + management endpoints
 │
@@ -120,66 +124,79 @@ src/
 
 ## API Reference
 
+Base path: `/v1`
+
+API index (metadata): `GET /v1/`
+
+### Interactive Docs
+
+| UI           | Path               | Description                                                    |
+| ------------ | ------------------ | -------------------------------------------------------------- |
+| OpenAPI JSON | `/v1/openapi.json` | Machine-readable OpenAPI 3.1 spec.                             |
+| Swagger UI   | `/v1/docs`         | Try endpoints from browser (supports auth header persistence). |
+| ReDoc        | `/v1/redoc`        | Read-only API reference view.                                  |
+| Scalar       | `/v1/scalar-docs`  | Interactive API reference with modern UI.                      |
+
 ### Session
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `POST` | `/session` | `x-api-key` | Create room, mint user token, dispatch agent. Body: `SessionRequestSchema` (`userIdentity` required; optional `roomName`, `sessionId`, `agentId`, `agentConfig`). Returns `{ userToken, roomName, sessionId, livekitUrl, agentDispatched, agentConfig }`. |
-| `POST` | `/session/end` | `x-api-key` | Mark session ended. Body: `{ roomName }` or `{ sessionId }`. Does **not** delete the LiveKit room (see [Session Lifecycle](#session-lifecycle)). |
-| `POST` | `/session/observability` | None | Receives session report + conversation history from the Python agent. Persists transcript to MongoDB, then deletes room + clears in-memory session store. |
+| Method | Path                        | Auth        | Description                                                                                                                                                                                                                                               |
+| ------ | --------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST` | `/v1/session`               | `x-api-key` | Create room, mint user token, dispatch agent. Body: `SessionRequestSchema` (`userIdentity` required; optional `roomName`, `sessionId`, `agentId`, `agentConfig`). Returns `{ userToken, roomName, sessionId, livekitUrl, agentDispatched, agentConfig }`. |
+| `POST` | `/v1/session/end`           | `x-api-key` | Mark session ended. Body: `{ roomName }` or `{ sessionId }`. Does **not** delete the LiveKit room (see [Session Lifecycle](#session-lifecycle)).                                                                                                          |
+| `POST` | `/v1/session/observability` | None        | Receives session report + conversation history from the Python agent. Persists transcript to MongoDB, then deletes room + clears in-memory session store.                                                                                                 |
 
 ### Config Catalogs
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/config/tools` | None | Returns tool registry (tool IDs, names, descriptions). |
-| `GET` | `/config/realtime-options` | None | Realtime provider options (OpenAI, Gemini, Ultravox, xAI Grok) with models + voices. |
-| `GET` | `/config/pipeline-options` | None | Pipeline STT/TTS/LLM model catalogs. |
+| Method | Path                          | Auth | Description                                                                          |
+| ------ | ----------------------------- | ---- | ------------------------------------------------------------------------------------ |
+| `GET`  | `/v1/config/tools`            | None | Returns tool registry (tool IDs, names, descriptions).                               |
+| `GET`  | `/v1/config/realtime-options` | None | Realtime provider options (OpenAI, Gemini, Ultravox, xAI Grok) with models + voices. |
+| `GET`  | `/v1/config/pipeline-options` | None | Pipeline STT/TTS/LLM model catalogs.                                                 |
 
 ### Agents (CRUD)
 
 All require `x-api-key`. Requires `MONGODB_URI` to be set (returns 503 otherwise).
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/agents` | List saved agent configs (scoped by orgId). |
-| `POST` | `/agents` | Create agent. Body: `{ config: AgentConfigWithName }`. |
-| `GET` | `/agents/:agentId` | Get single agent by ID. |
-| `PUT` | `/agents/:agentId` | Update agent config. |
-| `DELETE` | `/agents/:agentId` | Delete agent. |
+| Method   | Path                  | Description                                            |
+| -------- | --------------------- | ------------------------------------------------------ |
+| `GET`    | `/v1/agents`          | List saved agent configs (scoped by orgId).            |
+| `POST`   | `/v1/agents`          | Create agent. Body: `{ config: AgentConfigWithName }`. |
+| `GET`    | `/v1/agents/:agentId` | Get single agent by ID.                                |
+| `PUT`    | `/v1/agents/:agentId` | Update agent config.                                   |
+| `DELETE` | `/v1/agents/:agentId` | Delete agent.                                          |
 
 ### Transcripts
 
 All require `x-api-key`. Scoped by orgId.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/transcripts` | List transcripts. |
-| `GET` | `/api/transcripts/:sessionId` | Get transcript by session ID. |
-| `GET` | `/api/transcripts/agent/:agentId` | List transcripts for a specific agent. |
-| `GET` | `/api/transcripts/agent/:agentId/stats` | Aggregated stats for an agent's transcripts. |
+| Method | Path                                       | Description                                  |
+| ------ | ------------------------------------------ | -------------------------------------------- |
+| `GET`  | `/v1/api/transcripts`                      | List transcripts.                            |
+| `GET`  | `/v1/api/transcripts/:sessionId`           | Get transcript by session ID.                |
+| `GET`  | `/v1/api/transcripts/agent/:agentId`       | List transcripts for a specific agent.       |
+| `GET`  | `/v1/api/transcripts/agent/:agentId/stats` | Aggregated stats for an agent's transcripts. |
 
 ### Telephony
 
 Requires `TELEPHONY_ENABLED=true`.
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `POST` | `/telephony/livekit-webhook` | LiveKit webhook signature | Webhook receiver for SIP/PSTN calls. |
-| `POST` | `/telephony/providers/telnyx/credentials` | `x-api-key` | Save Telnyx integration credentials. |
-| `POST` | `/telephony/providers/twilio/credentials` | `x-api-key` | Save Twilio integration credentials. |
-| `POST` | `/telephony/providers/plivo/credentials` | `x-api-key` | Save Plivo integration credentials. |
-| `GET` | `/telephony/providers/:provider/integrations` | `x-api-key` | List integrations for `telnyx`, `twilio`, or `plivo`. |
-| `GET` | `/telephony/providers/:provider/numbers` | `x-api-key` | List provider numbers for an integration. |
-| `POST` | `/telephony/providers/:provider/numbers/:providerNumberId/connect` | `x-api-key` | Bind provider number to an agent DID route. |
-| `DELETE` | `/telephony/providers/:provider/bindings/:bindingId` | `x-api-key` | Disconnect number binding. |
-| `GET` | `/telephony/bindings` | `x-api-key` | List phone number → agent bindings. |
+| Method   | Path                                                                  | Auth                      | Description                                           |
+| -------- | --------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------- |
+| `POST`   | `/v1/telephony/livekit-webhook`                                       | LiveKit webhook signature | Webhook receiver for SIP/PSTN calls.                  |
+| `POST`   | `/v1/telephony/providers/telnyx/credentials`                          | `x-api-key`               | Save Telnyx integration credentials.                  |
+| `POST`   | `/v1/telephony/providers/twilio/credentials`                          | `x-api-key`               | Save Twilio integration credentials.                  |
+| `POST`   | `/v1/telephony/providers/plivo/credentials`                           | `x-api-key`               | Save Plivo integration credentials.                   |
+| `GET`    | `/v1/telephony/providers/:provider/integrations`                      | `x-api-key`               | List integrations for `telnyx`, `twilio`, or `plivo`. |
+| `GET`    | `/v1/telephony/providers/:provider/numbers`                           | `x-api-key`               | List provider numbers for an integration.             |
+| `POST`   | `/v1/telephony/providers/:provider/numbers/:providerNumberId/connect` | `x-api-key`               | Bind provider number to an agent DID route.           |
+| `DELETE` | `/v1/telephony/providers/:provider/bindings/:bindingId`               | `x-api-key`               | Disconnect number binding.                            |
+| `GET`    | `/v1/telephony/bindings`                                              | `x-api-key`               | List phone number → agent bindings.                   |
 
 ### Health
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/health` | None | Uptime/status check. |
+| Method | Path         | Auth | Description          |
+| ------ | ------------ | ---- | -------------------- |
+| `GET`  | `/v1/health` | None | Uptime/status check. |
 
 ---
 
@@ -225,7 +242,7 @@ Current allowlist:
 ```
 Client                    Backend                       Python Agent
   │                         │                               │
-  ├─POST /session──────────►│                               │
+  ├─POST /v1/session───────►│                               │
   │                         ├─ create room                  │
   │                         ├─ mint token                   │
   │                         ├─ finalizeAgentConfig()        │
@@ -234,30 +251,30 @@ Client                    Backend                       Python Agent
   │                         │                               │
   │  ... voice session ...  │                               │
   │                         │                               │
-  ├─POST /session/end──────►│                               │
+  ├─POST /v1/session/end───►│                               │
   │                         ├─ mark session ended           │
   │                         │  (room NOT deleted yet)       │
   │                         │                               │
-  │                         │◄── POST /session/observability│
+  │                         │◄── POST /v1/session/observability│
   │                         ├─ persist transcript (MongoDB) │
   │                         ├─ delete LiveKit room          │
   │                         ├─ clear session-store entry    │
   │                         │                               │
 ```
 
-**Key quirk**: `/session/end` does **not** delete the LiveKit room. The room is deleted only after `/session/observability` is received from the Python agent. This is intentional — it preserves the room for the agent's post-call observability hooks (session report, conversation history collection).
+**Key quirk**: `/v1/session/end` does **not** delete the LiveKit room. The room is deleted only after `/v1/session/observability` is received from the Python agent. This is intentional — it preserves the room for the agent's post-call observability hooks (session report, conversation history collection).
 
 ---
 
 ## Data Flow: Agent Config Resolution
 
-1. Client sends `POST /session` with optional `agentId` and/or `agentConfig`.
+1. Client sends `POST /v1/session` with optional `agentId` and/or `agentConfig`.
 2. If `agentId` is provided, `agentConfigResolverService` loads the saved config from MongoDB.
 3. Inline `agentConfig` overrides are merged on top of the saved config.
 4. `finalizeAgentConfig()` (`src/config/tools.ts`):
-   - Validates tool IDs against the tool registry.
-   - Auto-enables `search_knowledge_base` tool when `knowledge_base.enabled` is true.
-   - Derives `lyzr_rag` / `agentic_rag` from `knowledge_base` if present.
+    - Validates tool IDs against the tool registry.
+    - Auto-enables `search_knowledge_base` tool when `knowledge_base.enabled` is true.
+    - Derives `lyzr_rag` / `agentic_rag` from `knowledge_base` if present.
 5. `buildMetadataObject()` maps the allowlisted fields into a flat object.
 6. `agentService.dispatchAgent()` JSON-stringifies metadata and sends via `AgentDispatchClient`.
 
@@ -267,49 +284,49 @@ Client                    Backend                       Python Agent
 
 ### Required (crash on startup if missing)
 
-| Variable | Description |
-|----------|-------------|
-| `APP_ENV` | App environment (`dev`, `staging`, `production`) |
-| `LIVEKIT_URL` | LiveKit server URL |
-| `LIVEKIT_API_KEY` | LiveKit API key |
-| `LIVEKIT_API_SECRET` | LiveKit API secret |
-| `PAGOS_API_URL` | Pagos authentication API base URL |
-| `PAGOS_ADMIN_TOKEN` | Pagos admin token for API key validation |
+| Variable             | Description                                      |
+| -------------------- | ------------------------------------------------ |
+| `APP_ENV`            | App environment (`dev`, `staging`, `production`) |
+| `LIVEKIT_URL`        | LiveKit server URL                               |
+| `LIVEKIT_API_KEY`    | LiveKit API key                                  |
+| `LIVEKIT_API_SECRET` | LiveKit API secret                               |
+| `PAGOS_API_URL`      | Pagos authentication API base URL                |
+| `PAGOS_ADMIN_TOKEN`  | Pagos admin token for API key validation         |
 
 ### Optional
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `4000` | HTTP listen port |
-| `NODE_ENV` | — | Optional; affects some Node ecosystem behavior (`development` / `production`). Not used for app environment checks. |
-| `AGENT_NAME` | `local-test` | Agent name for LiveKit dispatch (must match Python agent's `AGENT_NAME`) |
-| `SESSION_STORE_PROVIDER` | `local` | Session storage backend (`local` or `redis`) |
-| `REDIS_URL` | — | Required when `SESSION_STORE_PROVIDER=redis` |
-| `REDIS_SESSION_KEY_PREFIX` | `session:` | Redis key prefix for session-store entries |
-| `REDIS_SESSION_TTL_SECONDS` | `3600` | Optional Redis TTL for session-store entries (seconds). Default 1 hour. |
-| `RECORDING_STORAGE_PROVIDER` | `local` | Recording storage backend (`local` or `s3`) |
-| `RECORDINGS_DIR` | `data/recordings` | Local recording directory (when `RECORDING_STORAGE_PROVIDER=local`) |
-| `S3_RECORDINGS_BUCKET` | — | Required when `RECORDING_STORAGE_PROVIDER=s3` |
-| `S3_REGION` | — | Required when `RECORDING_STORAGE_PROVIDER=s3` |
-| `S3_RECORDINGS_KEY_PREFIX` | `recordings/` | S3 object key prefix |
-| `S3_ENDPOINT` | — | Optional custom S3 endpoint (e.g. MinIO) |
-| `S3_FORCE_PATH_STYLE` | — | Optional `true`/`false` path-style toggle |
-| `S3_ACCESS_KEY_ID` | — | Optional static credential access key |
-| `S3_SECRET_ACCESS_KEY` | — | Optional static credential secret key |
-| `S3_SESSION_TOKEN` | — | Optional static credential session token |
-| `MONGODB_URI` | — | MongoDB connection string. If unset, agent CRUD returns 503; sessions still work. |
-| `MONGODB_DATABASE` | — | MongoDB database name |
-| `TELEPHONY_ENABLED` | `false` | Enable telephony webhook processing |
-| `LIVEKIT_WEBHOOK_API_KEY` | Same as `LIVEKIT_API_KEY` | Key for webhook JWT verification |
-| `LIVEKIT_WEBHOOK_API_SECRET` | Same as `LIVEKIT_API_SECRET` | Secret for webhook JWT verification |
-| `TELEPHONY_SIP_IDENTITY_PREFIX` | — | SIP identity prefix for telephony routing |
-| `TELEPHONY_DISPATCH_ON_ANY_PARTICIPANT_JOIN` | — | Dispatch agent on any participant join (not just SIP) |
-| `TELEPHONY_SECRETS_KEY` | — | AES key for encrypting telephony provider secrets |
-| `LIVEKIT_SIP_HOST` | — | LiveKit SIP host for telephony management |
-| `TELNYX_API_KEY` | — | Telnyx API key for onboarding |
-| `PLIVO_AUTH_ID` | — | Plivo auth ID (live tests) |
-| `PLIVO_AUTH_TOKEN` | — | Plivo auth token (live tests) |
-| `PLIVO_TEST_PHONE_NUMBER` | — | Plivo test phone number for onboarding live tests |
+| Variable                                     | Default                      | Description                                                                                                         |
+| -------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                                       | `4000`                       | HTTP listen port                                                                                                    |
+| `NODE_ENV`                                   | —                            | Optional; affects some Node ecosystem behavior (`development` / `production`). Not used for app environment checks. |
+| `AGENT_NAME`                                 | `local-test`                 | Agent name for LiveKit dispatch (must match Python agent's `AGENT_NAME`)                                            |
+| `SESSION_STORE_PROVIDER`                     | `local`                      | Session storage backend (`local` or `redis`)                                                                        |
+| `REDIS_URL`                                  | —                            | Required when `SESSION_STORE_PROVIDER=redis`                                                                        |
+| `REDIS_SESSION_KEY_PREFIX`                   | `session:`                   | Redis key prefix for session-store entries                                                                          |
+| `REDIS_SESSION_TTL_SECONDS`                  | `3600`                       | Optional Redis TTL for session-store entries (seconds). Default 1 hour.                                             |
+| `RECORDING_STORAGE_PROVIDER`                 | `local`                      | Recording storage backend (`local` or `s3`)                                                                         |
+| `RECORDINGS_DIR`                             | `data/recordings`            | Local recording directory (when `RECORDING_STORAGE_PROVIDER=local`)                                                 |
+| `S3_RECORDINGS_BUCKET`                       | —                            | Required when `RECORDING_STORAGE_PROVIDER=s3`                                                                       |
+| `S3_REGION`                                  | —                            | Required when `RECORDING_STORAGE_PROVIDER=s3`                                                                       |
+| `S3_RECORDINGS_KEY_PREFIX`                   | `recordings/`                | S3 object key prefix                                                                                                |
+| `S3_ENDPOINT`                                | —                            | Optional custom S3 endpoint (e.g. MinIO)                                                                            |
+| `S3_FORCE_PATH_STYLE`                        | —                            | Optional `true`/`false` path-style toggle                                                                           |
+| `S3_ACCESS_KEY_ID`                           | —                            | Optional static credential access key                                                                               |
+| `S3_SECRET_ACCESS_KEY`                       | —                            | Optional static credential secret key                                                                               |
+| `S3_SESSION_TOKEN`                           | —                            | Optional static credential session token                                                                            |
+| `MONGODB_URI`                                | —                            | MongoDB connection string. If unset, agent CRUD returns 503; sessions still work.                                   |
+| `MONGODB_DATABASE`                           | —                            | MongoDB database name                                                                                               |
+| `TELEPHONY_ENABLED`                          | `false`                      | Enable telephony webhook processing                                                                                 |
+| `LIVEKIT_WEBHOOK_API_KEY`                    | Same as `LIVEKIT_API_KEY`    | Key for webhook JWT verification                                                                                    |
+| `LIVEKIT_WEBHOOK_API_SECRET`                 | Same as `LIVEKIT_API_SECRET` | Secret for webhook JWT verification                                                                                 |
+| `TELEPHONY_SIP_IDENTITY_PREFIX`              | —                            | SIP identity prefix for telephony routing                                                                           |
+| `TELEPHONY_DISPATCH_ON_ANY_PARTICIPANT_JOIN` | —                            | Dispatch agent on any participant join (not just SIP)                                                               |
+| `TELEPHONY_SECRETS_KEY`                      | —                            | AES key for encrypting telephony provider secrets                                                                   |
+| `LIVEKIT_SIP_HOST`                           | —                            | LiveKit SIP host for telephony management                                                                           |
+| `TELNYX_API_KEY`                             | —                            | Telnyx API key for onboarding                                                                                       |
+| `PLIVO_AUTH_ID`                              | —                            | Plivo auth ID (live tests)                                                                                          |
+| `PLIVO_AUTH_TOKEN`                           | —                            | Plivo auth token (live tests)                                                                                       |
+| `PLIVO_TEST_PHONE_NUMBER`                    | —                            | Plivo test phone number for onboarding live tests                                                                   |
 
 ---
 
@@ -358,19 +375,30 @@ pnpm -C voice-agent-server test:onboarding-live          # all providers
 pnpm -C voice-agent-server test:live
 ```
 
+### Docs Availability (Local)
+
+After starting the server, API docs are available at:
+
+- `http://localhost:4000/v1/openapi.json` (OpenAPI JSON)
+- `http://localhost:4000/v1/docs` (Swagger UI)
+- `http://localhost:4000/v1/redoc` (ReDoc)
+- `http://localhost:4000/v1/scalar-docs` (Scalar)
+
+If you run on a different port, replace `4000` with your configured `PORT`.
+
 ---
 
 ## Troubleshooting / Common Pitfalls
 
 1. **New config field not reaching Python agent**: You added it to `AgentConfigSchema` but forgot to add it to `buildMetadataObject()` in `src/services/agentService.ts`. That function is an explicit allowlist.
 
-2. **`/agents` returns 503**: `MONGODB_URI` is not set. MongoDB is optional for sessions but required for agent CRUD and transcripts.
+2. **`/v1/agents` returns 503**: `MONGODB_URI` is not set. MongoDB is optional for sessions but required for agent CRUD and transcripts.
 
-3. **Agent not dispatching**: Check that `AGENT_NAME` env var matches the Python agent's `AGENT_NAME` in `src/app/server.py`. Default is `local-test`.
+3. **Agent not dispatching**: Check that `AGENT_NAME` env var matches the Python worker's `AGENT_NAME`. Default is `local-test`.
 
 4. **ESM import errors**: All relative imports in `src/` must use `.js` extensions (TypeScript ESM convention). e.g., `import { foo } from './bar.js'`.
 
-5. **Session room not deleted after `/session/end`**: This is intentional. The room is deleted only after the Python agent posts back to `/session/observability`.
+5. **Session room not deleted after `/v1/session/end`**: This is intentional. The room is deleted only after the Python agent posts back to `/v1/session/observability`.
 
 6. **Auth failures (401)**: The `x-api-key` header is validated against the Pagos API. Ensure `PAGOS_API_URL` and `PAGOS_ADMIN_TOKEN` are correct.
 

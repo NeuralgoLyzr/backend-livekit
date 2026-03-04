@@ -1,6 +1,6 @@
 ## Docker persistence testing (MongoDB + voice-agent-server)
 
-This runbook validates agent persistence (`/agents`) using Docker Compose.
+This runbook validates agent persistence (`/v1/agents`) using Docker Compose.
 
 ### Prereqs
 
@@ -25,7 +25,7 @@ The backend currently validates these at process startup:
 - `LIVEKIT_API_SECRET`
 
 For persistence-only testing you can leave them as the dummy values already set in
-`docker-compose.persistence.yml`, as long as you don’t call `POST /session`.
+`docker-compose.persistence.yml`, as long as you don’t call `POST /v1/session`.
 
 Persistence itself requires:
 
@@ -34,14 +34,14 @@ Persistence itself requires:
 ### Smoke checks (curl)
 
 ```bash
-curl -sS http://localhost:4000/health
-curl -sS http://localhost:4000/ | head -c 500 && echo
+curl -sS http://localhost:4000/v1/health
+curl -sS http://localhost:4000/v1/ | head -c 500 && echo
 ```
 
 Create an agent:
 
 ```bash
-curl -sS -X POST http://localhost:4000/agents \
+curl -sS -X POST http://localhost:4000/v1/agents \
   -H 'Content-Type: application/json' \
   -d '{"name":"Test Agent","description":"x","config":{"tools":["get_weather"]}}'
 ```
@@ -49,7 +49,7 @@ curl -sS -X POST http://localhost:4000/agents \
 List agents:
 
 ```bash
-curl -sS http://localhost:4000/agents
+curl -sS http://localhost:4000/v1/agents
 ```
 
 Update/get/delete require the `agentId` returned by the create response:
@@ -57,14 +57,14 @@ Update/get/delete require the `agentId` returned by the create response:
 ```bash
 AGENT_ID='<paste-id-here>'
 
-curl -sS http://localhost:4000/agents/$AGENT_ID
+curl -sS http://localhost:4000/v1/agents/$AGENT_ID
 
-curl -sS -X PUT http://localhost:4000/agents/$AGENT_ID \
+curl -sS -X PUT http://localhost:4000/v1/agents/$AGENT_ID \
   -H 'Content-Type: application/json' \
   -d '{"name":"Test Agent Updated","config":{"tools":["search_wikipedia"]}}'
 
-curl -sS -X DELETE http://localhost:4000/agents/$AGENT_ID -i
-curl -sS http://localhost:4000/agents
+curl -sS -X DELETE http://localhost:4000/v1/agents/$AGENT_ID -i
+curl -sS http://localhost:4000/v1/agents
 ```
 
 ### Persistence across restarts
@@ -73,14 +73,14 @@ Restart only the backend:
 
 ```bash
 docker compose -f voice-agent-server/docker-compose.persistence.yml restart backend
-curl -sS http://localhost:4000/agents
+curl -sS http://localhost:4000/v1/agents
 ```
 
 Restart mongo (data should persist because of the named volume):
 
 ```bash
 docker compose -f voice-agent-server/docker-compose.persistence.yml restart mongo
-curl -sS http://localhost:4000/agents
+curl -sS http://localhost:4000/v1/agents
 ```
 
 ### Stop / cleanup

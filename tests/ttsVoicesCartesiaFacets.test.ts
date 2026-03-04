@@ -10,7 +10,7 @@ function jsonResponse(body: unknown, status = 200): Response {
     });
 }
 
-describe('GET /config/tts-voices (cartesia facets)', () => {
+describe('GET /v1/config/tts-voices (cartesia facets)', () => {
     let fetchMock: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
@@ -31,7 +31,8 @@ describe('GET /config/tts-voices (cartesia facets)', () => {
                         locale: 'en-US',
                         is_owner: false,
                         is_public: true,
-                        preview_file_url: 'https://files.cartesia.ai/files/file_1/download?format=playback',
+                        preview_file_url:
+                            'https://files.cartesia.ai/files/file_1/download?format=playback',
                     },
                 ],
                 has_more: false,
@@ -43,7 +44,7 @@ describe('GET /config/tts-voices (cartesia facets)', () => {
         });
 
         const res = await request(app)
-            .get('/config/tts-voices')
+            .get('/v1/config/tts-voices')
             .query({ providerId: 'cartesia', limit: 10 });
 
         expect(res.status).toBe(200);
@@ -62,4 +63,3 @@ describe('GET /config/tts-voices (cartesia facets)', () => {
         });
     });
 });
-

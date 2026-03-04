@@ -4,22 +4,22 @@ import { describe, expect, it, vi } from 'vitest';
 import { importFreshApp } from './testUtils';
 
 describe('backend HTTP contract', () => {
-    it('GET / returns API metadata and endpoints (telephony disabled)', async () => {
+    it('GET /v1 returns API metadata and endpoints (telephony disabled)', async () => {
         const app = await importFreshApp({
             env: { TELEPHONY_ENABLED: 'false' },
         });
 
-        const res = await request(app).get('/').expect(200);
+        const res = await request(app).get('/v1').expect(200);
 
-        expect(res.body.name).toBe('LiveKit Backend API');
+        expect(res.body.name).toBe('Lyzr Voice API');
         expect(res.body.version).toBe('1.0.0');
         expect(res.body.endpoints).toMatchObject({
-            health: 'GET /health',
-            createSession: 'POST /session',
-            endSession: 'POST /session/end',
-            agents: 'GET /agents',
-            sessionTraces: 'GET /api/traces/session/:sessionId',
-            sessionTraceById: 'GET /api/traces/session/:sessionId/:traceId',
+            health: 'GET /v1/health',
+            createSession: 'POST /v1/sessions/start',
+            endSession: 'POST /v1/sessions/end',
+            agents: 'GET /v1/agents',
+            sessionTraces: 'GET /v1/traces/session/:sessionId',
+            sessionTraceById: 'GET /v1/traces/session/:sessionId/:traceId',
         });
         expect(res.body.endpoints.telephonyWebhook).toBeUndefined();
     });
@@ -29,22 +29,22 @@ describe('backend HTTP contract', () => {
             env: { TELEPHONY_ENABLED: 'true' },
         });
 
-        const res = await request(app).get('/').expect(200);
-        expect(res.body.endpoints.telephonyWebhook).toBe('POST /telephony/livekit-webhook');
+        const res = await request(app).get('/v1').expect(200);
+        expect(res.body.endpoints.telephonyWebhook).toBe('POST /v1/telephony/livekit-webhook');
     });
 
-    it('GET /health returns ok + timestamp + uptime', async () => {
+    it('GET /v1/health returns ok + timestamp + uptime', async () => {
         const app = await importFreshApp();
-        const res = await request(app).get('/health').expect(200);
+        const res = await request(app).get('/v1/health').expect(200);
 
         expect(res.body.status).toBe('ok');
         expect(typeof res.body.timestamp).toBe('string');
         expect(typeof res.body.uptime).toBe('number');
     });
 
-    it('GET /config/tools returns the tool registry', async () => {
+    it('GET /v1/config/tools returns the tool registry', async () => {
         const app = await importFreshApp();
-        const res = await request(app).get('/config/tools').expect(200);
+        const res = await request(app).get('/v1/config/tools').expect(200);
 
         const ids = (res.body.tools as Array<{ id: string }>).map((t) => t.id);
         expect(ids).toEqual(
@@ -59,9 +59,9 @@ describe('backend HTTP contract', () => {
         );
     });
 
-    it('GET /config/realtime-options includes xAI Grok provider', async () => {
+    it('GET /v1/config/realtime-options includes xAI Grok provider', async () => {
         const app = await importFreshApp();
-        const res = await request(app).get('/config/realtime-options').expect(200);
+        const res = await request(app).get('/v1/config/realtime-options').expect(200);
 
         const providers = res.body.providers as Array<{
             providerId: string;
@@ -89,15 +89,13 @@ describe('backend HTTP contract', () => {
         );
         expect(xai?.models[0]?.languages).toEqual(expect.arrayContaining(['en']));
         expect(xai?.voices).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({ id: 'ara', name: 'Ara' }),
-            ])
+            expect.arrayContaining([expect.objectContaining({ id: 'ara', name: 'Ara' })])
         );
     });
 
-    it('GET /config/pipeline-options exposes Sarvam STT and model-only TTS ids + defaultVoiceId', async () => {
+    it('GET /v1/config/pipeline-options exposes Sarvam STT and model-only TTS ids + defaultVoiceId', async () => {
         const app = await importFreshApp();
-        const res = await request(app).get('/config/pipeline-options').expect(200);
+        const res = await request(app).get('/v1/config/pipeline-options').expect(200);
 
         const ttsProviders = res.body.tts as Array<{
             providerId: string;
@@ -142,9 +140,9 @@ describe('backend HTTP contract', () => {
         expect(cartesia?.models.some((model) => model.id.includes(':'))).toBe(false);
     });
 
-    it('GET /config/tts-voice-providers includes Sarvam', async () => {
+    it('GET /v1/config/tts-voice-providers includes Sarvam', async () => {
         const app = await importFreshApp();
-        const res = await request(app).get('/config/tts-voice-providers').expect(200);
+        const res = await request(app).get('/v1/config/tts-voice-providers').expect(200);
         const providers = res.body.providers as Array<{ providerId: string; displayName: string }>;
         expect(providers).toEqual(
             expect.arrayContaining([
@@ -162,11 +160,15 @@ describe('backend HTTP contract', () => {
         expect(res.body).toEqual({ error: 'Not found', path: '/nope' });
     });
 
-    it('POST /session validates and returns example on 400', async () => {
+    it('POST /v1/sessions/start validates and returns example on 400', async () => {
         const createSession = vi.fn();
         const app = await importFreshApp({ sessionServiceMock: { createSession } });
 
-        const res = await request(app).post('/session').set('x-api-key', 'dev').send({}).expect(400);
+        const res = await request(app)
+            .post('/v1/sessions/start')
+            .set('x-api-key', 'dev')
+            .send({})
+            .expect(400);
         expect(res.body.error).toBeTruthy();
         expect(res.body.issues).toBeTruthy();
         expect(res.body.example?.userIdentity).toBeTruthy();
@@ -174,7 +176,7 @@ describe('backend HTTP contract', () => {
         expect(createSession).not.toHaveBeenCalled();
     });
 
-    it('POST /session returns the session service response on success', async () => {
+    it('POST /v1/sessions/start returns the session service response on success', async () => {
         const createSession = vi.fn().mockResolvedValue({
             userToken: 'tok',
             roomName: 'room-123',
@@ -188,7 +190,7 @@ describe('backend HTTP contract', () => {
         const app = await importFreshApp({ sessionServiceMock: { createSession } });
 
         const res = await request(app)
-            .post('/session')
+            .post('/v1/sessions/start')
             .set('x-api-key', 'dev')
             .send({ userIdentity: 'user_1', roomName: 'room-123' })
             .expect(200);
@@ -201,12 +203,12 @@ describe('backend HTTP contract', () => {
         expect(createSession).toHaveBeenCalledTimes(1);
     });
 
-    it('POST /session/end validates and returns 204 on success', async () => {
+    it('POST /v1/sessions/end validates and returns 204 on success', async () => {
         const endSession = vi.fn().mockResolvedValue(undefined);
         const app = await importFreshApp({ sessionServiceMock: { endSession } });
 
         await request(app)
-            .post('/session/end')
+            .post('/v1/sessions/end')
             .set('x-api-key', 'dev')
             .send({ roomName: 'room-123' })
             .expect(204);

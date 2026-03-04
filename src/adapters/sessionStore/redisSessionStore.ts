@@ -54,12 +54,16 @@ export class RedisSessionStore implements SessionStorePort {
 
         const key = this.keyFor(roomName);
         const existingRaw = await this.client.get(key);
-        const existingSessionId = existingRaw ? this.parseSessionData(existingRaw)?.sessionId : undefined;
+        const existingSessionId = existingRaw
+            ? this.parseSessionData(existingRaw)?.sessionId
+            : undefined;
         const payload = JSON.stringify(data);
 
         if (this.ttlSeconds) {
             await this.client.set(key, payload, { EX: this.ttlSeconds });
-            await this.client.set(this.sessionIdKeyFor(data.sessionId), roomName, { EX: this.ttlSeconds });
+            await this.client.set(this.sessionIdKeyFor(data.sessionId), roomName, {
+                EX: this.ttlSeconds,
+            });
         } else {
             await this.client.set(key, payload);
             await this.client.set(this.sessionIdKeyFor(data.sessionId), roomName);
@@ -102,7 +106,9 @@ export class RedisSessionStore implements SessionStorePort {
     async delete(roomName: string): Promise<boolean> {
         await this.ensureConnected();
         const existingRaw = await this.client.get(this.keyFor(roomName));
-        const existingSessionId = existingRaw ? this.parseSessionData(existingRaw)?.sessionId : undefined;
+        const existingSessionId = existingRaw
+            ? this.parseSessionData(existingRaw)?.sessionId
+            : undefined;
         const deletedCount = await this.client.del(this.keyFor(roomName));
         if (existingSessionId) {
             await this.client.del(this.sessionIdKeyFor(existingSessionId));

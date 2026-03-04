@@ -94,28 +94,11 @@ function hasKnowledgeBaseEnabled(agentConfig?: AgentConfig): boolean {
 }
 
 /**
- * Derive runtime RAG configuration from the knowledge base config.
- */
-export function deriveRagConfigFromKnowledgeBase(agentConfig?: AgentConfig): {
-    lyzr_rag?: AgentConfig['lyzr_rag'];
-    agentic_rag?: AgentConfig['agentic_rag'];
-} {
-    const kb = agentConfig?.knowledge_base;
-    if (!kb?.enabled) return {};
-
-    return {
-        ...(kb.lyzr_rag ? { lyzr_rag: kb.lyzr_rag } : {}),
-        agentic_rag: kb.agentic_rag ?? [],
-    };
-}
-
-/**
- * Apply tool normalization and KB-derived RAG fields to produce a dispatch-ready config.
+ * Apply tool normalization to produce a dispatch-ready config.
  */
 export function finalizeAgentConfig(agentConfig: AgentConfig): AgentConfig {
     return {
         ...agentConfig,
         tools: normalizeTools(agentConfig),
-        ...deriveRagConfigFromKnowledgeBase(agentConfig),
     };
 }

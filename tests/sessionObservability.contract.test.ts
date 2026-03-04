@@ -7,8 +7,8 @@ describe('session observability contract', () => {
         setRequiredEnv();
 
         const [{ SessionObservabilityIngestSchema }, { SessionReportSchema }] = await Promise.all([
-            import('../dist/types/index.js'),
-            import('../dist/types/sessionReport.js'),
+            import('../src/types/index.js'),
+            import('../src/types/sessionReport.js'),
         ]);
 
         const reportPayload = {
@@ -67,7 +67,7 @@ describe('session observability contract', () => {
     it('rejects ingest payloads that break the required session report contract', async () => {
         setRequiredEnv();
 
-        const { SessionObservabilityIngestSchema } = await import('../dist/types/index.js');
+        const { SessionObservabilityIngestSchema } = await import('../src/types/index.js');
 
         const ingestResult = SessionObservabilityIngestSchema.safeParse({
             roomName: 'room-contract-1',
@@ -93,5 +93,23 @@ describe('session observability contract', () => {
                 'sessionReport.timestamp',
             ])
         );
+    });
+
+    it('rejects ingest payloads missing required sessionId', async () => {
+        setRequiredEnv();
+
+        const { SessionObservabilityIngestSchema } = await import('../src/types/index.js');
+
+        const result = SessionObservabilityIngestSchema.safeParse({
+            roomName: 'room-contract-1',
+            orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+            closeReason: null,
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            const paths = result.error.issues.map((issue) => issue.path.join('.'));
+            expect(paths).toContain('sessionId');
+        }
     });
 });

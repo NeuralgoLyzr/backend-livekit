@@ -4,6 +4,7 @@ import type { TelephonyIntegrationStorePort } from '../ports/telephonyIntegratio
 import { asyncHandler } from '../../lib/asyncHandler.js';
 import { HttpError } from '../../lib/httpErrors.js';
 import { formatZodError } from '../../lib/zod.js';
+import type { RequestAuthLocals } from '../../middleware/apiKeyAuth.js';
 import {
     PlivoVerifyCredentialsRequestSchema,
     PlivoCreateIntegrationRequestSchema,
@@ -15,6 +16,14 @@ export interface PlivoRouterDeps {
     integrationStore: TelephonyIntegrationStorePort;
 }
 
+function requireOrgScope(res: { locals: unknown }): { orgId: string } {
+    const auth = (res.locals as RequestAuthLocals).auth;
+    if (!auth) {
+        throw new HttpError(401, 'Missing auth context');
+    }
+    return { orgId: auth.orgId };
+}
+
 export function createPlivoRouter(deps: PlivoRouterDeps): Router {
     const { onboardingService, integrationStore } = deps;
     const router = Router();
@@ -22,7 +31,8 @@ export function createPlivoRouter(deps: PlivoRouterDeps): Router {
     router.get(
         '/integrations',
         asyncHandler(async (_req, res) => {
-            const integrations = await integrationStore.listByProvider('plivo');
+            const scope = requireOrgScope(res);
+            const integrations = await integrationStore.listByProvider('plivo', scope);
             return res.json({ integrations });
         })
     );
@@ -46,7 +56,8 @@ export function createPlivoRouter(deps: PlivoRouterDeps): Router {
             if (!parsed.success) {
                 return res.status(400).json(formatZodError(parsed.error));
             }
-            const result = await onboardingService.createIntegration(parsed.data);
+            const scope = requireOrgScope(res);
+            const result = await onboardingService.createIntegration(parsed.data, scope);
             return res.json({
                 integrationId: result.id,
                 provider: result.provider,
@@ -56,8 +67,9 @@ export function createPlivoRouter(deps: PlivoRouterDeps): Router {
     );
 
     const deleteIntegrationHandler = asyncHandler(async (req, res) => {
+        const scope = requireOrgScope(res);
         const integrationId = req.params.integrationId as string;
-        const result = await onboardingService.deleteIntegration(integrationId);
+        const result = await onboardingService.deleteIntegration(integrationId, scope);
         return res.json({ ok: true, ...result });
     });
 
@@ -72,7 +84,8 @@ export function createPlivoRouter(deps: PlivoRouterDeps): Router {
             if (!integrationId) {
                 throw new HttpError(400, 'integrationId query param is required');
             }
-            const numbers = await onboardingService.listNumbers(integrationId);
+            const scope = requireOrgScope(res);
+            const numbers = await onboardingService.listNumbers(integrationId, scope);
             return res.json({ numbers });
         })
     );
@@ -90,11 +103,16 @@ export function createPlivoRouter(deps: PlivoRouterDeps): Router {
             }
             const providerNumberId = req.params.providerNumberId as string;
             const { e164, agentId } = parsed.data;
-            const binding = await onboardingService.connectNumber(integrationId, {
-                providerNumberId,
-                e164,
-                agentId,
-            });
+            const scope = requireOrgScope(res);
+            const binding = await onboardingService.connectNumber(
+                integrationId,
+                {
+                    providerNumberId,
+                    e164,
+                    agentId,
+                },
+                scope
+            );
             return res.json(binding);
         })
     );
@@ -103,7 +121,8 @@ export function createPlivoRouter(deps: PlivoRouterDeps): Router {
         '/bindings/:bindingId',
         asyncHandler(async (req, res) => {
             const bindingId = req.params.bindingId as string;
-            await onboardingService.disconnectNumber(bindingId);
+            const scope = requireOrgScope(res);
+            await onboardingService.disconnectNumber(bindingId, scope);
             return res.json({ ok: true });
         })
     );

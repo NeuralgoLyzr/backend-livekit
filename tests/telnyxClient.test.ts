@@ -3,7 +3,7 @@ import {
     TelnyxClient,
     isTelnyxClientError,
     type TelnyxClientError,
-} from '../dist/telephony/adapters/telnyx/telnyxClient.js';
+} from '../src/telephony/adapters/telnyx/telnyxClient.js';
 
 function jsonResponse(body: unknown, status = 200): Response {
     return new Response(JSON.stringify(body), {

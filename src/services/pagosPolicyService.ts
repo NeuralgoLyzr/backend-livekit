@@ -50,13 +50,10 @@ function parseAssignedPermission(value: unknown): AssignedPermission | null {
 
     const userId = normalizeString(row.user_id ?? row.userId) || undefined;
     const resourceType =
-        normalizeString(
-            row.resource_type ?? row.resourceType ?? row.type ?? row.permission_type
-        ) || undefined;
+        normalizeString(row.resource_type ?? row.resourceType ?? row.type ?? row.permission_type) ||
+        undefined;
     const modes = Array.isArray(row.modes)
-        ? row.modes
-              .map((mode) => normalizeString(mode))
-              .filter((mode) => mode.length > 0)
+        ? row.modes.map((mode) => normalizeString(mode)).filter((mode) => mode.length > 0)
         : [];
 
     return {
@@ -220,7 +217,10 @@ export function createPagosPolicyService(deps: CreatePagosPolicyServiceDeps): Pa
 
         const payload = await requestWithFallback({
             method: 'GET',
-            fallbackPaths: ['/policies/assigned-permissions', '/api/v1/policies/assigned-permissions'],
+            fallbackPaths: [
+                '/policies/assigned-permissions',
+                '/api/v1/policies/assigned-permissions',
+            ],
             query: {
                 organization_id: organizationId,
                 permission_type: permissionType,

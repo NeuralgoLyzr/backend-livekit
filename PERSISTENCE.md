@@ -94,7 +94,7 @@ Runtime enforces configuration when persistence is used:
     - REST CRUD for persisted agents.
 
 - `voice-agent-server/src/routes/session.ts`
-    - `POST /session` accepts optional `agentId` + optional `agentConfig`.
+    - `POST /v1/session` accepts optional `agentId` + optional `agentConfig`.
 
 ---
 
@@ -102,13 +102,13 @@ Runtime enforces configuration when persistence is used:
 
 ### Already implemented (agent persistence + call start)
 
-- **`GET /agents`**: list agents
-- **`POST /agents`**: create agent (persist config)
-- **`GET /agents/:agentId`**: get agent
-- **`PUT /agents/:agentId`**: update agent
-- **`DELETE /agents/:agentId`**: soft-delete agent
+- **`GET /v1/agents`**: list agents
+- **`POST /v1/agents`**: create agent (persist config)
+- **`GET /v1/agents/:agentId`**: get agent
+- **`PUT /v1/agents/:agentId`**: update agent
+- **`DELETE /v1/agents/:agentId`**: soft-delete agent
 
-- **`POST /session`**: start a WebRTC session
+- **`POST /v1/session`**: start a WebRTC session
     - Body supports:
         - `agentId` (Mongo ObjectId string): load stored config
         - `agentConfig`: merge as overrides
@@ -130,7 +130,7 @@ The frontend previously saved configs in localStorage; it now uses backend persi
 Key files:
 
 - `frontend-livekit/lib/backendClient.ts`
-    - Typed helper for `/agents` and `/session`.
+    - Typed helper for `/v1/agents` and `/v1/session`.
 
 - `frontend-livekit/hooks/useAgents.ts`
     - Loads agent list from backend and supports create/delete/update.
@@ -151,7 +151,7 @@ Key files:
 
 ### Backend
 
-- Set `MONGODB_URI` to a MongoDB connection string (required for `/agents` + `agentId` resolution).
+- Set `MONGODB_URI` to a MongoDB connection string (required for `/v1/agents` + `agentId` resolution).
     - Example: `MONGODB_URI="mongodb://localhost:27017/livekit_dev"`
 
 - Run:
@@ -171,9 +171,9 @@ pnpm -C frontend-livekit dev
 
 ### Manual smoke checks
 
-- Create agent in UI → confirms `POST /agents`
-- Refresh UI → confirms `GET /agents`
-- Start session with a saved agent → confirms `POST /session` includes `agentId`
+- Create agent in UI → confirms `POST /v1/agents`
+- Refresh UI → confirms `GET /v1/agents`
+- Start session with a saved agent → confirms `POST /v1/session` includes `agentId`
 
 ---
 
@@ -210,7 +210,7 @@ Checklist:
 
 ## Troubleshooting
 
-### `/agents` returns 503 “Persistence is not configured”
+### `/v1/agents` returns 503 “Persistence is not configured”
 
 - Set `MONGODB_URI` (see `.env.example`).
 
@@ -218,7 +218,7 @@ Checklist:
 
 - `agentId` must be a 24-hex Mongo ObjectId string (see `AgentIdSchema` in `voice-agent-server/src/types/index.ts`).
 
-### You can create agents but `GET /agents` is empty
+### You can create agents but `GET /v1/agents` is empty
 
 - Verify you’re pointing at the same database (`MONGODB_URI`) you wrote into.
 - If you’re experimenting with collection names, update the pinned collection name in `voice-agent-server/src/models/agentModel.ts`.

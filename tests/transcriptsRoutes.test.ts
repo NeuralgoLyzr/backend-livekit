@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { importFreshApp } from './testUtils';
 
 describe('transcripts routes (HTTP)', () => {
-    it('GET /api/transcripts validates query and forwards to transcriptService.list', async () => {
+    it('GET /v1/transcripts validates query and forwards to transcriptService.list', async () => {
         const list = vi.fn().mockResolvedValue({
             items: [],
             total: 0,
@@ -20,7 +20,7 @@ describe('transcripts routes (HTTP)', () => {
         const res = await request(app)
             .get(
                 [
-                    '/api/transcripts',
+                    '/v1/transcripts',
                     '?limit=10',
                     '&offset=5',
                     '&sort=asc',
@@ -54,17 +54,17 @@ describe('transcripts routes (HTTP)', () => {
         });
     });
 
-    it('GET /api/transcripts rejects invalid agentId', async () => {
+    it('GET /v1/transcripts rejects invalid agentId', async () => {
         const app = await importFreshApp({ sessionServiceMock: {}, transcriptServiceMock: {} });
         const res = await request(app)
-            .get('/api/transcripts?agentId=not-a-mongo-id')
+            .get('/v1/transcripts?agentId=not-a-mongo-id')
             .set('x-api-key', 'dev')
             .expect(400);
         expect(res.body.error).toBeTruthy();
         expect(res.body.issues).toBeTruthy();
     });
 
-    it('GET /api/transcripts/:sessionId returns 404 when not found', async () => {
+    it('GET /v1/transcripts/:sessionId returns 404 when not found', async () => {
         const getBySessionId = vi.fn().mockResolvedValue(null);
         const app = await importFreshApp({
             sessionServiceMock: {},
@@ -72,13 +72,13 @@ describe('transcripts routes (HTTP)', () => {
         });
 
         await request(app)
-            .get('/api/transcripts/00000000-0000-4000-8000-000000000000')
+            .get('/v1/transcripts/00000000-0000-4000-8000-000000000000')
             .set('x-api-key', 'dev')
             .expect(404);
         expect(getBySessionId).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000000');
     });
 
-    it('GET /api/transcripts/:sessionId/audio returns 404 when audio file is missing', async () => {
+    it('GET /v1/transcripts/:sessionId/audio returns 404 when audio file is missing', async () => {
         const transcript = {
             id: 't1',
             sessionId: '00000000-0000-4000-8000-000000000000',
@@ -94,14 +94,14 @@ describe('transcripts routes (HTTP)', () => {
         });
 
         const res = await request(app)
-            .get('/api/transcripts/00000000-0000-4000-8000-000000000000/audio')
+            .get('/v1/transcripts/00000000-0000-4000-8000-000000000000/audio')
             .set('x-api-key', 'dev')
             .expect(404);
 
         expect(res.body).toEqual({ error: 'Audio recording not found' });
     });
 
-    it('GET /api/transcripts/:sessionId/audio serves audio file when available', async () => {
+    it('GET /v1/transcripts/:sessionId/audio serves audio file when available', async () => {
         const transcript = {
             id: 't1',
             sessionId: '00000000-0000-4000-8000-000000000000',
@@ -120,7 +120,7 @@ describe('transcripts routes (HTTP)', () => {
         });
 
         const res = await request(app)
-            .get('/api/transcripts/00000000-0000-4000-8000-000000000000/audio')
+            .get('/v1/transcripts/00000000-0000-4000-8000-000000000000/audio')
             .set('x-api-key', 'dev')
             .expect(200);
 
@@ -129,7 +129,7 @@ describe('transcripts routes (HTTP)', () => {
         expect(bodyText).toBe('fake-ogg-data');
     });
 
-    it('GET /api/transcripts/:sessionId/audio returns 404 for org mismatch', async () => {
+    it('GET /v1/transcripts/:sessionId/audio returns 404 for org mismatch', async () => {
         const transcript = {
             id: 't1',
             sessionId: '00000000-0000-4000-8000-000000000000',
@@ -145,7 +145,7 @@ describe('transcripts routes (HTTP)', () => {
         });
 
         const res = await request(app)
-            .get('/api/transcripts/00000000-0000-4000-8000-000000000000/audio')
+            .get('/v1/transcripts/00000000-0000-4000-8000-000000000000/audio')
             .set('x-api-key', 'dev')
             .expect(404);
 
@@ -153,7 +153,7 @@ describe('transcripts routes (HTTP)', () => {
         expect(get).not.toHaveBeenCalled();
     });
 
-    it('GET /api/transcripts/:sessionId/audio returns 404 for non-admin user mismatch', async () => {
+    it('GET /v1/transcripts/:sessionId/audio returns 404 for non-admin user mismatch', async () => {
         const transcript = {
             id: 't1',
             sessionId: '00000000-0000-4000-8000-000000000000',
@@ -177,7 +177,7 @@ describe('transcripts routes (HTTP)', () => {
         });
 
         const res = await request(app)
-            .get('/api/transcripts/00000000-0000-4000-8000-000000000000/audio')
+            .get('/v1/transcripts/00000000-0000-4000-8000-000000000000/audio')
             .set('x-api-key', 'dev')
             .expect(404);
 
@@ -185,7 +185,7 @@ describe('transcripts routes (HTTP)', () => {
         expect(get).not.toHaveBeenCalled();
     });
 
-    it('GET /api/transcripts/:sessionId returns transcript when found', async () => {
+    it('GET /v1/transcripts/:sessionId returns transcript when found', async () => {
         const transcript = {
             id: 't1',
             sessionId: '00000000-0000-4000-8000-000000000000',
@@ -199,13 +199,13 @@ describe('transcripts routes (HTTP)', () => {
         });
 
         const res = await request(app)
-            .get('/api/transcripts/00000000-0000-4000-8000-000000000000')
+            .get('/v1/transcripts/00000000-0000-4000-8000-000000000000')
             .set('x-api-key', 'dev')
             .expect(200);
         expect(res.body).toEqual({ transcript });
     });
 
-    it('GET /api/transcripts/agent/:agentId forwards pagination to listByAgentId', async () => {
+    it('GET /v1/transcripts/agent/:agentId forwards pagination to listByAgentId', async () => {
         const listByAgentId = vi.fn().mockResolvedValue({
             items: [],
             total: 0,
@@ -219,7 +219,7 @@ describe('transcripts routes (HTTP)', () => {
         });
 
         await request(app)
-            .get('/api/transcripts/agent/507f1f77bcf86cd799439011?limit=2&offset=0&sort=desc')
+            .get('/v1/transcripts/agent/507f1f77bcf86cd799439011?limit=2&offset=0&sort=desc')
             .set('x-api-key', 'dev')
             .expect(200);
 
@@ -236,7 +236,7 @@ describe('transcripts routes (HTTP)', () => {
         );
     });
 
-    it('GET /api/transcripts/agent/:agentId/stats returns stats payload', async () => {
+    it('GET /v1/transcripts/agent/:agentId/stats returns stats payload', async () => {
         const getAgentStats = vi.fn().mockResolvedValue({
             totalCalls: 3,
             browserCalls: 3,
@@ -249,7 +249,7 @@ describe('transcripts routes (HTTP)', () => {
         });
 
         const res = await request(app)
-            .get('/api/transcripts/agent/507f1f77bcf86cd799439011/stats')
+            .get('/v1/transcripts/agent/507f1f77bcf86cd799439011/stats')
             .set('x-api-key', 'dev')
             .expect(200);
 
@@ -261,7 +261,7 @@ describe('transcripts routes (HTTP)', () => {
         });
     });
 
-    it('GET /api/transcripts applies createdByUserId filter for non-admin users', async () => {
+    it('GET /v1/transcripts applies createdByUserId filter for non-admin users', async () => {
         const list = vi.fn().mockResolvedValue({
             items: [],
             total: 0,
@@ -282,7 +282,7 @@ describe('transcripts routes (HTTP)', () => {
             },
         });
 
-        await request(app).get('/api/transcripts').set('x-api-key', 'dev').expect(200);
+        await request(app).get('/v1/transcripts').set('x-api-key', 'dev').expect(200);
 
         expect(list).toHaveBeenCalledTimes(1);
         expect(list).toHaveBeenCalledWith(
@@ -294,7 +294,7 @@ describe('transcripts routes (HTTP)', () => {
         );
     });
 
-    it('GET /api/transcripts/:sessionId returns 404 for non-admin user mismatch', async () => {
+    it('GET /v1/transcripts/:sessionId returns 404 for non-admin user mismatch', async () => {
         const getBySessionId = vi.fn().mockResolvedValue({
             id: 't1',
             sessionId: '00000000-0000-4000-8000-000000000000',
@@ -315,7 +315,7 @@ describe('transcripts routes (HTTP)', () => {
         });
 
         const res = await request(app)
-            .get('/api/transcripts/00000000-0000-4000-8000-000000000000')
+            .get('/v1/transcripts/00000000-0000-4000-8000-000000000000')
             .set('x-api-key', 'dev')
             .expect(404);
 

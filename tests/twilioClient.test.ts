@@ -3,7 +3,7 @@ import {
     TwilioClient,
     isTwilioClientError,
     type TwilioClientError,
-} from '../dist/telephony/adapters/twilio/twilioClient.js';
+} from '../src/telephony/adapters/twilio/twilioClient.js';
 
 function jsonResponse(body: unknown, status = 200): Response {
     return new Response(JSON.stringify(body), {

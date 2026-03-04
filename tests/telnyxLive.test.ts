@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
     TelnyxClient,
     isTelnyxClientError,
-} from '../dist/telephony/adapters/telnyx/telnyxClient.js';
+} from '../src/telephony/adapters/telnyx/telnyxClient.js';
 
 const API_KEY = process.env.TELNYX_API_KEY || '';
 
@@ -69,70 +69,62 @@ describe.skipIf(!API_KEY)('TelnyxClient (live)', () => {
     // ── FQDN connection lifecycle ─────────────────────────────────────────
 
     describe('FQDN connection lifecycle', () => {
-        it(
-            'creates, retrieves, and deletes a connection',
-            { timeout: 30_000 },
-            async () => {
-                const name = `test-live-${Date.now()}`;
-                const created = await client.createFqdnConnection(name);
+        it('creates, retrieves, and deletes a connection', { timeout: 30_000 }, async () => {
+            const name = `test-live-${Date.now()}`;
+            const created = await client.createFqdnConnection(name);
 
-                expect(created).toHaveProperty('id');
-                expect(created.connection_name).toBe(name);
+            expect(created).toHaveProperty('id');
+            expect(created.connection_name).toBe(name);
 
-                try {
-                    const fetched = await client.getFqdnConnection(created.id);
-                    expect(fetched.id).toBe(created.id);
-                    expect(fetched.connection_name).toBe(name);
-                } finally {
-                    await client.deleteFqdnConnection(created.id);
-                }
-
-                // Confirm deletion – should throw a 404 / PROVIDER_ERROR
-                try {
-                    await client.getFqdnConnection(created.id);
-                    expect.fail('Should have thrown after deletion');
-                } catch (err) {
-                    expect(isTelnyxClientError(err)).toBe(true);
-                }
+            try {
+                const fetched = await client.getFqdnConnection(created.id);
+                expect(fetched.id).toBe(created.id);
+                expect(fetched.connection_name).toBe(name);
+            } finally {
+                await client.deleteFqdnConnection(created.id);
             }
-        );
+
+            // Confirm deletion – should throw a 404 / PROVIDER_ERROR
+            try {
+                await client.getFqdnConnection(created.id);
+                expect.fail('Should have thrown after deletion');
+            } catch (err) {
+                expect(isTelnyxClientError(err)).toBe(true);
+            }
+        });
     });
 
     // ── FQDN lifecycle ────────────────────────────────────────────────────
 
     describe('FQDN lifecycle', () => {
-        it(
-            'creates, lists, deletes an FQDN under a connection',
-            { timeout: 30_000 },
-            async () => {
-                const connName = `test-live-${Date.now()}`;
-                const conn = await client.createFqdnConnection(connName);
+        it('creates, lists, deletes an FQDN under a connection', { timeout: 30_000 }, async () => {
+            const connName = `test-live-${Date.now()}`;
+            const conn = await client.createFqdnConnection(connName);
 
-                try {
-                    const host = `test-${Date.now()}.example.com`;
-                    const fqdn = await client.createFqdn(host, conn.id);
+            try {
+                const host = `test-${Date.now()}.example.com`;
+                const fqdn = await client.createFqdn(host, conn.id);
 
-                    expect(fqdn).toHaveProperty('id');
-                    expect(fqdn.fqdn).toBe(host);
-                    // Telnyx returns connection_id as a large integer that can
-                    // lose precision during JSON parsing, so we only check it's truthy.
-                    expect(fqdn.connection_id).toBeTruthy();
+                expect(fqdn).toHaveProperty('id');
+                expect(fqdn.fqdn).toBe(host);
+                // Telnyx returns connection_id as a large integer that can
+                // lose precision during JSON parsing, so we only check it's truthy.
+                expect(fqdn.connection_id).toBeTruthy();
 
-                    // Confirm it appears in the list
-                    const listBefore = await client.listFqdns(conn.id);
-                    expect(listBefore.some((f) => f.id === fqdn.id)).toBe(true);
+                // Confirm it appears in the list
+                const listBefore = await client.listFqdns(conn.id);
+                expect(listBefore.some((f) => f.id === fqdn.id)).toBe(true);
 
-                    // Delete the FQDN
-                    await client.deleteFqdn(fqdn.id);
+                // Delete the FQDN
+                await client.deleteFqdn(fqdn.id);
 
-                    // Confirm removal
-                    const listAfter = await client.listFqdns(conn.id);
-                    expect(listAfter.some((f) => f.id === fqdn.id)).toBe(false);
-                } finally {
-                    await client.deleteFqdnConnection(conn.id);
-                }
+                // Confirm removal
+                const listAfter = await client.listFqdns(conn.id);
+                expect(listAfter.some((f) => f.id === fqdn.id)).toBe(false);
+            } finally {
+                await client.deleteFqdnConnection(conn.id);
             }
-        );
+        });
     });
 
     // ── Phone number assign/unassign lifecycle ────────────────────────────
@@ -171,9 +163,9 @@ describe.skipIf(!API_KEY)('TelnyxClient (live)', () => {
                     if (originalConnectionId) {
                         await client
                             .assignPhoneNumberToConnection(phone.id, originalConnectionId)
-                            .catch(() => { });
+                            .catch(() => {});
                     }
-                    await client.deleteFqdnConnection(conn.id).catch(() => { });
+                    await client.deleteFqdnConnection(conn.id).catch(() => {});
                 }
             }
         );
@@ -182,22 +174,18 @@ describe.skipIf(!API_KEY)('TelnyxClient (live)', () => {
     // ── Transport protocol update ─────────────────────────────────────────
 
     describe('transport protocol update', () => {
-        it(
-            'updates transport to TLS and confirms via get',
-            { timeout: 30_000 },
-            async () => {
-                const connName = `test-live-${Date.now()}`;
-                const conn = await client.createFqdnConnection(connName);
+        it('updates transport to TLS and confirms via get', { timeout: 30_000 }, async () => {
+            const connName = `test-live-${Date.now()}`;
+            const conn = await client.createFqdnConnection(connName);
 
-                try {
-                    await client.updateFqdnConnectionTransport(conn.id, 'TLS');
-                    const details = await client.getFqdnConnection(conn.id);
-                    expect(details.transport_protocol).toBe('TLS');
-                } finally {
-                    await client.deleteFqdnConnection(conn.id);
-                }
+            try {
+                await client.updateFqdnConnectionTransport(conn.id, 'TLS');
+                const details = await client.getFqdnConnection(conn.id);
+                expect(details.transport_protocol).toBe('TLS');
+            } finally {
+                await client.deleteFqdnConnection(conn.id);
             }
-        );
+        });
     });
 
     // ── Error handling ────────────────────────────────────────────────────
@@ -221,17 +209,13 @@ describe.skipIf(!API_KEY)('TelnyxClient (live)', () => {
             }
         });
 
-        it(
-            'throws on deleteFqdnConnection with invalid ID',
-            { timeout: 30_000 },
-            async () => {
-                try {
-                    await client.deleteFqdnConnection('invalid-id-000');
-                    expect.fail('Should have thrown');
-                } catch (err) {
-                    expect(isTelnyxClientError(err)).toBe(true);
-                }
+        it('throws on deleteFqdnConnection with invalid ID', { timeout: 30_000 }, async () => {
+            try {
+                await client.deleteFqdnConnection('invalid-id-000');
+                expect.fail('Should have thrown');
+            } catch (err) {
+                expect(isTelnyxClientError(err)).toBe(true);
             }
-        );
+        });
     });
 });

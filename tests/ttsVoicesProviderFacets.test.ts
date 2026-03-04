@@ -10,7 +10,7 @@ function jsonResponse(body: unknown, status = 200): Response {
     });
 }
 
-describe('GET /config/tts-voices (provider facet mapping)', () => {
+describe('GET /v1/config/tts-voices (provider facet mapping)', () => {
     let fetchMock: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
@@ -49,7 +49,7 @@ describe('GET /config/tts-voices (provider facet mapping)', () => {
         });
 
         const res = await request(app)
-            .get('/config/tts-voices')
+            .get('/v1/config/tts-voices')
             .query({ providerId: 'deepgram', limit: 50, gender: 'feminine' });
 
         expect(res.status).toBe(200);
@@ -92,7 +92,9 @@ describe('GET /config/tts-voices (provider facet mapping)', () => {
             env: { INWORLD_BASE_64: 'dGVzdDp0ZXN0' },
         });
 
-        const res = await request(app).get('/config/tts-voices').query({ providerId: 'inworld', limit: 50 });
+        const res = await request(app)
+            .get('/v1/config/tts-voices')
+            .query({ providerId: 'inworld', limit: 50 });
 
         expect(res.status).toBe(200);
         expect(res.body.providerId).toBe('inworld');
@@ -107,7 +109,9 @@ describe('GET /config/tts-voices (provider facet mapping)', () => {
 
     it('returns static Sarvam voices + facets', async () => {
         const app = await importFreshApp();
-        const res = await request(app).get('/config/tts-voices').query({ providerId: 'sarvam', limit: 50 });
+        const res = await request(app)
+            .get('/v1/config/tts-voices')
+            .query({ providerId: 'sarvam', limit: 50 });
 
         expect(res.status).toBe(200);
         expect(res.body.providerId).toBe('sarvam');
@@ -133,7 +137,7 @@ describe('GET /config/tts-voices (provider facet mapping)', () => {
     it('filters Sarvam voices by query, gender, language, and limit', async () => {
         const app = await importFreshApp();
 
-        const res = await request(app).get('/config/tts-voices').query({
+        const res = await request(app).get('/v1/config/tts-voices').query({
             providerId: 'sarvam',
             q: 'shubh',
             gender: 'male',

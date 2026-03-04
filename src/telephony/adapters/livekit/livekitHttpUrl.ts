@@ -7,4 +7,3 @@ export function toLiveKitHttpUrl(livekitUrl: string): string {
     // Fallback: if user provided host without protocol, default to https.
     return `https://${trimmed}`;
 }
-

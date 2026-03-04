@@ -91,11 +91,7 @@ export interface SessionTraceDetail {
 }
 
 export interface LangfuseTraceService {
-    listTracesBySession(input: {
-        sessionId: string;
-        page?: number;
-        limit?: number;
-    }): Promise<{
+    listTracesBySession(input: { sessionId: string; page?: number; limit?: number }): Promise<{
         traces: SessionTraceSummary[];
         pagination: SessionTracePagination;
     }>;
@@ -131,7 +127,10 @@ function parseTraceSummary(value: unknown): SessionTraceSummary | null {
     };
 }
 
-function parseTraceObservation(value: unknown, fallbackTraceId: string): SessionTraceObservation | null {
+function parseTraceObservation(
+    value: unknown,
+    fallbackTraceId: string
+): SessionTraceObservation | null {
     if (!isRecord(value)) return null;
 
     const id = coerceString(value.id);
@@ -202,7 +201,9 @@ function ensureConfigured(deps: CreateLangfuseTraceServiceDeps): void {
     });
 }
 
-export function createLangfuseTraceService(deps: CreateLangfuseTraceServiceDeps): LangfuseTraceService {
+export function createLangfuseTraceService(
+    deps: CreateLangfuseTraceServiceDeps
+): LangfuseTraceService {
     const timeoutMs = Math.max(Math.floor(deps.timeoutMs ?? 7_000), 500);
     const fetchImpl = deps.fetchImpl ?? fetch;
     const host = normalizeHost(deps.host);
@@ -299,4 +300,3 @@ export function createLangfuseTraceService(deps: CreateLangfuseTraceServiceDeps)
         },
     };
 }
-

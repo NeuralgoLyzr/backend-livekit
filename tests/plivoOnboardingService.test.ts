@@ -5,14 +5,14 @@ import type {
     CreateIntegrationInput,
     StoredIntegration,
     TelephonyIntegrationStorePort,
-} from '../dist/telephony/ports/telephonyIntegrationStorePort.js';
+} from '../src/telephony/ports/telephonyIntegrationStorePort.js';
 import type {
     StoredBinding,
     TelephonyBindingStorePort,
     UpsertBindingInput,
-} from '../dist/telephony/ports/telephonyBindingStorePort.js';
+} from '../src/telephony/ports/telephonyBindingStorePort.js';
 
-vi.mock('../dist/telephony/adapters/plivo/plivoClient.js', () => {
+vi.mock('../src/telephony/adapters/plivo/plivoClient.js', () => {
     const MockPlivoClient = vi.fn();
     MockPlivoClient.prototype.verifyCredentials = vi.fn();
     MockPlivoClient.prototype.listPhoneNumbers = vi.fn();
@@ -31,11 +31,12 @@ vi.mock('../dist/telephony/adapters/plivo/plivoClient.js', () => {
     };
 });
 
-import { PlivoOnboardingService } from '../dist/telephony/management/plivoOnboardingService.js';
-import { PlivoClient } from '../dist/telephony/adapters/plivo/plivoClient.js';
+import { PlivoOnboardingService } from '../src/telephony/management/plivoOnboardingService.js';
+import { PlivoClient } from '../src/telephony/adapters/plivo/plivoClient.js';
 
 const ENCRYPTION_KEY = randomBytes(32);
 const SIP_HOST = 'sip.livekit.cloud';
+const ORG_SCOPE = { orgId: '00000000-0000-0000-0000-000000000001' };
 
 function setupDefaultClientMocks() {
     (PlivoClient.prototype.verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -53,14 +54,16 @@ function setupDefaultClientMocks() {
         trunkId: 'TRUNK_1',
         primaryUriId: 'ORI_1',
     });
-    (PlivoClient.prototype.deleteInboundTrunk as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    (PlivoClient.prototype.deleteInboundTrunk as ReturnType<typeof vi.fn>).mockResolvedValue(
+        undefined
+    );
     (PlivoClient.prototype.listOriginationUris as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     (PlivoClient.prototype.createOriginationUri as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: 'ORI_1',
     });
-    (
-        PlivoClient.prototype.deleteOriginationUri as ReturnType<typeof vi.fn>
-    ).mockResolvedValue(undefined);
+    (PlivoClient.prototype.deleteOriginationUri as ReturnType<typeof vi.fn>).mockResolvedValue(
+        undefined
+    );
 }
 
 function makeIntegration(
@@ -68,6 +71,7 @@ function makeIntegration(
 ): StoredIntegration & { encryptedApiKey: string } {
     return {
         id: 'int_1',
+        orgId: ORG_SCOPE.orgId,
         provider: 'plivo',
         name: 'Test',
         apiKeyFingerprint: 'fp_abc',
@@ -83,6 +87,7 @@ function makeIntegration(
 function makeBinding(overrides?: Partial<StoredBinding>): StoredBinding {
     return {
         id: 'bind_1',
+        orgId: ORG_SCOPE.orgId,
         integrationId: 'int_1',
         provider: 'plivo',
         providerNumberId: '+15551234567',
@@ -100,17 +105,20 @@ function stubIntegrationStore(): TelephonyIntegrationStorePort {
     return {
         create: vi.fn(async (input: CreateIntegrationInput) => ({
             ...stored,
+            orgId: input.orgId,
             provider: input.provider,
             name: input.name ?? null,
             apiKeyFingerprint: input.apiKeyFingerprint,
         })),
-        getById: vi.fn(async () => stored),
-        updateProviderResources: vi.fn(async (_id: string, resources: Record<string, unknown>) => ({
-            ...stored,
-            providerResources: resources,
-        })),
-        deleteById: vi.fn(async () => true),
-        listByProvider: vi.fn(async () => [stored]),
+        getById: vi.fn(async (_id: string, _scope: { orgId: string }) => stored),
+        updateProviderResources: vi.fn(
+            async (_id: string, resources: Record<string, unknown>, _scope: { orgId: string }) => ({
+                ...stored,
+                providerResources: resources,
+            })
+        ),
+        deleteById: vi.fn(async (_id: string, _scope: { orgId: string }) => true),
+        listByProvider: vi.fn(async (_provider, _scope: { orgId: string }) => [stored]),
     };
 }
 
@@ -123,10 +131,10 @@ function stubBindingStore(): TelephonyBindingStorePort {
             agentId: input.agentId ?? null,
         })),
         getBindingByE164: vi.fn(async () => binding),
-        getBindingById: vi.fn(async () => binding),
-        listBindings: vi.fn(async () => [binding]),
-        listBindingsByIntegrationId: vi.fn(async () => [binding]),
-        deleteBinding: vi.fn(async () => true),
+        getBindingById: vi.fn(async (_id: string, _scope: { orgId: string }) => binding),
+        listBindings: vi.fn(async (_scope: { orgId: string }) => [binding]),
+        listBindingsByIntegrationId: vi.fn(async (_id: string, _scope: { orgId: string }) => [binding]),
+        deleteBinding: vi.fn(async (_id: string, _scope: { orgId: string }) => true),
     };
 }
 
@@ -181,17 +189,21 @@ describe('PlivoOnboardingService', () => {
         const integrationStore = stubIntegrationStore();
         const service = createService({ integrationStore });
 
-        const result = await service.createIntegration({
-            authId: 'MAUTH123',
-            authToken: 'secret',
-            name: 'My Plivo',
-        });
+        const result = await service.createIntegration(
+            {
+                authId: 'MAUTH123',
+                authToken: 'secret',
+                name: 'My Plivo',
+            },
+            ORG_SCOPE
+        );
 
         expect(result.provider).toBe('plivo');
         expect(result.name).toBe('My Plivo');
 
         expect(integrationStore.create).toHaveBeenCalledWith(
             expect.objectContaining({
+                orgId: ORG_SCOPE.orgId,
                 provider: 'plivo',
                 name: 'My Plivo',
                 encryptedApiKey: expect.stringContaining('v1.'),
@@ -217,12 +229,13 @@ describe('PlivoOnboardingService', () => {
             expect.objectContaining({
                 trunkId: 'TRUNK_1',
                 originationUriId: 'ORI_1',
-            })
+            }),
+            ORG_SCOPE
         );
     });
 
     it('listNumbers decrypts credentials and calls client', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({
                 authId: 'MAUTH123',
@@ -242,14 +255,14 @@ describe('PlivoOnboardingService', () => {
         );
 
         const service = createService({ integrationStore });
-        const numbers = await service.listNumbers('int_1');
+        const numbers = await service.listNumbers('int_1', ORG_SCOPE);
 
         expect(numbers).toEqual(mockNumbers);
         expect(PlivoClient.prototype.listPhoneNumbers).toHaveBeenCalledOnce();
     });
 
     it('connectNumber sets app_id to trunk and upserts binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({
                 authId: 'MAUTH123',
@@ -269,11 +282,15 @@ describe('PlivoOnboardingService', () => {
         const bindingStore = stubBindingStore();
         const service = createService({ integrationStore, bindingStore });
 
-        const result = await service.connectNumber('int_1', {
-            providerNumberId: '+15551234567',
-            e164: '+15551234567',
-            agentId: 'agent-1',
-        });
+        const result = await service.connectNumber(
+            'int_1',
+            {
+                providerNumberId: '+15551234567',
+                e164: '+15551234567',
+                agentId: 'agent-1',
+            },
+            ORG_SCOPE
+        );
 
         expect(PlivoClient.prototype.setNumberAppId).toHaveBeenCalledWith(
             '+15551234567',
@@ -281,6 +298,7 @@ describe('PlivoOnboardingService', () => {
         );
         expect(bindingStore.upsertBinding).toHaveBeenCalledWith(
             expect.objectContaining({
+                orgId: ORG_SCOPE.orgId,
                 integrationId: 'int_1',
                 provider: 'plivo',
                 providerNumberId: '+15551234567',
@@ -292,7 +310,7 @@ describe('PlivoOnboardingService', () => {
     });
 
     it('connectNumber rejects when requested e164 does not match provider number', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({
                 authId: 'MAUTH123',
@@ -316,13 +334,13 @@ describe('PlivoOnboardingService', () => {
             service.connectNumber('int_1', {
                 providerNumberId: '+15551234567',
                 e164: '+15559999999',
-            })
+            }, ORG_SCOPE)
         ).rejects.toMatchObject({ status: 422 });
         expect(bindingStore.upsertBinding).not.toHaveBeenCalled();
     });
 
     it('disconnectNumber deprovisions, clears app_id, and deletes binding', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({
                 authId: 'MAUTH123',
@@ -342,14 +360,14 @@ describe('PlivoOnboardingService', () => {
         const bindingStore = stubBindingStore();
         const service = createService({ integrationStore, bindingStore });
 
-        await service.disconnectNumber('bind_1');
+        await service.disconnectNumber('bind_1', ORG_SCOPE);
 
         expect(PlivoClient.prototype.setNumberAppId).toHaveBeenCalledWith('+15551234567', null);
-        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1', ORG_SCOPE);
     });
 
     it('deleteIntegration cascades number disconnects and deletes provider resources', async () => {
-        const { encryptString } = await import('../dist/lib/crypto/secretBox.js');
+        const { encryptString } = await import('../src/lib/crypto/secretBox.js');
         const encrypted = encryptString(
             JSON.stringify({ authId: 'MAUTH123', authToken: 'secret' }),
             ENCRYPTION_KEY
@@ -371,12 +389,12 @@ describe('PlivoOnboardingService', () => {
 
         const service = createService({ integrationStore, bindingStore });
 
-        const result = await service.deleteIntegration('int_1');
+        const result = await service.deleteIntegration('int_1', ORG_SCOPE);
 
         expect(result).toEqual({ deletedBindings: 2 });
         expect(PlivoClient.prototype.deleteOriginationUri).toHaveBeenCalledWith('ORI_1');
         expect(PlivoClient.prototype.deleteInboundTrunk).toHaveBeenCalledWith('TRUNK_1');
-        expect(integrationStore.deleteById).toHaveBeenCalledWith('int_1');
+        expect(integrationStore.deleteById).toHaveBeenCalledWith('int_1', ORG_SCOPE);
     });
 
     it('listNumbers throws 409 when stored credentials cannot be decrypted', async () => {
@@ -387,6 +405,6 @@ describe('PlivoOnboardingService', () => {
 
         const service = createService({ integrationStore });
 
-        await expect(service.listNumbers('int_1')).rejects.toMatchObject({ status: 409 });
+        await expect(service.listNumbers('int_1', ORG_SCOPE)).rejects.toMatchObject({ status: 409 });
     });
 });

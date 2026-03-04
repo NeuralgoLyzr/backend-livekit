@@ -22,7 +22,8 @@ const describeS3Integration = hasS3Integration ? describe : describe.skip;
 
 describeRedisIntegration('RedisSessionStore integration', () => {
     it('persists and reads session records against a real Redis instance', async () => {
-        const { RedisSessionStore } = await import('../src/adapters/sessionStore/redisSessionStore.ts');
+        const { RedisSessionStore } =
+            await import('../src/adapters/sessionStore/redisSessionStore.ts');
         const keyPrefix = `it:session:${randomUUID()}:`;
 
         const store = new RedisSessionStore({
@@ -63,7 +64,8 @@ describeRedisIntegration('RedisSessionStore integration', () => {
 
 describeS3Integration('S3 audio storage integration', () => {
     it('writes and reads recordings against a real S3-compatible backend', async () => {
-        const { createS3AudioStorage } = await import('../src/adapters/audioStorage/s3AudioStorage.ts');
+        const { createS3AudioStorage } =
+            await import('../src/adapters/audioStorage/s3AudioStorage.ts');
 
         const keyPrefix = `it/recordings/${randomUUID()}/`;
         const sessionId = randomUUID();

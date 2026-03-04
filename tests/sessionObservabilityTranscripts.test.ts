@@ -1,6 +1,5 @@
 import request from 'supertest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type * as Crypto from 'crypto';
 
 import { importFreshApp } from './testUtils';
 
@@ -21,32 +20,24 @@ function makeObservabilityPayload(overrides?: Record<string, unknown>) {
     };
 }
 
-describe('POST /session/observability (transcripts)', () => {
+describe('POST /internal/sessions/observability (transcripts)', () => {
     afterEach(() => {
         vi.doUnmock('crypto');
     });
 
-    it('generates a random UUID sessionId when missing and persists transcript', async () => {
-        vi.doMock('crypto', async () => {
-            const actual = await vi.importActual<Crypto>('crypto');
-            return {
-                ...actual,
-                randomUUID: () => '00000000-0000-4000-8000-000000000000',
-            };
+    it('rejects payloads missing required sessionId', async () => {
+        const cleanupSession = vi.fn().mockResolvedValue({
+            roomDelete: { status: 'deleted' },
+            storeDelete: { status: 'ok' },
         });
-
-        const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
-        const sessionStoreGet = vi.fn().mockReturnValue(undefined);
 
         const app = await importFreshApp({
             sessionServiceMock: { cleanupSession },
-            transcriptServiceMock: { saveFromObservability },
-            sessionStoreMock: { get: sessionStoreGet },
+            sessionStoreMock: { get: vi.fn().mockReturnValue(undefined) },
         });
 
-        await request(app)
-            .post('/session/observability')
+        const res = await request(app)
+            .post('/internal/sessions/observability')
             .send({
                 roomName: 'room-abc',
                 orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
@@ -58,7 +49,33 @@ describe('POST /session/observability (transcripts)', () => {
                     events: [{ type: 'unknown_event', created_at: 1 }],
                     timestamp: 2,
                 },
-            })
+            });
+
+        expect(res.status).toBe(400);
+    });
+
+    it('persists transcript with required sessionId', async () => {
+        const saveFromObservability = vi.fn().mockResolvedValue(null);
+        const cleanupSession = vi.fn().mockResolvedValue({
+            roomDelete: { status: 'deleted' },
+            storeDelete: { status: 'ok' },
+        });
+        const sessionStoreGet = vi.fn().mockReturnValue({
+            sessionId: '00000000-0000-4000-8000-000000000000',
+            orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+            createdAt: new Date().toISOString(),
+            userIdentity: 'user_1',
+        });
+
+        const app = await importFreshApp({
+            sessionServiceMock: { cleanupSession },
+            transcriptServiceMock: { saveFromObservability },
+            sessionStoreMock: { get: sessionStoreGet },
+        });
+
+        await request(app)
+            .post('/internal/sessions/observability')
+            .send(makeObservabilityPayload())
             .expect(204);
 
         expect(sessionStoreGet).toHaveBeenCalledWith('room-abc');
@@ -74,18 +91,28 @@ describe('POST /session/observability (transcripts)', () => {
 
     it('saves uploaded multipart audio recording when present', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
+        const cleanupSession = vi.fn().mockResolvedValue({
+            roomDelete: { status: 'deleted' },
+            storeDelete: { status: 'ok' },
+        });
         const saveAudio = vi.fn().mockResolvedValue('00000000-0000-4000-8000-000000000000.ogg');
 
         const app = await importFreshApp({
             sessionServiceMock: { cleanupSession },
             transcriptServiceMock: { saveFromObservability },
-            sessionStoreMock: { get: vi.fn().mockReturnValue(undefined) },
+            sessionStoreMock: {
+                get: vi.fn().mockReturnValue({
+                    sessionId: '00000000-0000-4000-8000-000000000000',
+                    orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                    createdAt: new Date().toISOString(),
+                    userIdentity: 'user_1',
+                }),
+            },
             audioStorageServiceMock: { save: saveAudio },
         });
 
         await request(app)
-            .post('/session/observability')
+            .post('/internal/sessions/observability')
             .field('payload', JSON.stringify(makeObservabilityPayload()))
             .attach('audio', Buffer.from('fake-ogg-data'), {
                 filename: 'recording.ogg',
@@ -104,37 +131,60 @@ describe('POST /session/observability (transcripts)', () => {
 
     it('does not save audio when request has no uploaded file', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
+        const cleanupSession = vi.fn().mockResolvedValue({
+            roomDelete: { status: 'deleted' },
+            storeDelete: { status: 'ok' },
+        });
         const saveAudio = vi.fn().mockResolvedValue('ignored.ogg');
 
         const app = await importFreshApp({
             sessionServiceMock: { cleanupSession },
             transcriptServiceMock: { saveFromObservability },
-            sessionStoreMock: { get: vi.fn().mockReturnValue(undefined) },
+            sessionStoreMock: {
+                get: vi.fn().mockReturnValue({
+                    sessionId: '00000000-0000-4000-8000-000000000000',
+                    orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                    createdAt: new Date().toISOString(),
+                    userIdentity: 'user_1',
+                }),
+            },
             audioStorageServiceMock: { save: saveAudio },
         });
 
-        await request(app).post('/session/observability').send(makeObservabilityPayload()).expect(204);
+        await request(app)
+            .post('/internal/sessions/observability')
+            .send(makeObservabilityPayload())
+            .expect(204);
 
         expect(saveFromObservability).toHaveBeenCalledTimes(1);
         expect(saveAudio).not.toHaveBeenCalled();
         expect(cleanupSession).toHaveBeenCalledWith('room-abc');
     });
 
-    it('keeps /session/observability successful when audio save fails', async () => {
+    it('keeps /internal/sessions/observability successful when audio save fails', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
+        const cleanupSession = vi.fn().mockResolvedValue({
+            roomDelete: { status: 'deleted' },
+            storeDelete: { status: 'ok' },
+        });
         const saveAudio = vi.fn().mockRejectedValue(new Error('disk full'));
 
         const app = await importFreshApp({
             sessionServiceMock: { cleanupSession },
             transcriptServiceMock: { saveFromObservability },
-            sessionStoreMock: { get: vi.fn().mockReturnValue(undefined) },
+            sessionStoreMock: {
+                get: vi.fn().mockReturnValue({
+                    sessionId: '00000000-0000-4000-8000-000000000000',
+                    orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
+                    createdAt: new Date().toISOString(),
+                    userIdentity: 'user_1',
+                }),
+            },
             audioStorageServiceMock: { save: saveAudio },
         });
 
         await request(app)
-            .post('/session/observability')
+            .post('/internal/sessions/observability')
             .field('payload', JSON.stringify(makeObservabilityPayload()))
             .attach('audio', Buffer.from('fake-ogg-data'), {
                 filename: 'recording.ogg',

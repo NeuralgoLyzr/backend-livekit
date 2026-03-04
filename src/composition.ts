@@ -5,6 +5,7 @@ import { createTokenService } from './services/tokenService.js';
 import { createRoomService } from './services/roomService.js';
 import { createSessionService } from './services/sessionService.js';
 import { createAgentRegistryService } from './services/agentRegistryService.js';
+import { createCorrectionService } from './services/correctionService.js';
 import { createAgentConfigResolverService } from './services/agentConfigResolverService.js';
 import { createTranscriptService } from './services/transcriptService.js';
 import { createLangfuseTraceService } from './services/langfuseTraceService.js';
@@ -14,7 +15,10 @@ import { createAgentAccessService } from './services/agentAccessService.js';
 import { createSessionTraceService } from './services/sessionTraceService.js';
 import { createAudioStorageService } from './services/audioStorageService.js';
 import { createSessionStore } from './services/sessionStoreFactory.js';
-import { createTtsVoicePreviewService, createTtsVoicesService } from './services/ttsVoices/index.js';
+import {
+    createTtsVoicePreviewService,
+    createTtsVoicesService,
+} from './services/ttsVoices/index.js';
 import { MongooseAgentStore } from './adapters/mongoose/mongooseAgentStore.js';
 import { MongooseTranscriptStore } from './adapters/mongoose/mongooseTranscriptStore.js';
 
@@ -25,7 +29,9 @@ const transcriptStore = new MongooseTranscriptStore({
 const sessionStore = createSessionStore(config.sessionStore);
 
 const tokenService = createTokenService({
-    createAccessToken: livekitClients.createAccessToken,
+    createAccessToken(identity) {
+        return livekitClients.createAccessToken(identity);
+    },
 });
 
 const agentService = createAgentService({
@@ -53,6 +59,10 @@ const agentAccessService = createAgentAccessService({
 const agentRegistryService = createAgentRegistryService({
     store: agentStore,
     access: agentAccessService,
+});
+
+const correctionService = createCorrectionService({
+    agentStore,
 });
 
 const sessionService = createSessionService({
@@ -106,6 +116,7 @@ export const services = {
     roomService,
     agentConfigResolver,
     agentRegistryService,
+    correctionService,
     sessionService,
     pagosAuthService,
     pagosPolicyService,

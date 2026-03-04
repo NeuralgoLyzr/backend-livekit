@@ -7,7 +7,7 @@ import { importFreshApp, setRequiredEnv } from './testUtils';
 describe('telephony webhook', () => {
     it('returns 503 when telephony is disabled', async () => {
         const app = await importFreshApp({ env: { TELEPHONY_ENABLED: 'false' } });
-        await request(app).post('/telephony/livekit-webhook').send({}).expect(503);
+        await request(app).post('/v1/telephony/livekit-webhook').send({}).expect(503);
     });
 
     it('requires express.raw body (route-level guard)', async () => {
@@ -15,7 +15,7 @@ describe('telephony webhook', () => {
         setRequiredEnv({ TELEPHONY_ENABLED: 'true' });
 
         // Avoid pulling in LiveKit SDK wiring.
-        vi.doMock('../dist/telephony/telephonyModule.js', () => ({
+        vi.doMock('../src/telephony/telephonyModule.js', () => ({
             telephonyModule: {
                 webhookVerifier: { verifyAndDecode: vi.fn() },
                 sessionService: { handleLiveKitEvent: vi.fn().mockResolvedValue(undefined) },
@@ -25,18 +25,18 @@ describe('telephony webhook', () => {
                 },
             },
         }));
-        vi.doMock('../dist/telephony/adapters/livekit/eventNormalizer.js', () => ({
+        vi.doMock('../src/telephony/adapters/livekit/eventNormalizer.js', () => ({
             normalizeLiveKitWebhookEvent: vi.fn((evt: unknown) => evt),
         }));
 
-        const telephonyRouter = (await import('../dist/routes/telephony.js')).default;
+        const telephonyRouter = (await import('../src/routes/telephony.js')).default;
 
         const bare = express();
         bare.use(express.json());
-        bare.use('/telephony', telephonyRouter);
+        bare.use('/v1/telephony', telephonyRouter);
 
         const res = await request(bare)
-            .post('/telephony/livekit-webhook')
+            .post('/v1/telephony/livekit-webhook')
             .send({ hello: 'world' })
             .expect(400);
 
@@ -47,7 +47,7 @@ describe('telephony webhook', () => {
         vi.resetModules();
         setRequiredEnv({ TELEPHONY_ENABLED: 'true', APP_ENV: 'dev' });
 
-        vi.doMock('../dist/telephony/telephonyModule.js', () => ({
+        vi.doMock('../src/telephony/telephonyModule.js', () => ({
             telephonyModule: {
                 webhookVerifier: {
                     verifyAndDecode: vi.fn().mockRejectedValue(new Error('bad signature')),
@@ -59,14 +59,14 @@ describe('telephony webhook', () => {
                 },
             },
         }));
-        vi.doMock('../dist/telephony/adapters/livekit/eventNormalizer.js', () => ({
+        vi.doMock('../src/telephony/adapters/livekit/eventNormalizer.js', () => ({
             normalizeLiveKitWebhookEvent: vi.fn((evt: unknown) => evt),
         }));
 
-        const app = (await import('../dist/app.js')).app;
+        const app = (await import('../src/app.js')).app;
 
         const res = await request(app)
-            .post('/telephony/livekit-webhook')
+            .post('/v1/telephony/livekit-webhook')
             .set('Authorization', 'Bearer test')
             .send({ hello: 'world' })
             .expect(401);
@@ -86,7 +86,7 @@ describe('telephony webhook', () => {
         const handleLiveKitEvent = vi.fn().mockResolvedValue(undefined);
         const normalizeLiveKitWebhookEvent = vi.fn((evt: unknown) => ({ normalized: evt }));
 
-        vi.doMock('../dist/telephony/telephonyModule.js', () => ({
+        vi.doMock('../src/telephony/telephonyModule.js', () => ({
             telephonyModule: {
                 webhookVerifier: { verifyAndDecode },
                 sessionService: { handleLiveKitEvent },
@@ -96,14 +96,14 @@ describe('telephony webhook', () => {
                 },
             },
         }));
-        vi.doMock('../dist/telephony/adapters/livekit/eventNormalizer.js', () => ({
+        vi.doMock('../src/telephony/adapters/livekit/eventNormalizer.js', () => ({
             normalizeLiveKitWebhookEvent,
         }));
 
-        const app = (await import('../dist/app.js')).app;
+        const app = (await import('../src/app.js')).app;
 
         const res = await request(app)
-            .post('/telephony/livekit-webhook')
+            .post('/v1/telephony/livekit-webhook')
             .set('Authorization', 'Bearer test')
             .send({ hello: 'world' })
             .expect(200);

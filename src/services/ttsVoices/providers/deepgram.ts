@@ -17,7 +17,10 @@ function toStringArray(value: unknown): string[] {
 }
 
 function normalizeGenderLabel(value: string): string | undefined {
-    const normalized = value.trim().toLowerCase().replaceAll(/[\s_]+/g, '-');
+    const normalized = value
+        .trim()
+        .toLowerCase()
+        .replaceAll(/[\s_]+/g, '-');
     if (!normalized) return undefined;
 
     const map: Record<string, string> = {
@@ -60,8 +63,8 @@ function parseAuraVoiceId(canonicalName: string): { voiceId: string; language?: 
     const withoutPrefix = raw.startsWith(aura2Prefix)
         ? raw.slice(aura2Prefix.length)
         : raw.startsWith(auraPrefix)
-            ? raw.slice(auraPrefix.length)
-            : '';
+          ? raw.slice(auraPrefix.length)
+          : '';
     if (!withoutPrefix) return null;
 
     const parts = withoutPrefix.split('-').filter(Boolean);
@@ -115,7 +118,10 @@ export function createDeepgramVoiceProvider(deps: { apiKey: string }) {
             const gender = inferGenderLabel(metadata);
 
             const existing = voicesById.get(voiceId);
-            const mergedLanguages = new Set([...(existing?.languages ?? []), ...(language ? [language] : [])]);
+            const mergedLanguages = new Set([
+                ...(existing?.languages ?? []),
+                ...(language ? [language] : []),
+            ]);
 
             const labels: Record<string, string> = { type: 'aura' };
             if (existing?.labels) {
@@ -140,7 +146,9 @@ export function createDeepgramVoiceProvider(deps: { apiKey: string }) {
 
         let voices = [...voicesById.values()];
         if (languageFilter) {
-            voices = voices.filter((v) => (v.languages ?? []).some((l) => l.toLowerCase() === languageFilter));
+            voices = voices.filter((v) =>
+                (v.languages ?? []).some((l) => l.toLowerCase() === languageFilter)
+            );
         }
         if (genderFilter) {
             voices = voices.filter((v) => {

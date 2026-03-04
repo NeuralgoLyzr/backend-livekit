@@ -15,6 +15,7 @@ import type {
 function toStoredBinding(row: TelephonyBindingDocument): StoredBinding {
     return {
         id: row._id.toString(),
+        orgId: row.orgId,
         integrationId: row.integrationId.toString(),
         provider: row.provider,
         providerNumberId: row.providerNumberId,
@@ -34,9 +35,10 @@ export class MongooseTelephonyBindingStore implements TelephonyBindingStorePort 
         const e164 = normalizeE164(input.e164);
 
         const row = await Binding.findOneAndUpdate(
-            { e164, deletedAt: null },
+            { orgId: input.orgId, e164, deletedAt: null },
             {
                 $set: {
+                    orgId: input.orgId,
                     integrationId: new mongoose.Types.ObjectId(input.integrationId),
                     provider: input.provider,
                     providerNumberId: input.providerNumberId,
@@ -64,7 +66,7 @@ export class MongooseTelephonyBindingStore implements TelephonyBindingStorePort 
         return toStoredBinding(row);
     }
 
-    async getBindingById(id: string): Promise<StoredBinding | null> {
+    async getBindingById(id: string, scope: { orgId: string }): Promise<StoredBinding | null> {
         await connectMongo();
         const Binding = getBindingModel();
 
@@ -73,6 +75,7 @@ export class MongooseTelephonyBindingStore implements TelephonyBindingStorePort 
 
         const row = await Binding.findOne({
             _id,
+            orgId: scope.orgId,
             deletedAt: null,
         }).lean<TelephonyBindingDocument>();
 
@@ -80,18 +83,21 @@ export class MongooseTelephonyBindingStore implements TelephonyBindingStorePort 
         return toStoredBinding(row);
     }
 
-    async listBindings(): Promise<StoredBinding[]> {
+    async listBindings(scope: { orgId: string }): Promise<StoredBinding[]> {
         await connectMongo();
         const Binding = getBindingModel();
 
-        const rows = await Binding.find({ deletedAt: null })
+        const rows = await Binding.find({ orgId: scope.orgId, deletedAt: null })
             .sort({ updatedAt: -1 })
             .lean<TelephonyBindingDocument[]>();
 
         return rows.map(toStoredBinding);
     }
 
-    async listBindingsByIntegrationId(integrationId: string): Promise<StoredBinding[]> {
+    async listBindingsByIntegrationId(
+        integrationId: string,
+        scope: { orgId: string }
+    ): Promise<StoredBinding[]> {
         await connectMongo();
         const Binding = getBindingModel();
 
@@ -99,6 +105,7 @@ export class MongooseTelephonyBindingStore implements TelephonyBindingStorePort 
         const _integrationId = new mongoose.Types.ObjectId(integrationId);
 
         const rows = await Binding.find({
+            orgId: scope.orgId,
             integrationId: _integrationId,
             deletedAt: null,
         })
@@ -108,14 +115,14 @@ export class MongooseTelephonyBindingStore implements TelephonyBindingStorePort 
         return rows.map(toStoredBinding);
     }
 
-    async deleteBinding(id: string): Promise<boolean> {
+    async deleteBinding(id: string, scope: { orgId: string }): Promise<boolean> {
         await connectMongo();
         const Binding = getBindingModel();
 
         if (!mongoose.Types.ObjectId.isValid(id)) return false;
         const _id = new mongoose.Types.ObjectId(id);
 
-        const res = await Binding.deleteOne({ _id, deletedAt: null });
+        const res = await Binding.deleteOne({ _id, orgId: scope.orgId, deletedAt: null });
         return res.deletedCount > 0;
     }
 }

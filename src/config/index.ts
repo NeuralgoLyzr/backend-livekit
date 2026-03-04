@@ -4,6 +4,7 @@
  */
 
 import { getAppEnv } from '../lib/env.js';
+import { DEFAULT_AGENT_NAME } from '../CONSTS.js';
 
 const requiredEnvVars = [
     'APP_ENV',
@@ -41,16 +42,14 @@ function parseOptionalBoolean(name: string, value: string | undefined): boolean 
     throw new Error(`${name} must be "true" or "false" when set`);
 }
 
-const sessionStoreProvider = (
-    process.env.SESSION_STORE_PROVIDER?.trim().toLowerCase() || 'local'
-) as 'local' | 'redis';
+const sessionStoreProvider = (process.env.SESSION_STORE_PROVIDER?.trim().toLowerCase() ||
+    'local') as 'local' | 'redis';
 if (sessionStoreProvider !== 'local' && sessionStoreProvider !== 'redis') {
     throw new Error('SESSION_STORE_PROVIDER must be "local" or "redis"');
 }
 
-const recordingStorageProvider = (
-    process.env.RECORDING_STORAGE_PROVIDER?.trim().toLowerCase() || 'local'
-) as 'local' | 's3';
+const recordingStorageProvider = (process.env.RECORDING_STORAGE_PROVIDER?.trim().toLowerCase() ||
+    'local') as 'local' | 's3';
 if (recordingStorageProvider !== 'local' && recordingStorageProvider !== 's3') {
     throw new Error('RECORDING_STORAGE_PROVIDER must be "local" or "s3"');
 }
@@ -112,7 +111,7 @@ export const config = {
         ttl: '10m', // Short-lived tokens (10 minutes)
     },
     agent: {
-        name: process.env.AGENT_NAME || 'local-test', // Agent name for explicit dispatch  ('custom-agent' init name)
+        name: process.env.AGENT_NAME || DEFAULT_AGENT_NAME,
     },
     sessionStore: {
         provider: sessionStoreProvider,
@@ -166,13 +165,15 @@ export const config = {
                     process.env.TELEPHONY_LIVEKIT_INBOUND_TRUNK_NAME || 'byoc-inbound',
                 dispatchRuleName:
                     process.env.TELEPHONY_LIVEKIT_DISPATCH_RULE_NAME || 'byoc-dispatch',
-                dispatchRoomPrefix:
-                    process.env.TELEPHONY_LIVEKIT_DISPATCH_ROOM_PREFIX || 'call-',
+                dispatchRoomPrefix: process.env.TELEPHONY_LIVEKIT_DISPATCH_ROOM_PREFIX || 'call-',
             },
         },
     },
     telnyx: {
         devApiKey: process.env.TELNYX_API_KEY || '',
+    },
+    observability: {
+        ingestKey: process.env.OBSERVABILITY_INGEST_KEY?.trim() || '',
     },
     ttsVoicesProxy: {
         /**

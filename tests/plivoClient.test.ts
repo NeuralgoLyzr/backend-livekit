@@ -3,7 +3,7 @@ import {
     PlivoClient,
     isPlivoClientError,
     type PlivoClientError,
-} from '../dist/telephony/adapters/plivo/plivoClient.js';
+} from '../src/telephony/adapters/plivo/plivoClient.js';
 
 function jsonResponse(body: unknown, status = 200): Response {
     return new Response(JSON.stringify(body), {
@@ -28,9 +28,7 @@ describe('PlivoClient', () => {
     });
 
     it('verifyCredentials returns { valid: true } on 200', async () => {
-        fetchMock.mockResolvedValueOnce(
-            jsonResponse({ objects: [], meta: { next: null } })
-        );
+        fetchMock.mockResolvedValueOnce(jsonResponse({ objects: [], meta: { next: null } }));
 
         const client = new PlivoClient({
             authId: 'MAUTH123',

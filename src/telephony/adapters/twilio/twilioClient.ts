@@ -390,7 +390,7 @@ function mapStatusToCode(status: number): TwilioClientErrorCode {
     return 'PROVIDER_ERROR';
 }
 
-function tryParseJson(text: string): unknown | null {
+function tryParseJson(text: string): unknown {
     const trimmed = text.trim();
     if (!trimmed) return null;
     try {

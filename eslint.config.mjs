@@ -31,7 +31,7 @@ export default tseslint.config(
         },
     },
     js.configs.recommended,
-    ...tseslint.configs.recommended,
+    ...tseslint.configs.recommendedTypeChecked,
     {
         languageOptions: {
             globals: {
@@ -77,8 +77,10 @@ export default tseslint.config(
             '@typescript-eslint/await-thenable': 'error',
             '@typescript-eslint/no-floating-promises': ['error', { ignoreVoid: true, ignoreIIFE: true }],
             '@typescript-eslint/no-misused-promises': 'error',
+            '@typescript-eslint/require-await': 'off',
 
             // Avoid hiding real runtime problems.
+            '@typescript-eslint/no-base-to-string': 'off',
             '@typescript-eslint/no-unnecessary-type-assertion': 'error',
             '@typescript-eslint/only-throw-error': 'error',
             '@typescript-eslint/switch-exhaustiveness-check': 'error',
@@ -113,6 +115,18 @@ export default tseslint.config(
             'promise/no-nesting': 'off',
             'promise/always-return': 'off',
             'promise/no-callback-in-promise': 'off',
+        },
+    },
+    {
+        files: ['tests/**/*.ts'],
+        rules: {
+            // Staged rollout for type-aware linting: keep production src strict first.
+            '@typescript-eslint/unbound-method': 'off',
+            '@typescript-eslint/no-unsafe-assignment': 'off',
+            '@typescript-eslint/no-unsafe-member-access': 'off',
+            '@typescript-eslint/no-unsafe-argument': 'off',
+            '@typescript-eslint/no-unsafe-call': 'off',
+            '@typescript-eslint/no-unsafe-return': 'off',
         },
     },
     eslintConfigPrettier

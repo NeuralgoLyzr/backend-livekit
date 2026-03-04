@@ -15,6 +15,12 @@ function roundTo1Decimal(value: number): number {
     return Math.round(value * 10) / 10;
 }
 
+type AgentStatsAggregate = {
+    totalCalls?: number;
+    phoneCalls?: number;
+    avgMessages?: number | null;
+};
+
 function toStoredTranscript(row: TranscriptDocument): StoredTranscript {
     return {
         id: row._id.toString(),
@@ -182,7 +188,7 @@ export class MongooseTranscriptStore implements TranscriptStorePort {
             },
         ];
 
-        const [agg] = await Transcript.aggregate(pipeline);
+        const [agg] = await Transcript.aggregate<AgentStatsAggregate>(pipeline);
 
         if (!agg) {
             return {

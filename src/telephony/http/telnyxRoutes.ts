@@ -104,7 +104,10 @@ export function createTelnyxRouter(deps: TelnyxRouterDeps): Router {
                     throw new HttpError(400, 'integrationId query param is required');
                 }
                 const connectionId = req.params.connectionId as string;
-                const transportProtocol = req.body?.transportProtocol as string | undefined;
+                const transportProtocol =
+                    req.body && typeof req.body === 'object' && 'transportProtocol' in req.body
+                        ? (req.body as { transportProtocol?: unknown }).transportProtocol
+                        : undefined;
                 if (
                     transportProtocol !== 'UDP' &&
                     transportProtocol !== 'TCP' &&

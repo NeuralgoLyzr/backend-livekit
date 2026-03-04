@@ -26,7 +26,9 @@ const transcriptStore = new MongooseTranscriptStore({
 const sessionStore = createSessionStore(config.sessionStore);
 
 const tokenService = createTokenService({
-    createAccessToken: livekitClients.createAccessToken,
+    createAccessToken(identity) {
+        return livekitClients.createAccessToken(identity);
+    },
 });
 
 const agentService = createAgentService({

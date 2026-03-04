@@ -323,7 +323,7 @@ export const AvatarConfigSchema = z
                 default: {
                     ctx.addIssue({
                         code: z.ZodIssueCode.custom,
-                        message: `Unsupported avatar provider: ${provider}`,
+                        message: 'Unsupported avatar provider',
                         path: ['provider'],
                     });
                 }

@@ -22,7 +22,7 @@ function getMongoDbName(): string | undefined {
 }
 
 export async function connectMongo(): Promise<typeof mongoose> {
-    if (mongoose.connection.readyState === 1) return mongoose;
+    if (mongoose.connection.readyState === mongoose.ConnectionStates.connected) return mongoose;
     if (connectPromise) return connectPromise;
 
     const uri = getMongoUri();
@@ -46,6 +46,6 @@ export async function connectMongo(): Promise<typeof mongoose> {
 
 export async function disconnectMongo(): Promise<void> {
     connectPromise = null;
-    if (mongoose.connection.readyState === 0) return;
+    if (mongoose.connection.readyState === mongoose.ConnectionStates.disconnected) return;
     await mongoose.disconnect();
 }

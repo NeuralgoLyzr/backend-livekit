@@ -38,9 +38,14 @@ export function createInternalRouter(deps: {
         upload.single('audio'),
         asyncHandler(async (req, res) => {
             let rawPayload: unknown = req.body;
-            if (typeof req.body.payload === 'string') {
+            const multipartPayload =
+                req.body && typeof req.body === 'object' && 'payload' in req.body
+                    ? (req.body as { payload?: unknown }).payload
+                    : undefined;
+
+            if (typeof multipartPayload === 'string') {
                 try {
-                    rawPayload = JSON.parse(req.body.payload);
+                    rawPayload = JSON.parse(multipartPayload);
                 } catch {
                     return res.status(400).json({
                         error: 'Invalid payload',

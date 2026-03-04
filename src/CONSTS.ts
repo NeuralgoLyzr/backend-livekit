@@ -1,3 +1,5 @@
+export const DEFAULT_AGENT_NAME = 'shreya-obnox';
+
 export const AGENT_DEFAULTS = {
     engine: {
         kind: 'pipeline' as const,

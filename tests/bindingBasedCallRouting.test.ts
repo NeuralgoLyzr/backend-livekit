@@ -5,7 +5,9 @@ import type { TelephonyBindingStorePort } from '../src/telephony/ports/telephony
 import type { CallRoutingContext } from '../src/telephony/types.js';
 import type { AgentConfigResolverService } from '../src/services/agentConfigResolverService.js';
 
-function makeBindingStore(overrides?: Partial<TelephonyBindingStorePort>): TelephonyBindingStorePort {
+function makeBindingStore(
+    overrides?: Partial<TelephonyBindingStorePort>
+): TelephonyBindingStorePort {
     return {
         upsertBinding: vi.fn().mockResolvedValue(null),
         getBindingByE164: vi.fn().mockResolvedValue(null),

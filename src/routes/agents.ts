@@ -12,7 +12,11 @@ import { formatZodError } from '../lib/zod.js';
 import type { RequestAuthLocals } from '../middleware/apiKeyAuth.js';
 import { HttpError } from '../lib/httpErrors.js';
 
-function requireAuth(res: { locals: unknown }): { orgId: string; userId: string; isAdmin: boolean } {
+function requireAuth(res: { locals: unknown }): {
+    orgId: string;
+    userId: string;
+    isAdmin: boolean;
+} {
     const auth = (res.locals as RequestAuthLocals).auth;
     if (!auth) {
         throw new HttpError(401, 'Missing auth context');

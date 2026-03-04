@@ -15,7 +15,10 @@ import { createAgentAccessService } from './services/agentAccessService.js';
 import { createSessionTraceService } from './services/sessionTraceService.js';
 import { createAudioStorageService } from './services/audioStorageService.js';
 import { createSessionStore } from './services/sessionStoreFactory.js';
-import { createTtsVoicePreviewService, createTtsVoicesService } from './services/ttsVoices/index.js';
+import {
+    createTtsVoicePreviewService,
+    createTtsVoicesService,
+} from './services/ttsVoices/index.js';
 import { MongooseAgentStore } from './adapters/mongoose/mongooseAgentStore.js';
 import { MongooseTranscriptStore } from './adapters/mongoose/mongooseTranscriptStore.js';
 

@@ -28,9 +28,7 @@ describe('PlivoClient', () => {
     });
 
     it('verifyCredentials returns { valid: true } on 200', async () => {
-        fetchMock.mockResolvedValueOnce(
-            jsonResponse({ objects: [], meta: { next: null } })
-        );
+        fetchMock.mockResolvedValueOnce(jsonResponse({ objects: [], meta: { next: null } }));
 
         const client = new PlivoClient({
             authId: 'MAUTH123',

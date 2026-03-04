@@ -53,14 +53,16 @@ function setupDefaultClientMocks() {
         trunkId: 'TRUNK_1',
         primaryUriId: 'ORI_1',
     });
-    (PlivoClient.prototype.deleteInboundTrunk as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    (PlivoClient.prototype.deleteInboundTrunk as ReturnType<typeof vi.fn>).mockResolvedValue(
+        undefined
+    );
     (PlivoClient.prototype.listOriginationUris as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     (PlivoClient.prototype.createOriginationUri as ReturnType<typeof vi.fn>).mockResolvedValue({
         id: 'ORI_1',
     });
-    (
-        PlivoClient.prototype.deleteOriginationUri as ReturnType<typeof vi.fn>
-    ).mockResolvedValue(undefined);
+    (PlivoClient.prototype.deleteOriginationUri as ReturnType<typeof vi.fn>).mockResolvedValue(
+        undefined
+    );
 }
 
 function makeIntegration(

@@ -109,7 +109,9 @@ describe('GET /v1/config/tts-voices (provider facet mapping)', () => {
 
     it('returns static Sarvam voices + facets', async () => {
         const app = await importFreshApp();
-        const res = await request(app).get('/v1/config/tts-voices').query({ providerId: 'sarvam', limit: 50 });
+        const res = await request(app)
+            .get('/v1/config/tts-voices')
+            .query({ providerId: 'sarvam', limit: 50 });
 
         expect(res.status).toBe(200);
         expect(res.body.providerId).toBe('sarvam');

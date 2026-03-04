@@ -43,13 +43,15 @@ export async function httpGetJson(
     }
 
     const text = await response.text().catch(() => '');
-    const payload = text ? (() => {
-        try {
-            return JSON.parse(text) as unknown;
-        } catch {
-            return null;
-        }
-    })() : null;
+    const payload = text
+        ? (() => {
+              try {
+                  return JSON.parse(text) as unknown;
+              } catch {
+                  return null;
+              }
+          })()
+        : null;
 
     if (response.ok) return payload;
 
@@ -59,4 +61,3 @@ export async function httpGetJson(
         bodySnippet: truncate(text),
     });
 }
-

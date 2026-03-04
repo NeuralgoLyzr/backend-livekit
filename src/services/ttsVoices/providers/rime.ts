@@ -36,10 +36,7 @@ function toBoolean(value: unknown): boolean {
 }
 
 function titleFromId(value: string): string {
-    const cleaned = value
-        .trim()
-        .replaceAll(/[_-]+/g, ' ')
-        .replaceAll(/\s+/g, ' ');
+    const cleaned = value.trim().replaceAll(/[_-]+/g, ' ').replaceAll(/\s+/g, ' ');
     if (!cleaned) return '';
     return cleaned
         .split(' ')
@@ -152,7 +149,11 @@ export function createRimeVoiceProvider() {
 
         const url = 'https://users.rime.ai/data/voices/voice_details.json';
         const payload = await httpGetJson(url, {}, { timeoutMs: 12_000 });
-        const raw = Array.isArray(payload) ? payload : isRecord(payload) && Array.isArray(payload.data) ? payload.data : [];
+        const raw = Array.isArray(payload)
+            ? payload
+            : isRecord(payload) && Array.isArray(payload.data)
+              ? payload.data
+              : [];
 
         const voices: TtsVoice[] = raw
             .map((item) => parseRimeVoiceDetails(item))
@@ -193,7 +194,8 @@ export function createRimeVoiceProvider() {
         if (q) {
             voices = voices.filter((v) => {
                 const labels = v.labels ?? {};
-                const hay = `${v.name} ${v.description ?? ''} ${v.id} ${Object.values(labels).join(' ')}`.toLowerCase();
+                const hay =
+                    `${v.name} ${v.description ?? ''} ${v.id} ${Object.values(labels).join(' ')}`.toLowerCase();
                 return hay.includes(q);
             });
         }
@@ -208,4 +210,3 @@ export function createRimeVoiceProvider() {
 
     return { listVoices, providerId: 'rime' as const };
 }
-

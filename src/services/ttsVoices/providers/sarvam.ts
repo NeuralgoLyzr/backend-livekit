@@ -63,7 +63,10 @@ const SARVAM_VOICES: TtsVoice[] = [...MALE_SPEAKERS, ...FEMALE_SPEAKERS]
     }));
 
 function normalizeGenderLabel(value: string): string | undefined {
-    const normalized = value.trim().toLowerCase().replaceAll(/[\s_]+/g, '-');
+    const normalized = value
+        .trim()
+        .toLowerCase()
+        .replaceAll(/[\s_]+/g, '-');
     if (!normalized) return undefined;
 
     const map: Record<string, string> = {
@@ -99,7 +102,9 @@ async function _listVoices(input: ListTtsVoicesInput): Promise<ListTtsVoicesResu
 
     const gender = normalizeGenderLabel(input.gender ?? '');
     if (gender) {
-        voices = voices.filter((voice) => normalizeGenderLabel(voice.labels?.gender ?? '') === gender);
+        voices = voices.filter(
+            (voice) => normalizeGenderLabel(voice.labels?.gender ?? '') === gender
+        );
     }
 
     const query = (input.q ?? '').trim().toLowerCase();

@@ -43,7 +43,7 @@ export interface TwilioOnboardingDeps {
 const TRUNK_NAME_PREFIX = 'livekit-inbound-';
 
 export class TwilioOnboardingService {
-    constructor(private readonly deps: TwilioOnboardingDeps) { }
+    constructor(private readonly deps: TwilioOnboardingDeps) {}
 
     async verifyCredentials(creds: TwilioCredentials): Promise<{ valid: true }> {
         const client = new TwilioClient(creds);
@@ -114,7 +114,10 @@ export class TwilioOnboardingService {
         const creds = this.decryptCredentialsFromIntegration(integration);
         const client = new TwilioClient(creds);
 
-        const providerNumber = await this.getIncomingPhoneNumberOrThrow(client, input.providerNumberId);
+        const providerNumber = await this.getIncomingPhoneNumberOrThrow(
+            client,
+            input.providerNumberId
+        );
         const normalizedDid = this.assertRequestedDidMatchesProviderNumber(
             input.e164,
             providerNumber.phoneNumber
@@ -187,7 +190,11 @@ export class TwilioOnboardingService {
         }
 
         logger.info(
-            { event: 'twilio.integration.deleted', integrationId, deletedBindings: bindings.length },
+            {
+                event: 'twilio.integration.deleted',
+                integrationId,
+                deletedBindings: bindings.length,
+            },
             'Twilio integration deleted'
         );
         return { deletedBindings: bindings.length };
@@ -195,7 +202,10 @@ export class TwilioOnboardingService {
 
     // ── private helpers ───────────────────────────────────────────────────
 
-    private async ensureInboundTrunk(integrationId: string, creds: TwilioCredentials): Promise<void> {
+    private async ensureInboundTrunk(
+        integrationId: string,
+        creds: TwilioCredentials
+    ): Promise<void> {
         const client = new TwilioClient(creds);
         await this.ensureInboundTrunkInternal(client, integrationId);
     }
@@ -215,7 +225,11 @@ export class TwilioOnboardingService {
                     friendlyName: trunkBaseName,
                     domainName: trunkDomainName,
                 });
-                trunk = { sid: created.sid, domainName: trunkDomainName, friendlyName: trunkBaseName };
+                trunk = {
+                    sid: created.sid,
+                    domainName: trunkDomainName,
+                    friendlyName: trunkBaseName,
+                };
             }
 
             const sipUrl = `sip:${this.deps.livekitSipHost}`;
@@ -267,7 +281,10 @@ export class TwilioOnboardingService {
         }
     }
 
-    private assertRequestedDidMatchesProviderNumber(requestedDid: string, providerDid: string): string {
+    private assertRequestedDidMatchesProviderNumber(
+        requestedDid: string,
+        providerDid: string
+    ): string {
         const normalizedRequested = normalizeE164(requestedDid);
         const normalizedProvider = normalizeE164(providerDid);
 
@@ -291,7 +308,10 @@ export class TwilioOnboardingService {
         const resources = parseTwilioProviderResources(integration.providerResources);
         if (resources?.trunkSid) {
             try {
-                await client.detachPhoneNumberFromTrunk(resources.trunkSid, binding.providerNumberId);
+                await client.detachPhoneNumberFromTrunk(
+                    resources.trunkSid,
+                    binding.providerNumberId
+                );
             } catch (err) {
                 throw mapTwilioError(err);
             }

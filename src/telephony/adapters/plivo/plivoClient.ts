@@ -175,7 +175,11 @@ export class PlivoClient {
 
         const trunkId = toNonEmptyString(body.trunk_id);
         if (!trunkId) {
-            throw new PlivoClientError(0, 'PROVIDER_ERROR', 'Plivo trunk create returned no trunk_id');
+            throw new PlivoClientError(
+                0,
+                'PROVIDER_ERROR',
+                'Plivo trunk create returned no trunk_id'
+            );
         }
 
         return {
@@ -185,7 +189,10 @@ export class PlivoClient {
     }
 
     async deleteInboundTrunk(trunkId: string): Promise<void> {
-        await this.request('DELETE', this.buildPath(`/Zentrunk/Trunk/${encodeURIComponent(trunkId)}/`));
+        await this.request(
+            'DELETE',
+            this.buildPath(`/Zentrunk/Trunk/${encodeURIComponent(trunkId)}/`)
+        );
     }
 
     async listOriginationUris(): Promise<PlivoOriginationUri[]> {
@@ -313,7 +320,9 @@ export class PlivoClient {
             throw new PlivoClientError(
                 0,
                 'PROVIDER_UNREACHABLE',
-                controller.signal.aborted ? 'Plivo API request timed out' : 'Unable to reach Plivo API',
+                controller.signal.aborted
+                    ? 'Plivo API request timed out'
+                    : 'Unable to reach Plivo API',
                 { cause: err }
             );
         } finally {
@@ -395,7 +404,10 @@ function extractHostFromUri(uriOrHost: string): string {
     const hostWithMaybePort = (withoutParams.split('@').pop() ?? withoutParams).trim();
 
     if (/:[0-9]+$/.test(hostWithMaybePort)) {
-        return hostWithMaybePort.replace(/:[0-9]+$/, '').trim().toLowerCase();
+        return hostWithMaybePort
+            .replace(/:[0-9]+$/, '')
+            .trim()
+            .toLowerCase();
     }
 
     return hostWithMaybePort.toLowerCase();

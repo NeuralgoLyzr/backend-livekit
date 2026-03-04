@@ -24,7 +24,7 @@ const TraceListQuerySchema = z.object({
 function requireAuth(res: { locals: unknown }): SessionTraceAccessContext {
     const auth = (res.locals as RequestAuthLocals).auth;
     if (!auth) {
-        throw new HttpError(401, "Missing auth context");
+        throw new HttpError(401, 'Missing auth context');
     }
     return auth;
 }
@@ -81,4 +81,3 @@ export function createSessionTracesRouter(sessionTraceService: SessionTraceServi
 
     return router;
 }
-

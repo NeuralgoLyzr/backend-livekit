@@ -40,7 +40,15 @@ export interface AgentStorePort {
     getById(id: string, scope?: AgentAccessScope): Promise<StoredAgent | null>;
     listVersions(id: string, scope?: AgentAccessScope): Promise<StoredAgentVersion[] | null>;
     create(input: CreateAgentInput): Promise<StoredAgent>;
-    update(id: string, input: UpdateAgentInput, scope?: AgentAccessScope): Promise<StoredAgent | null>;
-    activateVersion(id: string, versionId: string, scope?: AgentAccessScope): Promise<StoredAgent | null>;
+    update(
+        id: string,
+        input: UpdateAgentInput,
+        scope?: AgentAccessScope
+    ): Promise<StoredAgent | null>;
+    activateVersion(
+        id: string,
+        versionId: string,
+        scope?: AgentAccessScope
+    ): Promise<StoredAgent | null>;
     delete(id: string, scope?: AgentAccessScope): Promise<boolean>;
 }

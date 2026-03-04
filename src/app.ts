@@ -84,7 +84,7 @@ v1.use('/agents', requireApiKey, createAgentsRouter(services.agentRegistryServic
 v1.use(
     '/agents/:agentId/corrections',
     requireApiKey,
-    createCorrectionsRouter(services.correctionService),
+    createCorrectionsRouter(services.correctionService)
 );
 
 v1.use(

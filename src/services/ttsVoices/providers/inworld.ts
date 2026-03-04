@@ -17,7 +17,10 @@ function toStringArray(value: unknown): string[] {
 }
 
 function normalizeTag(value: string): string {
-    return value.trim().toLowerCase().replaceAll(/[\s_-]+/g, ' ');
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll(/[\s_-]+/g, ' ');
 }
 
 function normalizeGenderLabel(value: string): string | undefined {
@@ -131,7 +134,9 @@ export function createInworldVoiceProvider(deps: { base64: string }) {
 
         const q = (input.q ?? '').trim().toLowerCase();
         if (q) {
-            voices = voices.filter((v) => `${v.name} ${v.description ?? ''} ${v.id}`.toLowerCase().includes(q));
+            voices = voices.filter((v) =>
+                `${v.name} ${v.description ?? ''} ${v.id}`.toLowerCase().includes(q)
+            );
         }
 
         voices.sort((a, b) => a.name.localeCompare(b.name));

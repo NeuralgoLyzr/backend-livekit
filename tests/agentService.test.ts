@@ -149,8 +149,16 @@ describe('agentService (unit)', () => {
 
         const cases = [
             { provider: 'hedra', payload: { hedra: { avatar_id: 'h1' } }, key: 'hedra' },
-            { provider: 'lemonslice', payload: { lemonslice: { agent_id: 'l1' } }, key: 'lemonslice' },
-            { provider: 'liveavatar', payload: { liveavatar: { avatar_id: 'la1' } }, key: 'liveavatar' },
+            {
+                provider: 'lemonslice',
+                payload: { lemonslice: { agent_id: 'l1' } },
+                key: 'lemonslice',
+            },
+            {
+                provider: 'liveavatar',
+                payload: { liveavatar: { avatar_id: 'la1' } },
+                key: 'liveavatar',
+            },
             { provider: 'tavus', payload: { tavus: { replica_id: 't1' } }, key: 'tavus' },
             { provider: 'bithuman', payload: { bithuman: { model: 'essence' } }, key: 'bithuman' },
             { provider: 'simli', payload: { simli: { face_id: 's1' } }, key: 'simli' },

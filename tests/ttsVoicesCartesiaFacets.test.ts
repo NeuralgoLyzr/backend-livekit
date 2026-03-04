@@ -31,7 +31,8 @@ describe('GET /v1/config/tts-voices (cartesia facets)', () => {
                         locale: 'en-US',
                         is_owner: false,
                         is_public: true,
-                        preview_file_url: 'https://files.cartesia.ai/files/file_1/download?format=playback',
+                        preview_file_url:
+                            'https://files.cartesia.ai/files/file_1/download?format=playback',
                     },
                 ],
                 has_more: false,
@@ -62,4 +63,3 @@ describe('GET /v1/config/tts-voices (cartesia facets)', () => {
         });
     });
 });
-

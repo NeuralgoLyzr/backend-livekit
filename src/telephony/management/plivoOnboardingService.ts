@@ -202,7 +202,10 @@ export class PlivoOnboardingService {
         return { deletedBindings: bindings.length };
     }
 
-    private async ensureInboundTrunk(integrationId: string, creds: PlivoCredentials): Promise<void> {
+    private async ensureInboundTrunk(
+        integrationId: string,
+        creds: PlivoCredentials
+    ): Promise<void> {
         const client = new PlivoClient(creds);
         await this.ensureInboundTrunkInternal(client, integrationId);
     }
@@ -293,7 +296,10 @@ export class PlivoOnboardingService {
         }
     }
 
-    private assertRequestedDidMatchesProviderNumber(requestedDid: string, providerDid: string): string {
+    private assertRequestedDidMatchesProviderNumber(
+        requestedDid: string,
+        providerDid: string
+    ): string {
         const normalizedRequested = normalizeE164(requestedDid);
         const normalizedProvider = normalizeE164(providerDid);
 

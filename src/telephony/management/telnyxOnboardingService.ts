@@ -38,7 +38,7 @@ const TRUNK_NAME_PREFIX = 'livekit-inbound-';
 const DEFAULT_TELNYX_TRANSPORT_PROTOCOL: 'TCP' | 'UDP' | 'TLS' = 'TCP';
 
 export class TelnyxOnboardingService {
-    constructor(private readonly deps: TelnyxOnboardingDeps) { }
+    constructor(private readonly deps: TelnyxOnboardingDeps) {}
 
     async verifyApiKey(apiKey: string): Promise<{ valid: true }> {
         const client = new TelnyxClient(apiKey);
@@ -49,10 +49,7 @@ export class TelnyxOnboardingService {
         }
     }
 
-    async createIntegration(input: {
-        apiKey: string;
-        name?: string;
-    }): Promise<StoredIntegration> {
+    async createIntegration(input: { apiKey: string; name?: string }): Promise<StoredIntegration> {
         await this.verifyApiKey(input.apiKey);
 
         const encrypted = encryptString(input.apiKey, this.deps.encryptionKey);
@@ -117,7 +114,9 @@ export class TelnyxOnboardingService {
 
         const parsed = TelnyxProviderResourcesSchema.safeParse(integration.providerResources);
         const expectedConnectionId =
-            parsed.success && parsed.data.fqdnConnectionId ? parsed.data.fqdnConnectionId : undefined;
+            parsed.success && parsed.data.fqdnConnectionId
+                ? parsed.data.fqdnConnectionId
+                : undefined;
 
         try {
             const number = await client.getPhoneNumber(providerNumberId);
@@ -280,7 +279,11 @@ export class TelnyxOnboardingService {
         }
 
         logger.info(
-            { event: 'telnyx.integration.deleted', integrationId, deletedBindings: bindings.length },
+            {
+                event: 'telnyx.integration.deleted',
+                integrationId,
+                deletedBindings: bindings.length,
+            },
             'Telnyx integration deleted'
         );
         return { deletedBindings: bindings.length };
@@ -322,17 +325,24 @@ export class TelnyxOnboardingService {
 
             const existingFqdns = await client.listFqdns(connection.id);
             const sipHostLower = this.deps.livekitSipHost.toLowerCase();
-            const alreadyAttached = existingFqdns.some((f) => f.fqdn.toLowerCase() === sipHostLower);
+            const alreadyAttached = existingFqdns.some(
+                (f) => f.fqdn.toLowerCase() === sipHostLower
+            );
 
             let fqdnId: string;
             if (!alreadyAttached) {
                 try {
-                    const created = await client.createFqdn(this.deps.livekitSipHost, connection.id);
+                    const created = await client.createFqdn(
+                        this.deps.livekitSipHost,
+                        connection.id
+                    );
                     fqdnId = created.id;
                 } catch (err) {
                     if (isTelnyxClientError(err) && err.code === 'VALIDATION_ERROR') {
                         const retryFqdns = await client.listFqdns(connection.id);
-                        const existing = retryFqdns.find((f) => f.fqdn.toLowerCase() === sipHostLower);
+                        const existing = retryFqdns.find(
+                            (f) => f.fqdn.toLowerCase() === sipHostLower
+                        );
                         if (existing) {
                             fqdnId = existing.id;
                         } else {
@@ -387,7 +397,11 @@ export class TelnyxOnboardingService {
             }
         } catch (err) {
             logger.warn(
-                { event: 'telnyx.transport_protocol_update_failed', integrationId: integrationIdForLogs, err },
+                {
+                    event: 'telnyx.transport_protocol_update_failed',
+                    integrationId: integrationIdForLogs,
+                    err,
+                },
                 'Unable to update Telnyx transport protocol'
             );
         }
@@ -409,7 +423,10 @@ export class TelnyxOnboardingService {
         }
     }
 
-    private assertRequestedDidMatchesProviderNumber(requestedDid: string, providerDid: string): string {
+    private assertRequestedDidMatchesProviderNumber(
+        requestedDid: string,
+        providerDid: string
+    ): string {
         const normalizedRequested = normalizeE164(requestedDid);
         const normalizedProvider = normalizeE164(providerDid);
 

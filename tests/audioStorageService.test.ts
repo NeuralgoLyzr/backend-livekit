@@ -12,14 +12,16 @@ describe('audio storage adapters', () => {
     it('local adapter persists and reads back audio recordings', async () => {
         const tempDir = await mkdtemp(path.join(os.tmpdir(), 'lk-audio-local-'));
         try {
-            const { createLocalAudioStorage } = await import(
-                '../src/adapters/audioStorage/localAudioStorage.js'
-            );
+            const { createLocalAudioStorage } =
+                await import('../src/adapters/audioStorage/localAudioStorage.js');
             const storage = createLocalAudioStorage({
                 recordingsDir: tempDir,
             });
 
-            await storage.save('00000000-0000-4000-8000-000000000000', Buffer.from('fake-ogg-data'));
+            await storage.save(
+                '00000000-0000-4000-8000-000000000000',
+                Buffer.from('fake-ogg-data')
+            );
             const audio = await storage.get('00000000-0000-4000-8000-000000000000');
 
             expect(audio).not.toBeNull();
@@ -46,7 +48,8 @@ describe('audio storage adapters', () => {
             throw new Error('Unexpected command type');
         });
 
-        const { createS3AudioStorage } = await import('../src/adapters/audioStorage/s3AudioStorage.js');
+        const { createS3AudioStorage } =
+            await import('../src/adapters/audioStorage/s3AudioStorage.js');
         const storage = createS3AudioStorage(
             {
                 bucket: 'test-bucket',
@@ -81,7 +84,8 @@ describe('audio storage adapters', () => {
             return {};
         });
 
-        const { createS3AudioStorage } = await import('../src/adapters/audioStorage/s3AudioStorage.js');
+        const { createS3AudioStorage } =
+            await import('../src/adapters/audioStorage/s3AudioStorage.js');
         const storage = createS3AudioStorage(
             {
                 bucket: 'test-bucket',

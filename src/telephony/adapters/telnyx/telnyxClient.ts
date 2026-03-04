@@ -74,7 +74,10 @@ export class TelnyxClient {
         let truncated = false;
 
         while (page <= MAX_PAGES) {
-            const body = (await this.request('GET', `/v2/phone_numbers?page[number]=${page}&page[size]=50`)) as {
+            const body = (await this.request(
+                'GET',
+                `/v2/phone_numbers?page[number]=${page}&page[size]=50`
+            )) as {
                 data: Array<Record<string, unknown>>;
                 meta: { page_number: number; total_pages: number };
             };
@@ -85,7 +88,8 @@ export class TelnyxClient {
                     phone_number: String(item.phone_number),
                     status: String(item.status),
                     connection_id: item.connection_id != null ? String(item.connection_id) : null,
-                    connection_name: item.connection_name != null ? String(item.connection_name) : null,
+                    connection_name:
+                        item.connection_name != null ? String(item.connection_name) : null,
                 });
             }
 
@@ -131,7 +135,9 @@ export class TelnyxClient {
         const body = (await this.request('POST', '/v2/fqdn_connections', {
             connection_name: name,
             active: true,
-            ...(options?.transportProtocol ? { transport_protocol: options.transportProtocol } : {}),
+            ...(options?.transportProtocol
+                ? { transport_protocol: options.transportProtocol }
+                : {}),
             inbound: {
                 ani_number_format: '+E.164',
                 dnis_number_format: '+e164',
@@ -251,11 +257,7 @@ export class TelnyxClient {
 
     // ── internal ──────────────────────────────────────────────────────────
 
-    private async request(
-        method: string,
-        path: string,
-        body?: unknown
-    ): Promise<unknown> {
+    private async request(method: string, path: string, body?: unknown): Promise<unknown> {
         let response: Response;
 
         const controller = new AbortController();
@@ -302,9 +304,7 @@ export class TelnyxClient {
         try {
             const errBody = (await response.json()) as TelnyxErrorBody;
             detail =
-                errBody.errors?.[0]?.detail ??
-                errBody.errors?.[0]?.title ??
-                response.statusText;
+                errBody.errors?.[0]?.detail ?? errBody.errors?.[0]?.title ?? response.statusText;
         } catch {
             detail = response.statusText;
         }

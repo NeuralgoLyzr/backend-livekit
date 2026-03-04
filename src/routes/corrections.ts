@@ -27,7 +27,9 @@ function requireAuth(res: { locals: unknown }): {
 }
 
 function toScope(auth: { orgId: string; userId: string; isAdmin: boolean }) {
-    return auth.isAdmin ? { orgId: auth.orgId } : { orgId: auth.orgId, createdByUserId: auth.userId };
+    return auth.isAdmin
+        ? { orgId: auth.orgId }
+        : { orgId: auth.orgId, createdByUserId: auth.userId };
 }
 
 export function createCorrectionsRouter(correctionService: CorrectionService): Router {
@@ -44,7 +46,7 @@ export function createCorrectionsRouter(correctionService: CorrectionService): R
 
             const corrections = await correctionService.list(parseId.data, toScope(auth));
             return res.json({ corrections });
-        }),
+        })
     );
 
     router.post(
@@ -64,10 +66,10 @@ export function createCorrectionsRouter(correctionService: CorrectionService): R
             const correction = await correctionService.create(
                 parseId.data,
                 parseBody.data,
-                toScope(auth),
+                toScope(auth)
             );
             return res.status(201).json({ correction });
-        }),
+        })
     );
 
     router.patch(
@@ -93,10 +95,10 @@ export function createCorrectionsRouter(correctionService: CorrectionService): R
                 parseAgentId.data,
                 parseCorrectionId.data,
                 parseBody.data,
-                toScope(auth),
+                toScope(auth)
             );
             return res.json({ correction });
-        }),
+        })
     );
 
     router.delete(
@@ -116,10 +118,10 @@ export function createCorrectionsRouter(correctionService: CorrectionService): R
             await correctionService.remove(
                 parseAgentId.data,
                 parseCorrectionId.data,
-                toScope(auth),
+                toScope(auth)
             );
             return res.status(204).send();
-        }),
+        })
     );
 
     return router;

@@ -145,7 +145,12 @@ describe('transcriptService (unit)', () => {
                 room_id: 'rid-3a',
                 room: 'room-3a',
                 events: [
-                    { type: 'agent_state_changed', created_at: 'oops', old_state: 'listening', new_state: 'thinking' },
+                    {
+                        type: 'agent_state_changed',
+                        created_at: 'oops',
+                        old_state: 'listening',
+                        new_state: 'thinking',
+                    },
                     { type: 'close', created_at: 4, reason: 'normal' },
                 ],
                 timestamp: 4,
@@ -174,7 +179,12 @@ describe('transcriptService (unit)', () => {
                 room_id: 'rid-3b',
                 room: 'room-3b',
                 events: [
-                    { type: 'agent_state_changed', created_at: 1, old_state: 'listening', new_state: 'thinking' },
+                    {
+                        type: 'agent_state_changed',
+                        created_at: 1,
+                        old_state: 'listening',
+                        new_state: 'thinking',
+                    },
                     { type: 'close', created_at: 'oops', reason: 'normal' },
                 ],
                 timestamp: 4,

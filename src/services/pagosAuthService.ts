@@ -54,8 +54,8 @@ function parsePagosAuthContext(payload: unknown): { orgId: string; userId: strin
         typeof p.policy?.user_id === 'string'
             ? p.policy.user_id.trim()
             : typeof p.user?.user_id === 'string'
-                ? p.user.user_id.trim()
-                : '';
+              ? p.user.user_id.trim()
+              : '';
     const role = typeof p.policy?.role === 'string' ? p.policy.role.trim() : '';
 
     if (!orgId) throw new HttpError(502, 'Pagos response missing org_id');
@@ -180,7 +180,10 @@ export function createPagosAuthService(deps: CreatePagosAuthServiceDeps): PagosA
         } catch (err) {
             if (err instanceof HttpError) throw err;
             const msg = err instanceof Error ? err.message : String(err);
-            logger.warn({ event: 'pagos_auth_lookup_error', err: msg }, 'Pagos auth lookup errored');
+            logger.warn(
+                { event: 'pagos_auth_lookup_error', err: msg },
+                'Pagos auth lookup errored'
+            );
             throw new HttpError(502, 'Failed to resolve org from Pagos');
         } finally {
             clearTimeout(timeout);

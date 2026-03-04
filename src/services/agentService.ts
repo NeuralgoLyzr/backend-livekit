@@ -81,7 +81,7 @@ function buildAvatarConfig(avatar?: AgentConfig['avatar']): ForwardedAvatarConfi
 }
 
 function buildCorrectionsPromptSection(
-    corrections: Array<{ enabled: boolean; correctedRule: string }> | undefined,
+    corrections: Array<{ enabled: boolean; correctedRule: string }> | undefined
 ): string {
     if (!corrections) return '';
     const enabledRules = corrections.filter((c) => c.enabled).map((c) => c.correctedRule);
@@ -118,8 +118,12 @@ function buildMetadataObject(agentConfig: AgentConfig): Record<string, unknown> 
         session_id: agentConfig.session_id,
         tools: agentConfig.tools ?? AGENT_DEFAULTS.tools,
         lyzr_tools: agentConfig.lyzr_tools,
-        lyzr_rag: agentConfig.knowledge_base?.enabled ? agentConfig.knowledge_base.lyzr_rag : undefined,
-        agentic_rag: agentConfig.knowledge_base?.enabled ? (agentConfig.knowledge_base.agentic_rag ?? []) : [],
+        lyzr_rag: agentConfig.knowledge_base?.enabled
+            ? agentConfig.knowledge_base.lyzr_rag
+            : undefined,
+        agentic_rag: agentConfig.knowledge_base?.enabled
+            ? (agentConfig.knowledge_base.agentic_rag ?? [])
+            : [],
         vad_enabled: agentConfig.vad_enabled ?? AGENT_DEFAULTS.vad_enabled,
         preemptive_generation: agentConfig.preemptive_generation ?? false,
         pronunciation_correction: agentConfig.pronunciation_correction ?? false,

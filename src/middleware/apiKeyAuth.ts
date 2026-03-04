@@ -18,4 +18,3 @@ export function apiKeyAuthMiddleware(pagosAuth: PagosAuthService) {
         }
     };
 }
-

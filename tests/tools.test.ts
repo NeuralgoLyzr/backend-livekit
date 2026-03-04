@@ -16,9 +16,9 @@ describe('config/tools', () => {
             const { normalizeTools } = await import('../src/config/tools.js');
             expect(normalizeTools({ tools: '*' as unknown as string[] })).toEqual([]);
             expect(normalizeTools({ tools: null as unknown as string[] })).toEqual([]);
-            expect(normalizeTools({ tools: { value: 'get_weather' } as unknown as string[] })).toEqual(
-                []
-            );
+            expect(
+                normalizeTools({ tools: { value: 'get_weather' } as unknown as string[] })
+            ).toEqual([]);
         });
 
         it('adds knowledge-base tool when tools is non-array and KB is enabled', async () => {

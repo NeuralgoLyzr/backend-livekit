@@ -139,7 +139,10 @@ describe('sessionService (unit)', () => {
 
         const deps = buildDeps();
         const timingsMs: Record<string, number> = {};
-        const nowValues = [1000.2, 1001.0, 1003.9, 1005.2, 1008.6, 1010.1, 1015.4, 1020.2, 1026.8, 1030.3, 1035.9, 1040.4];
+        const nowValues = [
+            1000.2, 1001.0, 1003.9, 1005.2, 1008.6, 1010.1, 1015.4, 1020.2, 1026.8, 1030.3, 1035.9,
+            1040.4,
+        ];
         const now = vi.fn(() => nowValues.shift() ?? 1040.4);
 
         const { createSessionService } = await import('../src/services/sessionService.js');
@@ -599,7 +602,9 @@ describe('sessionService (unit)', () => {
         vi.resetModules();
         setRequiredEnv();
 
-        const deleteRoom = vi.fn().mockResolvedValue({ status: 'error', error: new Error('lk delete failed') });
+        const deleteRoom = vi
+            .fn()
+            .mockResolvedValue({ status: 'error', error: new Error('lk delete failed') });
         const deps = buildDeps({ deleteRoom });
         deps.store.set('room-delete-fail', {
             userIdentity: 'u',

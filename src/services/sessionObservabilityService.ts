@@ -65,10 +65,7 @@ export function createSessionObservabilityService(deps: SessionObservabilityServ
                 sessionData = await deps.sessionStore.get(payload.roomName);
 
                 if (sessionData && payload.sessionId !== sessionData.sessionId) {
-                    throw new HttpError(
-                        403,
-                        'sessionId does not match the session for this room'
-                    );
+                    throw new HttpError(403, 'sessionId does not match the session for this room');
                 }
             }
 

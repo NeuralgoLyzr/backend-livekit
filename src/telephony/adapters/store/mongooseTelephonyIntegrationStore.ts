@@ -43,9 +43,7 @@ export class MongooseTelephonyIntegrationStore implements TelephonyIntegrationSt
         return toStoredIntegration(created.toObject() as TelephonyIntegrationDocument);
     }
 
-    async getById(
-        id: string
-    ): Promise<(StoredIntegration & { encryptedApiKey: string }) | null> {
+    async getById(id: string): Promise<(StoredIntegration & { encryptedApiKey: string }) | null> {
         await connectMongo();
         const Integration = getIntegrationModel();
 

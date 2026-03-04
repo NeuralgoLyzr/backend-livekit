@@ -23,4 +23,3 @@ export function buildFacets(voices: TtsVoice[]): TtsVoiceFacets {
         type: uniqSorted(types),
     };
 }
-

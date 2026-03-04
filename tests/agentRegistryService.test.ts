@@ -99,10 +99,7 @@ describe('agentRegistryService (unit)', () => {
 
         const store = makeStore({
             list: vi.fn().mockResolvedValue([owned]),
-            getById: vi
-                .fn()
-                .mockResolvedValueOnce(shared)
-                .mockResolvedValueOnce(null),
+            getById: vi.fn().mockResolvedValueOnce(shared).mockResolvedValueOnce(null),
         });
         const access = {
             listSharedAgentIds: vi.fn().mockResolvedValue(new Set(['507f1f77bcf86cd799439012'])),

@@ -63,7 +63,11 @@ function createInMemoryIntegrationStore(): TelephonyIntegrationStorePort {
         async updateProviderResources(id: string, resources: Record<string, unknown>) {
             const existing = store.get(id);
             if (!existing) return null;
-            const updated = { ...existing, providerResources: resources, updatedAt: new Date().toISOString() };
+            const updated = {
+                ...existing,
+                providerResources: resources,
+                updatedAt: new Date().toISOString(),
+            };
             store.set(id, updated);
             const { encryptedApiKey: _, ...stored } = updated;
             return stored;
@@ -139,136 +143,125 @@ function createMockLivekitProvisioning(): LiveKitTelephonyProvisioningPort & {
     };
 }
 
-describe.skipIf(!API_KEY || !TEST_PHONE_NUMBER)(
-    'TelnyxOnboardingService E2E (live)',
-    () => {
-        let integrationStore: TelephonyIntegrationStorePort;
-        let bindingStore: TelephonyBindingStorePort;
-        let livekitProvisioning: ReturnType<typeof createMockLivekitProvisioning>;
-        let service: TelnyxOnboardingService;
+describe.skipIf(!API_KEY || !TEST_PHONE_NUMBER)('TelnyxOnboardingService E2E (live)', () => {
+    let integrationStore: TelephonyIntegrationStorePort;
+    let bindingStore: TelephonyBindingStorePort;
+    let livekitProvisioning: ReturnType<typeof createMockLivekitProvisioning>;
+    let service: TelnyxOnboardingService;
 
-        beforeEach(() => {
-            integrationStore = createInMemoryIntegrationStore();
-            bindingStore = createInMemoryBindingStore();
-            livekitProvisioning = createMockLivekitProvisioning();
-            service = new TelnyxOnboardingService({
-                integrationStore,
-                bindingStore,
-                encryptionKey: ENCRYPTION_KEY,
-                livekitSipHost: SIP_HOST,
-                livekitProvisioning,
-            });
+    beforeEach(() => {
+        integrationStore = createInMemoryIntegrationStore();
+        bindingStore = createInMemoryBindingStore();
+        livekitProvisioning = createMockLivekitProvisioning();
+        service = new TelnyxOnboardingService({
+            integrationStore,
+            bindingStore,
+            encryptionKey: ENCRYPTION_KEY,
+            livekitSipHost: SIP_HOST,
+            livekitProvisioning,
         });
+    });
 
-        it(
-            'verifyApiKey succeeds with valid key',
-            { timeout: 30_000 },
-            async () => {
-                const result = await service.verifyApiKey(API_KEY);
-                expect(result).toEqual({ valid: true });
-            }
-        );
+    it('verifyApiKey succeeds with valid key', { timeout: 30_000 }, async () => {
+        const result = await service.verifyApiKey(API_KEY);
+        expect(result).toEqual({ valid: true });
+    });
 
-        it(
-            'verifyApiKey rejects invalid key',
-            { timeout: 30_000 },
-            async () => {
-                await expect(service.verifyApiKey('KEY_invalid_12345')).rejects.toThrow();
-            }
-        );
+    it('verifyApiKey rejects invalid key', { timeout: 30_000 }, async () => {
+        await expect(service.verifyApiKey('KEY_invalid_12345')).rejects.toThrow();
+    });
 
-        it(
-            'full lifecycle: createIntegration → listNumbers → connectNumber → disconnectNumber → deleteIntegration',
-            { timeout: 120_000 },
-            async () => {
-                // 1. Create integration
-                const integration = await service.createIntegration({
-                    apiKey: API_KEY,
-                    name: `e2e-test-${Date.now()}`,
+    it(
+        'full lifecycle: createIntegration → listNumbers → connectNumber → disconnectNumber → deleteIntegration',
+        { timeout: 120_000 },
+        async () => {
+            // 1. Create integration
+            const integration = await service.createIntegration({
+                apiKey: API_KEY,
+                name: `e2e-test-${Date.now()}`,
+            });
+            expect(integration.id).toBeTruthy();
+            expect(integration.provider).toBe('telnyx');
+            expect(integration.status).toBe('active');
+
+            try {
+                // 2. List numbers
+                const numbers = await service.listNumbers(integration.id);
+                expect(Array.isArray(numbers)).toBe(true);
+                expect(numbers.length).toBeGreaterThan(0);
+
+                // Find the test phone number
+                const testNumber = numbers.find(
+                    (n) =>
+                        n.phone_number.replaceAll(/\s/g, '') ===
+                        TEST_PHONE_NUMBER.replaceAll(/\s/g, '')
+                );
+                expect(testNumber).toBeDefined();
+
+                // 3. Connect number
+                const binding = await service.connectNumber(integration.id, {
+                    providerNumberId: testNumber!.id,
+                    e164: testNumber!.phone_number,
+                    agentId: 'test-agent-e2e',
                 });
-                expect(integration.id).toBeTruthy();
-                expect(integration.provider).toBe('telnyx');
-                expect(integration.status).toBe('active');
+                expect(binding.id).toBeTruthy();
+                expect(binding.provider).toBe('telnyx');
+                expect(binding.agentId).toBe('test-agent-e2e');
+                expect(binding.enabled).toBe(true);
+                expect(livekitProvisioning.ensureInboundSetupForDid).toHaveBeenCalledOnce();
 
-                try {
-                    // 2. List numbers
-                    const numbers = await service.listNumbers(integration.id);
-                    expect(Array.isArray(numbers)).toBe(true);
-                    expect(numbers.length).toBeGreaterThan(0);
+                // 4. Disconnect number
+                await service.disconnectNumber(binding.id);
+                expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledOnce();
 
-                    // Find the test phone number
-                    const testNumber = numbers.find(
-                        (n) =>
-                            n.phone_number.replaceAll(/\s/g, '') ===
-                            TEST_PHONE_NUMBER.replaceAll(/\s/g, '')
-                    );
-                    expect(testNumber).toBeDefined();
+                // Verify binding is removed from store
+                const deletedBinding = await bindingStore.getBindingById(binding.id);
+                expect(deletedBinding).toBeNull();
 
-                    // 3. Connect number
-                    const binding = await service.connectNumber(integration.id, {
-                        providerNumberId: testNumber!.id,
-                        e164: testNumber!.phone_number,
-                        agentId: 'test-agent-e2e',
-                    });
-                    expect(binding.id).toBeTruthy();
-                    expect(binding.provider).toBe('telnyx');
-                    expect(binding.agentId).toBe('test-agent-e2e');
-                    expect(binding.enabled).toBe(true);
-                    expect(livekitProvisioning.ensureInboundSetupForDid).toHaveBeenCalledOnce();
-
-                    // 4. Disconnect number
-                    await service.disconnectNumber(binding.id);
-                    expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledOnce();
-
-                    // Verify binding is removed from store
-                    const deletedBinding = await bindingStore.getBindingById(binding.id);
-                    expect(deletedBinding).toBeNull();
-
-                    // 5. Delete integration (cleans up Telnyx trunk resources)
-                    const deleteResult = await service.deleteIntegration(integration.id);
-                    expect(deleteResult.deletedBindings).toBe(0); // already disconnected
-                } catch (err) {
-                    // Cleanup on failure: best-effort delete integration
-                    await service.deleteIntegration(integration.id).catch(() => {});
-                    throw err;
-                }
+                // 5. Delete integration (cleans up Telnyx trunk resources)
+                const deleteResult = await service.deleteIntegration(integration.id);
+                expect(deleteResult.deletedBindings).toBe(0); // already disconnected
+            } catch (err) {
+                // Cleanup on failure: best-effort delete integration
+                await service.deleteIntegration(integration.id).catch(() => {});
+                throw err;
             }
-        );
+        }
+    );
 
-        it(
-            'deleteIntegration cascades: auto-disconnects bound numbers',
-            { timeout: 120_000 },
-            async () => {
-                // 1. Create integration
-                const integration = await service.createIntegration({
-                    apiKey: API_KEY,
-                    name: `e2e-cascade-${Date.now()}`,
+    it(
+        'deleteIntegration cascades: auto-disconnects bound numbers',
+        { timeout: 120_000 },
+        async () => {
+            // 1. Create integration
+            const integration = await service.createIntegration({
+                apiKey: API_KEY,
+                name: `e2e-cascade-${Date.now()}`,
+            });
+
+            try {
+                // 2. Connect a number (leave it connected)
+                const numbers = await service.listNumbers(integration.id);
+                const testNumber = numbers.find(
+                    (n) =>
+                        n.phone_number.replaceAll(/\s/g, '') ===
+                        TEST_PHONE_NUMBER.replaceAll(/\s/g, '')
+                );
+                expect(testNumber).toBeDefined();
+
+                await service.connectNumber(integration.id, {
+                    providerNumberId: testNumber!.id,
+                    e164: testNumber!.phone_number,
                 });
 
-                try {
-                    // 2. Connect a number (leave it connected)
-                    const numbers = await service.listNumbers(integration.id);
-                    const testNumber = numbers.find(
-                        (n) =>
-                            n.phone_number.replaceAll(/\s/g, '') ===
-                            TEST_PHONE_NUMBER.replaceAll(/\s/g, '')
-                    );
-                    expect(testNumber).toBeDefined();
-
-                    await service.connectNumber(integration.id, {
-                        providerNumberId: testNumber!.id,
-                        e164: testNumber!.phone_number,
-                    });
-
-                    // 3. Delete integration – should auto-disconnect the number
-                    const deleteResult = await service.deleteIntegration(integration.id);
-                    expect(deleteResult.deletedBindings).toBe(1);
-                    expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalled();
-                } catch (err) {
-                    await service.deleteIntegration(integration.id).catch(() => {});
-                    throw err;
-                }
+                // 3. Delete integration – should auto-disconnect the number
+                const deleteResult = await service.deleteIntegration(integration.id);
+                expect(deleteResult.deletedBindings).toBe(1);
+                expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalled();
+            } catch (err) {
+                await service.deleteIntegration(integration.id).catch(() => {});
+                throw err;
             }
-        );
-    }
-);
+        }
+    );
+});

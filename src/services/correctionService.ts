@@ -14,7 +14,7 @@ const MAX_CORRECTIONS_PER_AGENT = 50;
 function buildFallbackRule(
     originalAnswer: string,
     userFeedback: string,
-    conversationContext?: ConversationContextItem[],
+    conversationContext?: ConversationContextItem[]
 ): string {
     const userQuestion =
         conversationContext?.findLast((m: ConversationContextItem) => m.role === 'user')?.content ??
@@ -26,15 +26,13 @@ function buildFallbackRule(
 }
 
 function formatConversationContext(context: ConversationContextItem[]): string {
-    return context
-        .map((m) => `[${m.role}]: ${m.content}`)
-        .join('\n');
+    return context.map((m) => `[${m.role}]: ${m.content}`).join('\n');
 }
 
 async function distillRule(
     originalAnswer: string,
     userFeedback: string,
-    conversationContext?: ConversationContextItem[],
+    conversationContext?: ConversationContextItem[]
 ): Promise<string> {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -60,7 +58,7 @@ async function distillRule(
                     {
                         role: 'system',
                         content:
-                            'You are a correction rule writer for a voice AI agent. Given the conversation context, the agent\'s answer, and the reviewer\'s feedback, write a correction rule in this exact format:\n\n"When asked <summarize the user\'s question/topic>, you answered <summarize what the agent said wrong>, and the user instructed you to <summarize the correct behavior>."\n\nKeep each section concise but preserve the important details from the feedback. The rule must be a single paragraph, max 250 words. Do not add quotes around the entire output.',
+                            "You are a correction rule writer for a voice AI agent. Given the conversation context, the agent's answer, and the reviewer's feedback, write a correction rule in this exact format:\n\n\"When asked <summarize the user's question/topic>, you answered <summarize what the agent said wrong>, and the user instructed you to <summarize the correct behavior>.\"\n\nKeep each section concise but preserve the important details from the feedback. The rule must be a single paragraph, max 250 words. Do not add quotes around the entire output.",
                     },
                     {
                         role: 'user',
@@ -73,7 +71,7 @@ async function distillRule(
         if (!response.ok) {
             logger.warn(
                 { event: 'correction_distill_failed', status: response.status },
-                'OpenAI distillation failed, using fallback rule',
+                'OpenAI distillation failed, using fallback rule'
             );
             return buildFallbackRule(originalAnswer, userFeedback, conversationContext);
         }
@@ -86,29 +84,32 @@ async function distillRule(
     } catch (error) {
         logger.warn(
             { event: 'correction_distill_error', err: error },
-            'OpenAI distillation error, using fallback rule',
+            'OpenAI distillation error, using fallback rule'
         );
         return buildFallbackRule(originalAnswer, userFeedback, conversationContext);
     }
 }
 
 export interface CorrectionService {
-    list(agentId: string, scope: { orgId: string; createdByUserId?: string }): Promise<Correction[]>;
+    list(
+        agentId: string,
+        scope: { orgId: string; createdByUserId?: string }
+    ): Promise<Correction[]>;
     create(
         agentId: string,
         input: CreateCorrectionRequest,
-        scope: { orgId: string; createdByUserId?: string },
+        scope: { orgId: string; createdByUserId?: string }
     ): Promise<Correction>;
     update(
         agentId: string,
         correctionId: string,
         input: UpdateCorrectionRequest,
-        scope: { orgId: string; createdByUserId?: string },
+        scope: { orgId: string; createdByUserId?: string }
     ): Promise<Correction>;
     remove(
         agentId: string,
         correctionId: string,
-        scope: { orgId: string; createdByUserId?: string },
+        scope: { orgId: string; createdByUserId?: string }
     ): Promise<void>;
 }
 
@@ -116,12 +117,10 @@ function getCorrections(config: Record<string, unknown>): Correction[] {
     return (Array.isArray(config.corrections) ? config.corrections : []) as Correction[];
 }
 
-export function createCorrectionService(deps: {
-    agentStore: AgentStorePort;
-}): CorrectionService {
+export function createCorrectionService(deps: { agentStore: AgentStorePort }): CorrectionService {
     async function getAgentOrThrow(
         agentId: string,
-        scope: { orgId: string; createdByUserId?: string },
+        scope: { orgId: string; createdByUserId?: string }
     ) {
         const agent = await deps.agentStore.getById(agentId, scope);
         if (!agent) {
@@ -134,12 +133,12 @@ export function createCorrectionService(deps: {
         agentId: string,
         corrections: Correction[],
         config: Record<string, unknown>,
-        scope: { orgId: string; createdByUserId?: string },
+        scope: { orgId: string; createdByUserId?: string }
     ): Promise<void> {
         const updated = await deps.agentStore.update(
             agentId,
             { config: { ...config, corrections } as never },
-            scope,
+            scope
         );
         if (!updated) {
             throw new HttpError(404, 'Agent not found');
@@ -161,14 +160,14 @@ export function createCorrectionService(deps: {
             if (enabledCount >= MAX_CORRECTIONS_PER_AGENT) {
                 throw new HttpError(
                     422,
-                    `Maximum of ${MAX_CORRECTIONS_PER_AGENT} enabled corrections reached. Disable or delete existing corrections first.`,
+                    `Maximum of ${MAX_CORRECTIONS_PER_AGENT} enabled corrections reached. Disable or delete existing corrections first.`
                 );
             }
 
             const correctedRule = await distillRule(
                 input.originalAnswer,
                 input.userFeedback,
-                input.conversationContext,
+                input.conversationContext
             );
             const now = new Date().toISOString();
             const correction: Correction = {

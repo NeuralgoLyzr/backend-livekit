@@ -21,81 +21,65 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN)('TwilioClient (live)', () => {
     // ── Credential validation ────────────────────────────────────────────
 
     describe('credential validation', () => {
-        it(
-            'valid credentials returns { valid: true }',
-            { timeout: 30_000 },
-            async () => {
-                const result = await client.verifyCredentials();
-                expect(result).toEqual({ valid: true });
-            }
-        );
+        it('valid credentials returns { valid: true }', { timeout: 30_000 }, async () => {
+            const result = await client.verifyCredentials();
+            expect(result).toEqual({ valid: true });
+        });
 
-        it(
-            'invalid auth token throws AUTH_INVALID',
-            { timeout: 30_000 },
-            async () => {
-                const bad = new TwilioClient({
-                    accountSid: ACCOUNT_SID,
-                    authToken: 'invalid_token_12345',
-                });
-                try {
-                    await bad.verifyCredentials();
-                    expect.fail('Should have thrown');
-                } catch (err) {
-                    expect(isTwilioClientError(err)).toBe(true);
-                    if (isTwilioClientError(err)) {
-                        expect(err.code).toBe('AUTH_INVALID');
-                    }
+        it('invalid auth token throws AUTH_INVALID', { timeout: 30_000 }, async () => {
+            const bad = new TwilioClient({
+                accountSid: ACCOUNT_SID,
+                authToken: 'invalid_token_12345',
+            });
+            try {
+                await bad.verifyCredentials();
+                expect.fail('Should have thrown');
+            } catch (err) {
+                expect(isTwilioClientError(err)).toBe(true);
+                if (isTwilioClientError(err)) {
+                    expect(err.code).toBe('AUTH_INVALID');
                 }
             }
-        );
+        });
     });
 
     // ── Phone number listing ─────────────────────────────────────────────
 
     describe('phone number listing', () => {
-        it(
-            'list returns an array with correct shape',
-            { timeout: 30_000 },
-            async () => {
-                const numbers = await client.listIncomingPhoneNumbers();
-                expect(Array.isArray(numbers)).toBe(true);
-                if (numbers.length > 0) {
-                    const first = numbers[0];
-                    expect(first).toHaveProperty('sid');
-                    expect(first).toHaveProperty('phoneNumber');
-                    expect(typeof first.sid).toBe('string');
-                    expect(typeof first.phoneNumber).toBe('string');
-                }
+        it('list returns an array with correct shape', { timeout: 30_000 }, async () => {
+            const numbers = await client.listIncomingPhoneNumbers();
+            expect(Array.isArray(numbers)).toBe(true);
+            if (numbers.length > 0) {
+                const first = numbers[0];
+                expect(first).toHaveProperty('sid');
+                expect(first).toHaveProperty('phoneNumber');
+                expect(typeof first.sid).toBe('string');
+                expect(typeof first.phoneNumber).toBe('string');
             }
-        );
+        });
     });
 
     // ── Trunk lifecycle ──────────────────────────────────────────────────
 
     describe('trunk lifecycle', () => {
-        it(
-            'create → list confirms → delete',
-            { timeout: 30_000 },
-            async () => {
-                const suffix = Date.now();
-                const friendlyName = `test-live-${suffix}`;
-                const domainName = `test-live-${suffix}.pstn.twilio.com`;
+        it('create → list confirms → delete', { timeout: 30_000 }, async () => {
+            const suffix = Date.now();
+            const friendlyName = `test-live-${suffix}`;
+            const domainName = `test-live-${suffix}.pstn.twilio.com`;
 
-                const { sid: trunkSid } = await client.createTrunk({ friendlyName, domainName });
-                expect(trunkSid).toBeTruthy();
+            const { sid: trunkSid } = await client.createTrunk({ friendlyName, domainName });
+            expect(trunkSid).toBeTruthy();
 
-                try {
-                    const trunks = await client.listTrunks();
-                    const found = trunks.find((t) => t.sid === trunkSid);
-                    expect(found).toBeDefined();
-                    expect(found!.friendlyName).toBe(friendlyName);
-                    expect(found!.domainName).toBe(domainName);
-                } finally {
-                    await client.deleteTrunk(trunkSid);
-                }
+            try {
+                const trunks = await client.listTrunks();
+                const found = trunks.find((t) => t.sid === trunkSid);
+                expect(found).toBeDefined();
+                expect(found!.friendlyName).toBe(friendlyName);
+                expect(found!.domainName).toBe(domainName);
+            } finally {
+                await client.deleteTrunk(trunkSid);
             }
-        );
+        });
     });
 
     // ── Origination URL lifecycle ────────────────────────────────────────
@@ -176,36 +160,28 @@ describe.skipIf(!ACCOUNT_SID || !AUTH_TOKEN)('TwilioClient (live)', () => {
     // ── Error handling ───────────────────────────────────────────────────
 
     describe('error handling', () => {
-        it(
-            'getIncomingPhoneNumber with invalid SID throws',
-            { timeout: 30_000 },
-            async () => {
-                try {
-                    await client.getIncomingPhoneNumber('PN_INVALID_SID_12345');
-                    expect.fail('Should have thrown');
-                } catch (err) {
-                    expect(isTwilioClientError(err)).toBe(true);
-                    if (isTwilioClientError(err)) {
-                        expect(err.status).toBeGreaterThanOrEqual(400);
-                    }
+        it('getIncomingPhoneNumber with invalid SID throws', { timeout: 30_000 }, async () => {
+            try {
+                await client.getIncomingPhoneNumber('PN_INVALID_SID_12345');
+                expect.fail('Should have thrown');
+            } catch (err) {
+                expect(isTwilioClientError(err)).toBe(true);
+                if (isTwilioClientError(err)) {
+                    expect(err.status).toBeGreaterThanOrEqual(400);
                 }
             }
-        );
+        });
 
-        it(
-            'deleteTrunk with invalid SID throws',
-            { timeout: 30_000 },
-            async () => {
-                try {
-                    await client.deleteTrunk('TK_INVALID_SID_12345');
-                    expect.fail('Should have thrown');
-                } catch (err) {
-                    expect(isTwilioClientError(err)).toBe(true);
-                    if (isTwilioClientError(err)) {
-                        expect(err.status).toBeGreaterThanOrEqual(400);
-                    }
+        it('deleteTrunk with invalid SID throws', { timeout: 30_000 }, async () => {
+            try {
+                await client.deleteTrunk('TK_INVALID_SID_12345');
+                expect.fail('Should have thrown');
+            } catch (err) {
+                expect(isTwilioClientError(err)).toBe(true);
+                if (isTwilioClientError(err)) {
+                    expect(err.status).toBeGreaterThanOrEqual(400);
                 }
             }
-        );
+        });
     });
 });

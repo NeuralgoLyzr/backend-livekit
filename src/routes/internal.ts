@@ -28,9 +28,7 @@ export function createInternalRouter(deps: {
         audioStorageService: deps.audioStorageService,
     });
 
-    const requireObservabilityAuth = observabilityAuthMiddleware(
-        deps.observabilityIngestKey ?? ''
-    );
+    const requireObservabilityAuth = observabilityAuthMiddleware(deps.observabilityIngestKey ?? '');
 
     router.post(
         '/sessions/observability',

@@ -4,9 +4,7 @@ import type { SIPDispatchRuleInfo, SIPInboundTrunkInfo } from 'livekit-server-sd
 
 import { LiveKitTelephonyProvisioningService } from '../src/telephony/management/livekitTelephonyProvisioningService.js';
 
-function makeTrunk(
-    overrides?: Partial<{ sipTrunkId: string; name: string; numbers: string[] }>
-) {
+function makeTrunk(overrides?: Partial<{ sipTrunkId: string; name: string; numbers: string[] }>) {
     return {
         sipTrunkId: 'trunk_1',
         name: 'byoc-inbound',
@@ -56,7 +54,9 @@ describe('LiveKitTelephonyProvisioningService', () => {
         );
 
         sipClient.listSipDispatchRule.mockResolvedValueOnce([]);
-        sipClient.createSipDispatchRule.mockResolvedValueOnce(makeRule({ sipDispatchRuleId: 'rule_new' }));
+        sipClient.createSipDispatchRule.mockResolvedValueOnce(
+            makeRule({ sipDispatchRuleId: 'rule_new' })
+        );
 
         const res = await service.ensureInboundSetupForDid('15551234567');
 
@@ -77,7 +77,9 @@ describe('LiveKitTelephonyProvisioningService', () => {
             makeTrunk({ sipTrunkId: 'trunk_1', numbers: ['+15550000000', '+15551234567'] })
         );
 
-        sipClient.listSipDispatchRule.mockResolvedValueOnce([makeRule({ sipDispatchRuleId: 'rule_1' })]);
+        sipClient.listSipDispatchRule.mockResolvedValueOnce([
+            makeRule({ sipDispatchRuleId: 'rule_1' }),
+        ]);
         sipClient.updateSipDispatchRuleFields.mockResolvedValueOnce(
             makeRule({ sipDispatchRuleId: 'rule_1', trunkIds: ['trunk_1'] })
         );
@@ -97,7 +99,9 @@ describe('LiveKitTelephonyProvisioningService', () => {
         sipClient.listSipInboundTrunk.mockResolvedValueOnce([
             makeTrunk({ sipTrunkId: 'trunk_1', numbers: ['+15551234567'] }),
         ]);
-        sipClient.listSipDispatchRule.mockResolvedValueOnce([makeRule({ sipDispatchRuleId: 'rule_1' })]);
+        sipClient.listSipDispatchRule.mockResolvedValueOnce([
+            makeRule({ sipDispatchRuleId: 'rule_1' }),
+        ]);
         sipClient.updateSipDispatchRuleFields.mockResolvedValueOnce(
             makeRule({ sipDispatchRuleId: 'rule_1', trunkIds: ['trunk_1'] })
         );

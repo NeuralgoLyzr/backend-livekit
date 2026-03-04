@@ -54,7 +54,9 @@ async function assertSessionAccess(
     }
 }
 
-export function createSessionTraceService(deps: CreateSessionTraceServiceDeps): SessionTraceService {
+export function createSessionTraceService(
+    deps: CreateSessionTraceServiceDeps
+): SessionTraceService {
     return {
         async listBySession(input) {
             await assertSessionAccess(deps.transcriptService, input.sessionId, input.auth);
@@ -75,4 +77,3 @@ export function createSessionTraceService(deps: CreateSessionTraceServiceDeps): 
         },
     };
 }
-

@@ -274,9 +274,10 @@ describe('TelnyxOnboardingService', () => {
             e164: '+15551234567',
         });
 
-        expect(
-            TelnyxClient.prototype.assignPhoneNumberToConnection
-        ).toHaveBeenCalledWith('pn_1', 'conn_existing');
+        expect(TelnyxClient.prototype.assignPhoneNumberToConnection).toHaveBeenCalledWith(
+            'pn_1',
+            'conn_existing'
+        );
         expect(bindingStore.upsertBinding).toHaveBeenCalledWith(
             expect.objectContaining({
                 integrationId: 'int_1',
@@ -426,7 +427,10 @@ describe('TelnyxOnboardingService', () => {
             'pn_1'
         );
         expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
-        expect(callOrder).toEqual(['removeInboundSetupForDid', 'unassignPhoneNumberFromConnection']);
+        expect(callOrder).toEqual([
+            'removeInboundSetupForDid',
+            'unassignPhoneNumberFromConnection',
+        ]);
     });
 
     it('disconnectNumber does not delete binding when unassign fails', async () => {
@@ -544,8 +548,16 @@ describe('TelnyxOnboardingService', () => {
             })
         );
 
-        const binding1 = makeBinding({ id: 'bind_1', e164: '+15551111111', providerNumberId: 'pn_1' });
-        const binding2 = makeBinding({ id: 'bind_2', e164: '+15552222222', providerNumberId: 'pn_2' });
+        const binding1 = makeBinding({
+            id: 'bind_1',
+            e164: '+15551111111',
+            providerNumberId: 'pn_1',
+        });
+        const binding2 = makeBinding({
+            id: 'bind_2',
+            e164: '+15552222222',
+            providerNumberId: 'pn_2',
+        });
         const bindingStore = stubBindingStore();
         (bindingStore.listBindingsByIntegrationId as ReturnType<typeof vi.fn>).mockResolvedValue([
             binding1,

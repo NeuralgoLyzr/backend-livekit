@@ -297,8 +297,7 @@ export const AvatarConfigSchema = z
                     if (!faceId) {
                         ctx.addIssue({
                             code: z.ZodIssueCode.custom,
-                            message:
-                                'avatar.simli.face_id is required when avatar.enabled is true',
+                            message: 'avatar.simli.face_id is required when avatar.enabled is true',
                             path: ['simli', 'face_id'],
                         });
                     }

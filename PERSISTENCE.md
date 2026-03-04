@@ -151,7 +151,7 @@ Key files:
 
 ### Backend
 
- - Set `MONGODB_URI` to a MongoDB connection string (required for `/v1/agents` + `agentId` resolution).
+- Set `MONGODB_URI` to a MongoDB connection string (required for `/v1/agents` + `agentId` resolution).
     - Example: `MONGODB_URI="mongodb://localhost:27017/livekit_dev"`
 
 - Run:

@@ -1,6 +1,7 @@
 ## Docker storage testing (Redis + S3/MinIO + voice-agent-server)
 
 This runbook validates:
+
 - Redis-backed session store adapter
 - S3-backed recording storage adapter (using MinIO)
 - Backend `/v1/session/observability` recording upload path
@@ -18,6 +19,7 @@ docker compose -f voice-agent-server/docker-compose.storage.yml up -d --build
 ```
 
 Services started:
+
 - `backend` on `http://localhost:4000`
 - `redis` on `localhost:6380`
 - `minio` S3 API on `http://localhost:9002` (console `http://localhost:9003`)

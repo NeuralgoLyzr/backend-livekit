@@ -56,7 +56,9 @@ export type CreateTtsVoicePreviewServiceDeps = {
     cartesia: { apiKey: string };
 };
 
-export function createTtsVoicePreviewService(deps: CreateTtsVoicePreviewServiceDeps): TtsVoicePreviewService {
+export function createTtsVoicePreviewService(
+    deps: CreateTtsVoicePreviewServiceDeps
+): TtsVoicePreviewService {
     const cartesiaApiKey = deps.cartesia.apiKey.trim();
 
     const cache = createTtlCache<TtsVoicePreview>({
@@ -64,7 +66,10 @@ export function createTtsVoicePreviewService(deps: CreateTtsVoicePreviewServiceD
         maxEntries: 250,
     });
 
-    async function fetchFromUpstream(input: { providerId: TtsVoiceProviderId; url: URL }): Promise<TtsVoicePreview> {
+    async function fetchFromUpstream(input: {
+        providerId: TtsVoiceProviderId;
+        url: URL;
+    }): Promise<TtsVoicePreview> {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 12_000);
 

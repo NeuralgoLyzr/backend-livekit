@@ -42,14 +42,18 @@ function setupDefaultClientMocks() {
     (TwilioClient.prototype.verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({
         valid: true,
     });
-    (TwilioClient.prototype.listIncomingPhoneNumbers as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (TwilioClient.prototype.listIncomingPhoneNumbers as ReturnType<typeof vi.fn>).mockResolvedValue(
+        []
+    );
     (TwilioClient.prototype.getIncomingPhoneNumber as ReturnType<typeof vi.fn>).mockResolvedValue({
         sid: 'PN_1',
         phoneNumber: '+15551234567',
         friendlyName: 'n1',
     });
     (TwilioClient.prototype.listTrunks as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    (TwilioClient.prototype.createTrunk as ReturnType<typeof vi.fn>).mockResolvedValue({ sid: 'TRUNK_1' });
+    (TwilioClient.prototype.createTrunk as ReturnType<typeof vi.fn>).mockResolvedValue({
+        sid: 'TRUNK_1',
+    });
     (TwilioClient.prototype.listOriginationUrls as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     (TwilioClient.prototype.createOriginationUrl as ReturnType<typeof vi.fn>).mockResolvedValue({
         sid: 'ORIG_1',
@@ -57,9 +61,9 @@ function setupDefaultClientMocks() {
     (TwilioClient.prototype.attachPhoneNumberToTrunk as ReturnType<typeof vi.fn>).mockResolvedValue(
         undefined
     );
-    (TwilioClient.prototype.detachPhoneNumberFromTrunk as ReturnType<typeof vi.fn>).mockResolvedValue(
-        undefined
-    );
+    (
+        TwilioClient.prototype.detachPhoneNumberFromTrunk as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(undefined);
     (TwilioClient.prototype.deleteTrunk as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
 }
 
@@ -240,9 +244,7 @@ describe('TwilioOnboardingService', () => {
             makeIntegration({ encryptedApiKey: encrypted })
         );
 
-        const mockNumbers = [
-            { sid: 'PN1', phoneNumber: '+15551234567', friendlyName: 'n1' },
-        ];
+        const mockNumbers = [{ sid: 'PN1', phoneNumber: '+15551234567', friendlyName: 'n1' }];
         (
             TwilioClient.prototype.listIncomingPhoneNumbers as ReturnType<typeof vi.fn>
         ).mockResolvedValue(mockNumbers);
@@ -617,8 +619,16 @@ describe('TwilioOnboardingService', () => {
             })
         );
 
-        const binding1 = makeBinding({ id: 'bind_1', e164: '+15551111111', providerNumberId: 'PN_1' });
-        const binding2 = makeBinding({ id: 'bind_2', e164: '+15552222222', providerNumberId: 'PN_2' });
+        const binding1 = makeBinding({
+            id: 'bind_1',
+            e164: '+15551111111',
+            providerNumberId: 'PN_1',
+        });
+        const binding2 = makeBinding({
+            id: 'bind_2',
+            e164: '+15552222222',
+            providerNumberId: 'PN_2',
+        });
         const bindingStore = stubBindingStore();
         (bindingStore.listBindingsByIntegrationId as ReturnType<typeof vi.fn>).mockResolvedValue([
             binding1,

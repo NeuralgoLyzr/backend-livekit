@@ -395,14 +395,10 @@ describe('MongooseAgentStore (unit)', () => {
             await import('../src/adapters/mongoose/mongooseAgentStore.js');
         const store = new MongooseAgentStore();
 
-        const activated = await store.activateVersion(
-            '507f1f77bcf86cd799439011',
-            'version-old',
-            {
-                orgId: 'org-a',
-                createdByUserId: 'user-a',
-            }
-        );
+        const activated = await store.activateVersion('507f1f77bcf86cd799439011', 'version-old', {
+            orgId: 'org-a',
+            createdByUserId: 'user-a',
+        });
 
         expect(activated?.config).toEqual({ agent_name: 'old' });
         expect(Agent.findOneAndUpdate).toHaveBeenCalledWith(

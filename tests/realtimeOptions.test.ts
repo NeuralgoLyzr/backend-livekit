@@ -19,9 +19,7 @@ describe('realtimeOptions', () => {
             ],
         });
         expect(xai?.voices).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({ id: 'ara', name: 'Ara' }),
-            ])
+            expect.arrayContaining([expect.objectContaining({ id: 'ara', name: 'Ara' })])
         );
         expect((xai as { warning?: unknown } | undefined)?.warning).toBeUndefined();
     });

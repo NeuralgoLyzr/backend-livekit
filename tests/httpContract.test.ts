@@ -89,9 +89,7 @@ describe('backend HTTP contract', () => {
         );
         expect(xai?.models[0]?.languages).toEqual(expect.arrayContaining(['en']));
         expect(xai?.voices).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({ id: 'ara', name: 'Ara' }),
-            ])
+            expect.arrayContaining([expect.objectContaining({ id: 'ara', name: 'Ara' })])
         );
     });
 
@@ -166,7 +164,11 @@ describe('backend HTTP contract', () => {
         const createSession = vi.fn();
         const app = await importFreshApp({ sessionServiceMock: { createSession } });
 
-        const res = await request(app).post('/v1/sessions/start').set('x-api-key', 'dev').send({}).expect(400);
+        const res = await request(app)
+            .post('/v1/sessions/start')
+            .set('x-api-key', 'dev')
+            .send({})
+            .expect(400);
         expect(res.body.error).toBeTruthy();
         expect(res.body.issues).toBeTruthy();
         expect(res.body.example?.userIdentity).toBeTruthy();

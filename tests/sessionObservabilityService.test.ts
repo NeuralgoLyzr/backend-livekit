@@ -43,9 +43,8 @@ describe('sessionObservabilityService (unit)', () => {
             },
         });
 
-        const { createSessionObservabilityService } = await import(
-            '../src/services/sessionObservabilityService.ts'
-        );
+        const { createSessionObservabilityService } =
+            await import('../src/services/sessionObservabilityService.ts');
 
         const service = createSessionObservabilityService({
             sessionService: { cleanupSession } as never,
@@ -84,9 +83,8 @@ describe('sessionObservabilityService (unit)', () => {
             userIdentity: 'user_1',
         });
 
-        const { createSessionObservabilityService } = await import(
-            '../src/services/sessionObservabilityService.ts'
-        );
+        const { createSessionObservabilityService } =
+            await import('../src/services/sessionObservabilityService.ts');
 
         const service = createSessionObservabilityService({
             sessionService: { cleanupSession } as never,
@@ -108,9 +106,8 @@ describe('sessionObservabilityService (unit)', () => {
         const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
         const get = vi.fn().mockResolvedValue(undefined);
 
-        const { createSessionObservabilityService } = await import(
-            '../src/services/sessionObservabilityService.ts'
-        );
+        const { createSessionObservabilityService } =
+            await import('../src/services/sessionObservabilityService.ts');
 
         const service = createSessionObservabilityService({
             sessionService: { cleanupSession } as never,
@@ -139,9 +136,8 @@ describe('sessionObservabilityService (unit)', () => {
             userIdentity: 'user_1',
         });
 
-        const { createSessionObservabilityService } = await import(
-            '../src/services/sessionObservabilityService.ts'
-        );
+        const { createSessionObservabilityService } =
+            await import('../src/services/sessionObservabilityService.ts');
 
         const service = createSessionObservabilityService({
             sessionService: { cleanupSession } as never,
@@ -171,9 +167,8 @@ describe('sessionObservabilityService (unit)', () => {
             userIdentity: 'user_1',
         });
 
-        const { createSessionObservabilityService } = await import(
-            '../src/services/sessionObservabilityService.ts'
-        );
+        const { createSessionObservabilityService } =
+            await import('../src/services/sessionObservabilityService.ts');
 
         const service = createSessionObservabilityService({
             sessionService: { cleanupSession } as never,
@@ -199,9 +194,8 @@ describe('sessionObservabilityService (unit)', () => {
         const cleanupSession = vi.fn().mockResolvedValue(CLEANUP_OK);
         const saveAudio = vi.fn().mockResolvedValue('audio.ogg');
 
-        const { createSessionObservabilityService } = await import(
-            '../src/services/sessionObservabilityService.ts'
-        );
+        const { createSessionObservabilityService } =
+            await import('../src/services/sessionObservabilityService.ts');
 
         const service = createSessionObservabilityService({
             sessionService: { cleanupSession } as never,
@@ -237,9 +231,8 @@ describe('sessionObservabilityService (unit)', () => {
         const { logger } = await import('../src/lib/logger.ts');
         const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
 
-        const { createSessionObservabilityService } = await import(
-            '../src/services/sessionObservabilityService.ts'
-        );
+        const { createSessionObservabilityService } =
+            await import('../src/services/sessionObservabilityService.ts');
 
         const service = createSessionObservabilityService({
             sessionService: { cleanupSession } as never,
@@ -277,9 +270,8 @@ describe('sessionObservabilityService (unit)', () => {
         const { logger } = await import('../src/lib/logger.ts');
         const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
 
-        const { createSessionObservabilityService } = await import(
-            '../src/services/sessionObservabilityService.ts'
-        );
+        const { createSessionObservabilityService } =
+            await import('../src/services/sessionObservabilityService.ts');
 
         const service = createSessionObservabilityService({
             sessionService: { cleanupSession } as never,
@@ -319,9 +311,8 @@ describe('sessionObservabilityService (unit)', () => {
         const { logger } = await import('../src/lib/logger.ts');
         const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
 
-        const { createSessionObservabilityService } = await import(
-            '../src/services/sessionObservabilityService.ts'
-        );
+        const { createSessionObservabilityService } =
+            await import('../src/services/sessionObservabilityService.ts');
 
         const service = createSessionObservabilityService({
             sessionService: { cleanupSession } as never,
@@ -360,9 +351,8 @@ describe('sessionObservabilityService (unit)', () => {
             userIdentity: 'user_1',
         });
 
-        const { createSessionObservabilityService } = await import(
-            '../src/services/sessionObservabilityService.ts'
-        );
+        const { createSessionObservabilityService } =
+            await import('../src/services/sessionObservabilityService.ts');
 
         const service = createSessionObservabilityService({
             sessionService: { cleanupSession } as never,
@@ -389,9 +379,8 @@ describe('sessionObservabilityService (unit)', () => {
             userIdentity: 'user_1',
         });
 
-        const { createSessionObservabilityService } = await import(
-            '../src/services/sessionObservabilityService.ts'
-        );
+        const { createSessionObservabilityService } =
+            await import('../src/services/sessionObservabilityService.ts');
 
         const service = createSessionObservabilityService({
             sessionService: { cleanupSession } as never,

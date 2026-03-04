@@ -8,9 +8,7 @@ describe('secretBox', () => {
     describe('encryptString / decryptString', () => {
         it('round-trips: decrypt(encrypt(x)) === x', async () => {
             setRequiredEnv();
-            const { encryptString, decryptString } = await import(
-                '../src/lib/crypto/secretBox.js'
-            );
+            const { encryptString, decryptString } = await import('../src/lib/crypto/secretBox.js');
             const original = 'hello world — 🎉';
             const encrypted = encryptString(original, validKey);
             const decrypted = decryptString(encrypted, validKey);
@@ -26,9 +24,7 @@ describe('secretBox', () => {
 
         it('throws when decrypting with the wrong key', async () => {
             setRequiredEnv();
-            const { encryptString, decryptString } = await import(
-                '../src/lib/crypto/secretBox.js'
-            );
+            const { encryptString, decryptString } = await import('../src/lib/crypto/secretBox.js');
             const encrypted = encryptString('secret', validKey);
             const wrongKey = randomBytes(32);
             expect(() => decryptString(encrypted, wrongKey)).toThrow();
@@ -47,13 +43,9 @@ describe('secretBox', () => {
 
         it('throws when key length is not 32 bytes', async () => {
             setRequiredEnv();
-            const { encryptString, decryptString } = await import(
-                '../src/lib/crypto/secretBox.js'
-            );
+            const { encryptString, decryptString } = await import('../src/lib/crypto/secretBox.js');
             const shortKey = randomBytes(16);
-            expect(() => encryptString('x', shortKey)).toThrow(
-                'Encryption key must be 32 bytes'
-            );
+            expect(() => encryptString('x', shortKey)).toThrow('Encryption key must be 32 bytes');
             expect(() => decryptString('v1.abc', shortKey)).toThrow(
                 'Encryption key must be 32 bytes'
             );

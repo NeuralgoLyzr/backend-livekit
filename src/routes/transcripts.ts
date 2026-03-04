@@ -22,11 +22,23 @@ const ListFiltersSchema = PaginationQuerySchema.extend({
     agentId: AgentIdSchema.optional(),
     orgId: OrgIdQuerySchema.optional(),
     sessionId: SessionIdParamSchema.optional(),
-    from: z.string().date().or(z.string().datetime({ offset: true })).optional(),
-    to: z.string().date().or(z.string().datetime({ offset: true })).optional(),
+    from: z
+        .string()
+        .date()
+        .or(z.string().datetime({ offset: true }))
+        .optional(),
+    to: z
+        .string()
+        .date()
+        .or(z.string().datetime({ offset: true }))
+        .optional(),
 });
 
-function requireAuth(res: { locals: unknown }): { orgId: string; userId: string; isAdmin: boolean } {
+function requireAuth(res: { locals: unknown }): {
+    orgId: string;
+    userId: string;
+    isAdmin: boolean;
+} {
     const auth = (res.locals as RequestAuthLocals).auth;
     if (!auth) {
         throw new HttpError(401, 'Missing auth context');

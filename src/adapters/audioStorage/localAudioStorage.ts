@@ -10,9 +10,7 @@ export interface LocalAudioStorageOptions {
     recordingsDir?: string;
 }
 
-export function createLocalAudioStorage(
-    options?: LocalAudioStorageOptions
-): AudioStoragePort {
+export function createLocalAudioStorage(options?: LocalAudioStorageOptions): AudioStoragePort {
     const dir = path.resolve(options?.recordingsDir ?? DEFAULT_RECORDINGS_DIR);
 
     let ensured = false;

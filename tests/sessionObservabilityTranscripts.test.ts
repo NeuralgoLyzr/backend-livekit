@@ -26,7 +26,10 @@ describe('POST /internal/sessions/observability (transcripts)', () => {
     });
 
     it('rejects payloads missing required sessionId', async () => {
-        const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
+        const cleanupSession = vi.fn().mockResolvedValue({
+            roomDelete: { status: 'deleted' },
+            storeDelete: { status: 'ok' },
+        });
 
         const app = await importFreshApp({
             sessionServiceMock: { cleanupSession },
@@ -53,7 +56,10 @@ describe('POST /internal/sessions/observability (transcripts)', () => {
 
     it('persists transcript with required sessionId', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
+        const cleanupSession = vi.fn().mockResolvedValue({
+            roomDelete: { status: 'deleted' },
+            storeDelete: { status: 'ok' },
+        });
         const sessionStoreGet = vi.fn().mockReturnValue({
             sessionId: '00000000-0000-4000-8000-000000000000',
             orgId: '96f0cee4-bb87-4477-8eff-577ef2780614',
@@ -85,7 +91,10 @@ describe('POST /internal/sessions/observability (transcripts)', () => {
 
     it('saves uploaded multipart audio recording when present', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
+        const cleanupSession = vi.fn().mockResolvedValue({
+            roomDelete: { status: 'deleted' },
+            storeDelete: { status: 'ok' },
+        });
         const saveAudio = vi.fn().mockResolvedValue('00000000-0000-4000-8000-000000000000.ogg');
 
         const app = await importFreshApp({
@@ -122,7 +131,10 @@ describe('POST /internal/sessions/observability (transcripts)', () => {
 
     it('does not save audio when request has no uploaded file', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
+        const cleanupSession = vi.fn().mockResolvedValue({
+            roomDelete: { status: 'deleted' },
+            storeDelete: { status: 'ok' },
+        });
         const saveAudio = vi.fn().mockResolvedValue('ignored.ogg');
 
         const app = await importFreshApp({
@@ -151,7 +163,10 @@ describe('POST /internal/sessions/observability (transcripts)', () => {
 
     it('keeps /internal/sessions/observability successful when audio save fails', async () => {
         const saveFromObservability = vi.fn().mockResolvedValue(null);
-        const cleanupSession = vi.fn().mockResolvedValue({ roomDelete: { status: 'deleted' }, storeDelete: { status: 'ok' } });
+        const cleanupSession = vi.fn().mockResolvedValue({
+            roomDelete: { status: 'deleted' },
+            storeDelete: { status: 'ok' },
+        });
         const saveAudio = vi.fn().mockRejectedValue(new Error('disk full'));
 
         const app = await importFreshApp({

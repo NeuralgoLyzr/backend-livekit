@@ -88,4 +88,3 @@ describe('pagosAuthService cache behavior', () => {
         expect(fetchMock).toHaveBeenCalledTimes(121);
     });
 });
-

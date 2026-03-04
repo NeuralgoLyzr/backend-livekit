@@ -319,7 +319,11 @@ export class TwilioClient {
     }
 
     async deleteTrunk(trunkSid: string): Promise<void> {
-        await this.requestJson('DELETE', TRUNKING_BASE_URL, `/v1/Trunks/${encodeURIComponent(trunkSid)}`);
+        await this.requestJson(
+            'DELETE',
+            TRUNKING_BASE_URL,
+            `/v1/Trunks/${encodeURIComponent(trunkSid)}`
+        );
     }
 
     // ── internal ──────────────────────────────────────────────────────────
@@ -364,7 +368,9 @@ export class TwilioClient {
             throw new TwilioClientError(
                 0,
                 'PROVIDER_UNREACHABLE',
-                controller.signal.aborted ? 'Twilio API request timed out' : 'Unable to reach Twilio API',
+                controller.signal.aborted
+                    ? 'Twilio API request timed out'
+                    : 'Unable to reach Twilio API',
                 { cause: err }
             );
         } finally {

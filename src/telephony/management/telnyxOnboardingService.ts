@@ -36,6 +36,7 @@ export interface TelnyxOnboardingDeps {
 
 const TRUNK_NAME_PREFIX = 'livekit-inbound-';
 const DEFAULT_TELNYX_TRANSPORT_PROTOCOL: 'TCP' | 'UDP' | 'TLS' = 'TCP';
+type OrgScope = { orgId: string };
 
 export class TelnyxOnboardingService {
     constructor(private readonly deps: TelnyxOnboardingDeps) {}
@@ -49,13 +50,17 @@ export class TelnyxOnboardingService {
         }
     }
 
-    async createIntegration(input: { apiKey: string; name?: string }): Promise<StoredIntegration> {
+    async createIntegration(
+        input: { apiKey: string; name?: string },
+        scope: OrgScope
+    ): Promise<StoredIntegration> {
         await this.verifyApiKey(input.apiKey);
 
         const encrypted = encryptString(input.apiKey, this.deps.encryptionKey);
         const fingerprint = fingerprintSecret(input.apiKey);
 
         const integration = await this.deps.integrationStore.create({
+            orgId: scope.orgId,
             provider: 'telnyx',
             name: input.name,
             encryptedApiKey: encrypted,
@@ -63,7 +68,7 @@ export class TelnyxOnboardingService {
         });
 
         try {
-            await this.ensureInboundTrunk(integration.id, input.apiKey);
+            await this.ensureInboundTrunk(integration.id, input.apiKey, scope);
         } catch (err) {
             logger.warn(
                 { event: 'telnyx.trunk_setup_deferred', integrationId: integration.id, err },
@@ -78,8 +83,8 @@ export class TelnyxOnboardingService {
         return integration;
     }
 
-    async listNumbers(integrationId: string): Promise<TelnyxPhoneNumber[]> {
-        const apiKey = await this.decryptApiKey(integrationId);
+    async listNumbers(integrationId: string, scope: OrgScope): Promise<TelnyxPhoneNumber[]> {
+        const apiKey = await this.decryptApiKey(integrationId, scope);
         const client = new TelnyxClient(apiKey);
         try {
             return await client.listPhoneNumbers();
@@ -94,7 +99,8 @@ export class TelnyxOnboardingService {
      */
     async debugInspectNumber(
         integrationId: string,
-        providerNumberId: string
+        providerNumberId: string,
+        scope: OrgScope
     ): Promise<{
         number: TelnyxPhoneNumber;
         expectedConnectionId?: string;
@@ -108,7 +114,7 @@ export class TelnyxOnboardingService {
         livekitSipHost: string;
         livekitSipHostAttached: boolean;
     }> {
-        const integration = await this.getIntegrationOrThrow(integrationId);
+        const integration = await this.getIntegrationOrThrow(integrationId, scope);
         const apiKey = this.decryptApiKeyFromIntegration(integration);
         const client = new TelnyxClient(apiKey);
 
@@ -155,7 +161,8 @@ export class TelnyxOnboardingService {
     async debugSetTransportProtocol(
         integrationId: string,
         connectionId: string,
-        transportProtocol: 'UDP' | 'TCP' | 'TLS'
+        transportProtocol: 'UDP' | 'TCP' | 'TLS',
+        scope: OrgScope
     ): Promise<{
         ok: true;
         connection: {
@@ -170,7 +177,7 @@ export class TelnyxOnboardingService {
             };
         };
     }> {
-        const integration = await this.getIntegrationOrThrow(integrationId);
+        const integration = await this.getIntegrationOrThrow(integrationId, scope);
         const apiKey = this.decryptApiKeyFromIntegration(integration);
         const client = new TelnyxClient(apiKey);
         try {
@@ -188,9 +195,10 @@ export class TelnyxOnboardingService {
             providerNumberId: string;
             e164: string;
             agentId?: string;
-        }
+        },
+        scope: OrgScope
     ): Promise<StoredBinding> {
-        const integration = await this.getIntegrationOrThrow(integrationId);
+        const integration = await this.getIntegrationOrThrow(integrationId, scope);
         const apiKey = this.decryptApiKeyFromIntegration(integration);
         const client = new TelnyxClient(apiKey);
 
@@ -207,7 +215,7 @@ export class TelnyxOnboardingService {
         const connectionId =
             parsed.success && parsed.data.fqdnConnectionId
                 ? parsed.data.fqdnConnectionId
-                : (await this.ensureInboundTrunkInternal(client, integration.id)).connectionId;
+                : (await this.ensureInboundTrunkInternal(client, integration.id, scope)).connectionId;
 
         // Best-effort: keep transport protocol consistent even when reusing cached providerResources.
         await this.ensureTransportProtocol(client, connectionId);
@@ -219,6 +227,7 @@ export class TelnyxOnboardingService {
         }
 
         const binding = await this.deps.bindingStore.upsertBinding({
+            orgId: scope.orgId,
             integrationId,
             provider: 'telnyx',
             providerNumberId: input.providerNumberId,
@@ -233,24 +242,24 @@ export class TelnyxOnboardingService {
         return binding;
     }
 
-    async disconnectNumber(bindingId: string): Promise<void> {
-        const binding = await this.getBindingOrThrow(bindingId);
-        const integration = await this.getIntegrationOrThrow(binding.integrationId);
+    async disconnectNumber(bindingId: string, scope: OrgScope): Promise<void> {
+        const binding = await this.getBindingOrThrow(bindingId, scope);
+        const integration = await this.getIntegrationOrThrow(binding.integrationId, scope);
         const apiKey = this.decryptApiKeyFromIntegration(integration);
         const client = new TelnyxClient(apiKey);
 
-        await this.disconnectBinding(binding, integration, client);
+        await this.disconnectBinding(binding, integration, client, scope);
     }
 
-    async deleteIntegration(integrationId: string): Promise<{ deletedBindings: number }> {
-        const integration = await this.getIntegrationOrThrow(integrationId);
+    async deleteIntegration(integrationId: string, scope: OrgScope): Promise<{ deletedBindings: number }> {
+        const integration = await this.getIntegrationOrThrow(integrationId, scope);
         const apiKey = this.decryptApiKeyFromIntegration(integration);
         const client = new TelnyxClient(apiKey);
 
-        const bindings = await this.deps.bindingStore.listBindingsByIntegrationId(integrationId);
+        const bindings = await this.deps.bindingStore.listBindingsByIntegrationId(integrationId, scope);
         for (const binding of bindings) {
             if (binding.provider !== 'telnyx') continue;
-            await this.disconnectBinding(binding, integration, client);
+            await this.disconnectBinding(binding, integration, client, scope);
         }
 
         const resources = parseTelnyxProviderResources(integration.providerResources);
@@ -273,7 +282,7 @@ export class TelnyxOnboardingService {
             }
         }
 
-        const deleted = await this.deps.integrationStore.deleteById(integrationId);
+        const deleted = await this.deps.integrationStore.deleteById(integrationId, scope);
         if (!deleted) {
             throw new HttpError(404, `Integration ${integrationId} not found`);
         }
@@ -291,14 +300,19 @@ export class TelnyxOnboardingService {
 
     // ── private helpers ───────────────────────────────────────────────────
 
-    private async ensureInboundTrunk(integrationId: string, apiKey: string): Promise<void> {
+    private async ensureInboundTrunk(
+        integrationId: string,
+        apiKey: string,
+        scope: OrgScope
+    ): Promise<void> {
         const client = new TelnyxClient(apiKey);
-        await this.ensureInboundTrunkInternal(client, integrationId);
+        await this.ensureInboundTrunkInternal(client, integrationId, scope);
     }
 
     private async ensureInboundTrunkInternal(
         client: TelnyxClient,
-        integrationId: string
+        integrationId: string,
+        scope: OrgScope
     ): Promise<{ connectionId: string }> {
         const trunkName = `${TRUNK_NAME_PREFIX}${integrationId}`;
 
@@ -364,7 +378,7 @@ export class TelnyxOnboardingService {
                 fqdnConnectionId: connection.id,
                 fqdnId,
             };
-            await this.deps.integrationStore.updateProviderResources(integrationId, resources);
+            await this.deps.integrationStore.updateProviderResources(integrationId, resources, scope);
 
             return { connectionId: connection.id };
         } catch (err) {
@@ -407,8 +421,8 @@ export class TelnyxOnboardingService {
         }
     }
 
-    private async decryptApiKey(integrationId: string): Promise<string> {
-        const integration = await this.getIntegrationOrThrow(integrationId);
+    private async decryptApiKey(integrationId: string, scope: OrgScope): Promise<string> {
+        const integration = await this.getIntegrationOrThrow(integrationId, scope);
         return this.decryptApiKeyFromIntegration(integration);
     }
 
@@ -443,7 +457,8 @@ export class TelnyxOnboardingService {
     private async disconnectBinding(
         binding: StoredBinding,
         integration: StoredIntegration & { encryptedApiKey: string },
-        client: TelnyxClient
+        client: TelnyxClient,
+        scope: OrgScope
     ): Promise<void> {
         await this.deps.livekitProvisioning.removeInboundSetupForDid(binding.e164);
 
@@ -453,7 +468,7 @@ export class TelnyxOnboardingService {
             throw mapTelnyxError(err);
         }
 
-        const deleted = await this.deps.bindingStore.deleteBinding(binding.id);
+        const deleted = await this.deps.bindingStore.deleteBinding(binding.id, scope);
         if (!deleted) {
             throw new HttpError(404, `Binding ${binding.id} not found`);
         }
@@ -469,8 +484,8 @@ export class TelnyxOnboardingService {
         );
     }
 
-    private async getBindingOrThrow(bindingId: string): Promise<StoredBinding> {
-        const binding = await this.deps.bindingStore.getBindingById(bindingId);
+    private async getBindingOrThrow(bindingId: string, scope: OrgScope): Promise<StoredBinding> {
+        const binding = await this.deps.bindingStore.getBindingById(bindingId, scope);
         if (!binding) {
             throw new HttpError(404, `Binding ${bindingId} not found`);
         }
@@ -481,9 +496,10 @@ export class TelnyxOnboardingService {
     }
 
     private async getIntegrationOrThrow(
-        integrationId: string
+        integrationId: string,
+        scope: OrgScope
     ): Promise<StoredIntegration & { encryptedApiKey: string }> {
-        const integration = await this.deps.integrationStore.getById(integrationId);
+        const integration = await this.deps.integrationStore.getById(integrationId, scope);
         if (!integration) {
             throw new HttpError(404, `Integration ${integrationId} not found`);
         }

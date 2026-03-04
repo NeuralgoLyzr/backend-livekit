@@ -41,6 +41,7 @@ export interface PlivoOnboardingDeps {
 }
 
 const TRUNK_NAME_PREFIX = 'livekit-inbound-';
+type OrgScope = { orgId: string };
 
 export class PlivoOnboardingService {
     constructor(private readonly deps: PlivoOnboardingDeps) {}
@@ -58,7 +59,7 @@ export class PlivoOnboardingService {
         authId: string;
         authToken: string;
         name?: string;
-    }): Promise<StoredIntegration> {
+    }, scope: OrgScope): Promise<StoredIntegration> {
         const creds: PlivoCredentials = {
             authId: input.authId,
             authToken: input.authToken,
@@ -70,6 +71,7 @@ export class PlivoOnboardingService {
         const fingerprint = fingerprintSecret(`plivo:${creds.authId}`);
 
         const integration = await this.deps.integrationStore.create({
+            orgId: scope.orgId,
             provider: 'plivo',
             name: input.name,
             encryptedApiKey: encrypted,
@@ -77,7 +79,7 @@ export class PlivoOnboardingService {
         });
 
         try {
-            await this.ensureInboundTrunk(integration.id, creds);
+            await this.ensureInboundTrunk(integration.id, creds, scope);
         } catch (err) {
             logger.warn(
                 { event: 'plivo.trunk_setup_deferred', integrationId: integration.id, err },
@@ -92,8 +94,8 @@ export class PlivoOnboardingService {
         return integration;
     }
 
-    async listNumbers(integrationId: string): Promise<PlivoPhoneNumber[]> {
-        const creds = await this.decryptCredentials(integrationId);
+    async listNumbers(integrationId: string, scope: OrgScope): Promise<PlivoPhoneNumber[]> {
+        const creds = await this.decryptCredentials(integrationId, scope);
         const client = new PlivoClient(creds);
         try {
             return await client.listPhoneNumbers();
@@ -108,9 +110,10 @@ export class PlivoOnboardingService {
             providerNumberId: string;
             e164: string;
             agentId?: string;
-        }
+        },
+        scope: OrgScope
     ): Promise<StoredBinding> {
-        const integration = await this.getIntegrationOrThrow(integrationId);
+        const integration = await this.getIntegrationOrThrow(integrationId, scope);
         const creds = this.decryptCredentialsFromIntegration(integration);
         const client = new PlivoClient(creds);
 
@@ -126,7 +129,7 @@ export class PlivoOnboardingService {
         const trunkId =
             parsed.success && parsed.data.trunkId
                 ? parsed.data.trunkId
-                : (await this.ensureInboundTrunkInternal(client, integration.id)).trunkId;
+                : (await this.ensureInboundTrunkInternal(client, integration.id, scope)).trunkId;
 
         try {
             await client.setNumberAppId(input.providerNumberId, trunkId);
@@ -135,6 +138,7 @@ export class PlivoOnboardingService {
         }
 
         const binding = await this.deps.bindingStore.upsertBinding({
+            orgId: scope.orgId,
             integrationId,
             provider: 'plivo',
             providerNumberId: input.providerNumberId,
@@ -149,24 +153,24 @@ export class PlivoOnboardingService {
         return binding;
     }
 
-    async disconnectNumber(bindingId: string): Promise<void> {
-        const binding = await this.getBindingOrThrow(bindingId);
-        const integration = await this.getIntegrationOrThrow(binding.integrationId);
+    async disconnectNumber(bindingId: string, scope: OrgScope): Promise<void> {
+        const binding = await this.getBindingOrThrow(bindingId, scope);
+        const integration = await this.getIntegrationOrThrow(binding.integrationId, scope);
         const creds = this.decryptCredentialsFromIntegration(integration);
         const client = new PlivoClient(creds);
 
-        await this.disconnectBinding(binding, integration, client);
+        await this.disconnectBinding(binding, integration, client, scope);
     }
 
-    async deleteIntegration(integrationId: string): Promise<{ deletedBindings: number }> {
-        const integration = await this.getIntegrationOrThrow(integrationId);
+    async deleteIntegration(integrationId: string, scope: OrgScope): Promise<{ deletedBindings: number }> {
+        const integration = await this.getIntegrationOrThrow(integrationId, scope);
         const creds = this.decryptCredentialsFromIntegration(integration);
         const client = new PlivoClient(creds);
 
-        const bindings = await this.deps.bindingStore.listBindingsByIntegrationId(integrationId);
+        const bindings = await this.deps.bindingStore.listBindingsByIntegrationId(integrationId, scope);
         for (const binding of bindings) {
             if (binding.provider !== 'plivo') continue;
-            await this.disconnectBinding(binding, integration, client);
+            await this.disconnectBinding(binding, integration, client, scope);
         }
 
         const resources = parsePlivoProviderResources(integration.providerResources);
@@ -190,7 +194,7 @@ export class PlivoOnboardingService {
             }
         }
 
-        const deleted = await this.deps.integrationStore.deleteById(integrationId);
+        const deleted = await this.deps.integrationStore.deleteById(integrationId, scope);
         if (!deleted) {
             throw new HttpError(404, `Integration ${integrationId} not found`);
         }
@@ -204,15 +208,17 @@ export class PlivoOnboardingService {
 
     private async ensureInboundTrunk(
         integrationId: string,
-        creds: PlivoCredentials
+        creds: PlivoCredentials,
+        scope: OrgScope
     ): Promise<void> {
         const client = new PlivoClient(creds);
-        await this.ensureInboundTrunkInternal(client, integrationId);
+        await this.ensureInboundTrunkInternal(client, integrationId, scope);
     }
 
     private async ensureInboundTrunkInternal(
         client: PlivoClient,
-        integrationId: string
+        integrationId: string,
+        scope: OrgScope
     ): Promise<{ trunkId: string; originationUriId?: string }> {
         const trunkName = `${TRUNK_NAME_PREFIX}${integrationId}`;
         const targetUri = normalizePlivoOriginationUri(this.deps.livekitSipHost);
@@ -269,7 +275,7 @@ export class PlivoOnboardingService {
                 trunkId: trunk.trunkId,
                 originationUriId: uri.id,
             };
-            await this.deps.integrationStore.updateProviderResources(integrationId, resources);
+            await this.deps.integrationStore.updateProviderResources(integrationId, resources, scope);
 
             return { trunkId: trunk.trunkId, originationUriId: uri.id };
         } catch (err) {
@@ -280,8 +286,8 @@ export class PlivoOnboardingService {
         }
     }
 
-    private async decryptCredentials(integrationId: string): Promise<PlivoCredentials> {
-        const integration = await this.getIntegrationOrThrow(integrationId);
+    private async decryptCredentials(integrationId: string, scope: OrgScope): Promise<PlivoCredentials> {
+        const integration = await this.getIntegrationOrThrow(integrationId, scope);
         return this.decryptCredentialsFromIntegration(integration);
     }
 
@@ -316,7 +322,8 @@ export class PlivoOnboardingService {
     private async disconnectBinding(
         binding: StoredBinding,
         integration: StoredIntegration & { encryptedApiKey: string },
-        client: PlivoClient
+        client: PlivoClient,
+        scope: OrgScope
     ): Promise<void> {
         await this.deps.livekitProvisioning.removeInboundSetupForDid(binding.e164);
 
@@ -326,7 +333,7 @@ export class PlivoOnboardingService {
             throw mapPlivoError(err);
         }
 
-        const deleted = await this.deps.bindingStore.deleteBinding(binding.id);
+        const deleted = await this.deps.bindingStore.deleteBinding(binding.id, scope);
         if (!deleted) {
             throw new HttpError(404, `Binding ${binding.id} not found`);
         }
@@ -342,8 +349,8 @@ export class PlivoOnboardingService {
         );
     }
 
-    private async getBindingOrThrow(bindingId: string): Promise<StoredBinding> {
-        const binding = await this.deps.bindingStore.getBindingById(bindingId);
+    private async getBindingOrThrow(bindingId: string, scope: OrgScope): Promise<StoredBinding> {
+        const binding = await this.deps.bindingStore.getBindingById(bindingId, scope);
         if (!binding) {
             throw new HttpError(404, `Binding ${bindingId} not found`);
         }
@@ -354,9 +361,10 @@ export class PlivoOnboardingService {
     }
 
     private async getIntegrationOrThrow(
-        integrationId: string
+        integrationId: string,
+        scope: OrgScope
     ): Promise<StoredIntegration & { encryptedApiKey: string }> {
-        const integration = await this.deps.integrationStore.getById(integrationId);
+        const integration = await this.deps.integrationStore.getById(integrationId, scope);
         if (!integration) {
             throw new HttpError(404, `Integration ${integrationId} not found`);
         }

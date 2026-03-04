@@ -15,6 +15,7 @@ import type {
 function toStoredIntegration(row: TelephonyIntegrationDocument): StoredIntegration {
     return {
         id: row._id.toString(),
+        orgId: row.orgId,
         provider: row.provider,
         name: row.name,
         apiKeyFingerprint: row.apiKeyFingerprint,
@@ -31,6 +32,7 @@ export class MongooseTelephonyIntegrationStore implements TelephonyIntegrationSt
         const Integration = getIntegrationModel();
 
         const created = await Integration.create({
+            orgId: input.orgId,
             provider: input.provider,
             name: input.name ?? null,
             encryptedApiKey: input.encryptedApiKey,
@@ -43,7 +45,10 @@ export class MongooseTelephonyIntegrationStore implements TelephonyIntegrationSt
         return toStoredIntegration(created.toObject() as TelephonyIntegrationDocument);
     }
 
-    async getById(id: string): Promise<(StoredIntegration & { encryptedApiKey: string }) | null> {
+    async getById(
+        id: string,
+        scope: { orgId: string }
+    ): Promise<(StoredIntegration & { encryptedApiKey: string }) | null> {
         await connectMongo();
         const Integration = getIntegrationModel();
 
@@ -52,6 +57,7 @@ export class MongooseTelephonyIntegrationStore implements TelephonyIntegrationSt
 
         const row = await Integration.findOne({
             _id,
+            orgId: scope.orgId,
             deletedAt: null,
             status: 'active',
         }).lean<TelephonyIntegrationDocument>();
@@ -65,7 +71,8 @@ export class MongooseTelephonyIntegrationStore implements TelephonyIntegrationSt
 
     async updateProviderResources(
         id: string,
-        resources: Record<string, unknown>
+        resources: Record<string, unknown>,
+        scope: { orgId: string }
     ): Promise<StoredIntegration | null> {
         await connectMongo();
         const Integration = getIntegrationModel();
@@ -74,7 +81,7 @@ export class MongooseTelephonyIntegrationStore implements TelephonyIntegrationSt
         const _id = new mongoose.Types.ObjectId(id);
 
         const updated = await Integration.findOneAndUpdate(
-            { _id, deletedAt: null },
+            { _id, orgId: scope.orgId, deletedAt: null },
             { $set: { providerResources: resources } },
             { new: true, runValidators: true }
         ).lean<TelephonyIntegrationDocument>();
@@ -83,22 +90,27 @@ export class MongooseTelephonyIntegrationStore implements TelephonyIntegrationSt
         return toStoredIntegration(updated);
     }
 
-    async deleteById(id: string): Promise<boolean> {
+    async deleteById(id: string, scope: { orgId: string }): Promise<boolean> {
         await connectMongo();
         const Integration = getIntegrationModel();
 
         if (!mongoose.Types.ObjectId.isValid(id)) return false;
         const _id = new mongoose.Types.ObjectId(id);
 
-        const res = await Integration.deleteOne({ _id, deletedAt: null });
+        const res = await Integration.deleteOne({ _id, orgId: scope.orgId, deletedAt: null });
         return res.deletedCount > 0;
     }
 
-    async listByProvider(provider: TelephonyProvider): Promise<StoredIntegration[]> {
+    async listByProvider(provider: TelephonyProvider, scope: { orgId: string }): Promise<StoredIntegration[]> {
         await connectMongo();
         const Integration = getIntegrationModel();
 
-        const rows = await Integration.find({ provider, deletedAt: null, status: 'active' })
+        const rows = await Integration.find({
+            orgId: scope.orgId,
+            provider,
+            deletedAt: null,
+            status: 'active',
+        })
             .sort({ updatedAt: -1 })
             .lean<TelephonyIntegrationDocument[]>();
 

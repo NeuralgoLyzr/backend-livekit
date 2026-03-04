@@ -2,6 +2,7 @@ import mongoose, { type Model, type Types } from 'mongoose';
 
 export interface TelephonyIntegrationDocument {
     _id: Types.ObjectId;
+    orgId: string;
     provider: 'telnyx' | 'twilio' | 'plivo';
     name: string | null;
     encryptedApiKey: string;
@@ -15,6 +16,7 @@ export interface TelephonyIntegrationDocument {
 
 const TelephonyIntegrationSchema = new mongoose.Schema<TelephonyIntegrationDocument>(
     {
+        orgId: { type: String, required: true, trim: true },
         provider: { type: String, required: true, enum: ['telnyx', 'twilio', 'plivo'] },
         name: { type: String, default: null },
         encryptedApiKey: { type: String, required: true },
@@ -29,8 +31,9 @@ const TelephonyIntegrationSchema = new mongoose.Schema<TelephonyIntegrationDocum
     }
 );
 
-TelephonyIntegrationSchema.index({ provider: 1, apiKeyFingerprint: 1 });
-TelephonyIntegrationSchema.index({ updatedAt: -1 });
+TelephonyIntegrationSchema.index({ orgId: 1, provider: 1, updatedAt: -1 });
+TelephonyIntegrationSchema.index({ orgId: 1, provider: 1, apiKeyFingerprint: 1 });
+TelephonyIntegrationSchema.index({ orgId: 1, updatedAt: -1 });
 TelephonyIntegrationSchema.index({ deletedAt: 1 });
 
 export function getIntegrationModel(): Model<TelephonyIntegrationDocument> {

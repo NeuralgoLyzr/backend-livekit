@@ -8,12 +8,22 @@ import { isDevEnv } from '../lib/env.js';
 import { telephonyModule } from '../telephony/telephonyModule.js';
 import { normalizeLiveKitWebhookEvent } from '../telephony/adapters/livekit/eventNormalizer.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
+import { HttpError } from '../lib/httpErrors.js';
 import { logger } from '../lib/logger.js';
 import { createTelnyxRouter } from '../telephony/http/telnyxRoutes.js';
 import { createTwilioRouter } from '../telephony/http/twilioRoutes.js';
 import { createPlivoRouter } from '../telephony/http/plivoRoutes.js';
+import type { RequestAuthLocals } from '../middleware/apiKeyAuth.js';
 
 const router: Router = Router();
+
+function requireOrgScope(res: { locals: unknown }): { orgId: string } {
+    const auth = (res.locals as RequestAuthLocals).auth;
+    if (!auth) {
+        throw new HttpError(401, 'Missing auth context');
+    }
+    return { orgId: auth.orgId };
+}
 
 type WebhookRequestSnapshot = {
     at: string;
@@ -95,7 +105,8 @@ if (telephonyModule.plivoOnboarding) {
 router.get(
     '/bindings',
     asyncHandler(async (_req, res) => {
-        const bindings = await telephonyModule.bindingStore.listBindings();
+        const scope = requireOrgScope(res);
+        const bindings = await telephonyModule.bindingStore.listBindings(scope);
         return res.json({ bindings });
     })
 );

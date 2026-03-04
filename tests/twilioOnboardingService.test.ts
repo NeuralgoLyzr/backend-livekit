@@ -37,6 +37,7 @@ import { TwilioClient } from '../src/telephony/adapters/twilio/twilioClient.js';
 
 const ENCRYPTION_KEY = randomBytes(32);
 const SIP_HOST = 'sip.livekit.cloud';
+const ORG_SCOPE = { orgId: '00000000-0000-0000-0000-000000000001' };
 
 function setupDefaultClientMocks() {
     (TwilioClient.prototype.verifyCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -72,6 +73,7 @@ function makeIntegration(
 ): StoredIntegration & { encryptedApiKey: string } {
     return {
         id: 'int_1',
+        orgId: ORG_SCOPE.orgId,
         provider: 'twilio',
         name: 'Test',
         apiKeyFingerprint: 'fp_abc',
@@ -87,6 +89,7 @@ function makeIntegration(
 function makeBinding(overrides?: Partial<StoredBinding>): StoredBinding {
     return {
         id: 'bind_1',
+        orgId: ORG_SCOPE.orgId,
         integrationId: 'int_1',
         provider: 'twilio',
         providerNumberId: 'PN_1',
@@ -104,17 +107,20 @@ function stubIntegrationStore(): TelephonyIntegrationStorePort {
     return {
         create: vi.fn(async (input: CreateIntegrationInput) => ({
             ...stored,
+            orgId: input.orgId,
             provider: input.provider,
             name: input.name ?? null,
             apiKeyFingerprint: input.apiKeyFingerprint,
         })),
-        getById: vi.fn(async () => stored),
-        updateProviderResources: vi.fn(async (_id: string, resources: Record<string, unknown>) => ({
-            ...stored,
-            providerResources: resources,
-        })),
-        deleteById: vi.fn(async () => true),
-        listByProvider: vi.fn(async () => [stored]),
+        getById: vi.fn(async (_id: string, _scope: { orgId: string }) => stored),
+        updateProviderResources: vi.fn(
+            async (_id: string, resources: Record<string, unknown>, _scope: { orgId: string }) => ({
+                ...stored,
+                providerResources: resources,
+            })
+        ),
+        deleteById: vi.fn(async (_id: string, _scope: { orgId: string }) => true),
+        listByProvider: vi.fn(async (_provider, _scope: { orgId: string }) => [stored]),
     };
 }
 
@@ -127,10 +133,10 @@ function stubBindingStore(): TelephonyBindingStorePort {
             agentId: input.agentId ?? null,
         })),
         getBindingByE164: vi.fn(async () => binding),
-        getBindingById: vi.fn(async () => binding),
-        listBindings: vi.fn(async () => [binding]),
-        listBindingsByIntegrationId: vi.fn(async () => [binding]),
-        deleteBinding: vi.fn(async () => true),
+        getBindingById: vi.fn(async (_id: string, _scope: { orgId: string }) => binding),
+        listBindings: vi.fn(async (_scope: { orgId: string }) => [binding]),
+        listBindingsByIntegrationId: vi.fn(async (_id: string, _scope: { orgId: string }) => [binding]),
+        deleteBinding: vi.fn(async (_id: string, _scope: { orgId: string }) => true),
     };
 }
 
@@ -185,17 +191,21 @@ describe('TwilioOnboardingService', () => {
         const integrationStore = stubIntegrationStore();
         const service = createService({ integrationStore });
 
-        const result = await service.createIntegration({
-            accountSid: 'AC123',
-            authToken: 'secret',
-            name: 'My Twilio',
-        });
+        const result = await service.createIntegration(
+            {
+                accountSid: 'AC123',
+                authToken: 'secret',
+                name: 'My Twilio',
+            },
+            ORG_SCOPE
+        );
 
         expect(result.provider).toBe('twilio');
         expect(result.name).toBe('My Twilio');
 
         expect(integrationStore.create).toHaveBeenCalledWith(
             expect.objectContaining({
+                orgId: ORG_SCOPE.orgId,
                 provider: 'twilio',
                 name: 'My Twilio',
                 encryptedApiKey: expect.stringContaining('v1.'),
@@ -225,7 +235,8 @@ describe('TwilioOnboardingService', () => {
             expect.objectContaining({
                 trunkSid: 'TRUNK_1',
                 originationUrlSid: 'ORIG_1',
-            })
+            }),
+            ORG_SCOPE
         );
     });
 
@@ -250,7 +261,7 @@ describe('TwilioOnboardingService', () => {
         ).mockResolvedValue(mockNumbers);
 
         const service = createService({ integrationStore });
-        const numbers = await service.listNumbers('int_1');
+        const numbers = await service.listNumbers('int_1', ORG_SCOPE);
 
         expect(numbers).toEqual(mockNumbers);
         expect(TwilioClient.prototype.listIncomingPhoneNumbers).toHaveBeenCalledOnce();
@@ -277,10 +288,14 @@ describe('TwilioOnboardingService', () => {
         const bindingStore = stubBindingStore();
         const service = createService({ integrationStore, bindingStore });
 
-        const result = await service.connectNumber('int_1', {
-            providerNumberId: 'PN_1',
-            e164: '+15551234567',
-        });
+        const result = await service.connectNumber(
+            'int_1',
+            {
+                providerNumberId: 'PN_1',
+                e164: '+15551234567',
+            },
+            ORG_SCOPE
+        );
 
         expect(TwilioClient.prototype.attachPhoneNumberToTrunk).toHaveBeenCalledWith(
             'TRUNK_EXISTING',
@@ -288,6 +303,7 @@ describe('TwilioOnboardingService', () => {
         );
         expect(bindingStore.upsertBinding).toHaveBeenCalledWith(
             expect.objectContaining({
+                orgId: ORG_SCOPE.orgId,
                 integrationId: 'int_1',
                 provider: 'twilio',
                 providerNumberId: 'PN_1',
@@ -322,7 +338,7 @@ describe('TwilioOnboardingService', () => {
             service.connectNumber('int_1', {
                 providerNumberId: 'PN_1',
                 e164: '+15559999999',
-            })
+            }, ORG_SCOPE)
         ).rejects.toMatchObject({
             status: 422,
         });
@@ -350,14 +366,19 @@ describe('TwilioOnboardingService', () => {
         const bindingStore = stubBindingStore();
         const service = createService({ integrationStore, bindingStore });
 
-        await service.connectNumber('int_1', {
-            providerNumberId: 'PN_1',
-            e164: '+15551234567',
-            agentId: 'agent-1',
-        });
+        await service.connectNumber(
+            'int_1',
+            {
+                providerNumberId: 'PN_1',
+                e164: '+15551234567',
+                agentId: 'agent-1',
+            },
+            ORG_SCOPE
+        );
 
         expect(bindingStore.upsertBinding).toHaveBeenCalledWith(
             expect.objectContaining({
+                orgId: ORG_SCOPE.orgId,
                 integrationId: 'int_1',
                 provider: 'twilio',
                 providerNumberId: 'PN_1',
@@ -387,12 +408,12 @@ describe('TwilioOnboardingService', () => {
         const bindingStore = stubBindingStore();
         const service = createService({ integrationStore, bindingStore });
 
-        await service.disconnectNumber('bind_1');
+        await service.disconnectNumber('bind_1', ORG_SCOPE);
         expect(TwilioClient.prototype.detachPhoneNumberFromTrunk).toHaveBeenCalledWith(
             'TRUNK_1',
             'PN_1'
         );
-        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1', ORG_SCOPE);
     });
 
     it('disconnectNumber calls removeInboundSetupForDid and detaches from trunk', async () => {
@@ -451,14 +472,14 @@ describe('TwilioOnboardingService', () => {
             return true;
         });
 
-        await service.disconnectNumber('bind_1');
+        await service.disconnectNumber('bind_1', ORG_SCOPE);
 
         expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledWith('+15551234567');
         expect(TwilioClient.prototype.detachPhoneNumberFromTrunk).toHaveBeenCalledWith(
             'TRUNK_1',
             'PN_1'
         );
-        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1', ORG_SCOPE);
         expect(callOrder).toEqual([
             'removeInboundSetupForDid',
             'detachPhoneNumberFromTrunk',
@@ -488,7 +509,7 @@ describe('TwilioOnboardingService', () => {
             TwilioClient.prototype.detachPhoneNumberFromTrunk as ReturnType<typeof vi.fn>
         ).mockRejectedValue(new Error('Twilio unavailable'));
 
-        await expect(service.disconnectNumber('bind_1')).rejects.toThrow();
+        await expect(service.disconnectNumber('bind_1', ORG_SCOPE)).rejects.toThrow();
         expect(bindingStore.deleteBinding).not.toHaveBeenCalled();
     });
 
@@ -523,7 +544,7 @@ describe('TwilioOnboardingService', () => {
             livekitProvisioning,
         });
 
-        await expect(service.disconnectNumber('bind_1')).rejects.toThrow();
+        await expect(service.disconnectNumber('bind_1', ORG_SCOPE)).rejects.toThrow();
         expect(TwilioClient.prototype.detachPhoneNumberFromTrunk).not.toHaveBeenCalled();
         expect(bindingStore.deleteBinding).not.toHaveBeenCalled();
     });
@@ -546,10 +567,10 @@ describe('TwilioOnboardingService', () => {
         const bindingStore = stubBindingStore();
         const service = createService({ integrationStore, bindingStore });
 
-        await service.disconnectNumber('bind_1');
+        await service.disconnectNumber('bind_1', ORG_SCOPE);
 
         expect(TwilioClient.prototype.detachPhoneNumberFromTrunk).not.toHaveBeenCalled();
-        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1', ORG_SCOPE);
     });
 
     it('disconnectNumber throws 404 for non-existent binding', async () => {
@@ -558,7 +579,7 @@ describe('TwilioOnboardingService', () => {
 
         const service = createService({ bindingStore });
 
-        await expect(service.disconnectNumber('bind_missing')).rejects.toMatchObject({
+        await expect(service.disconnectNumber('bind_missing', ORG_SCOPE)).rejects.toMatchObject({
             status: 404,
         });
     });
@@ -571,7 +592,7 @@ describe('TwilioOnboardingService', () => {
 
         const service = createService({ bindingStore });
 
-        await expect(service.disconnectNumber('bind_1')).rejects.toMatchObject({
+        await expect(service.disconnectNumber('bind_1', ORG_SCOPE)).rejects.toMatchObject({
             status: 400,
         });
     });
@@ -597,11 +618,11 @@ describe('TwilioOnboardingService', () => {
         const bindingStore = stubBindingStore();
         const service = createService({ integrationStore, bindingStore });
 
-        const result = await service.deleteIntegration('int_1');
+        const result = await service.deleteIntegration('int_1', ORG_SCOPE);
         expect(result).toEqual({ deletedBindings: 1 });
-        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1');
+        expect(bindingStore.deleteBinding).toHaveBeenCalledWith('bind_1', ORG_SCOPE);
         expect(TwilioClient.prototype.deleteTrunk).toHaveBeenCalledWith('TRUNK_1');
-        expect(integrationStore.deleteById).toHaveBeenCalledWith('int_1');
+        expect(integrationStore.deleteById).toHaveBeenCalledWith('int_1', ORG_SCOPE);
     });
 
     it('deleteIntegration calls removeInboundSetupForDid for each binding', async () => {
@@ -654,7 +675,7 @@ describe('TwilioOnboardingService', () => {
             livekitProvisioning,
         });
 
-        const result = await service.deleteIntegration('int_1');
+        const result = await service.deleteIntegration('int_1', ORG_SCOPE);
         expect(result).toEqual({ deletedBindings: 2 });
         expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledTimes(2);
         expect(livekitProvisioning.removeInboundSetupForDid).toHaveBeenCalledWith('+15551111111');

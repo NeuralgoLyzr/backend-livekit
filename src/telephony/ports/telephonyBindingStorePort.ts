@@ -1,5 +1,6 @@
 export interface StoredBinding {
     id: string;
+    orgId: string;
     integrationId: string;
     provider: string;
     providerNumberId: string;
@@ -11,6 +12,7 @@ export interface StoredBinding {
 }
 
 export interface UpsertBindingInput {
+    orgId: string;
     integrationId: string;
     provider: string;
     providerNumberId: string;
@@ -21,8 +23,11 @@ export interface UpsertBindingInput {
 export interface TelephonyBindingStorePort {
     upsertBinding(input: UpsertBindingInput): Promise<StoredBinding>;
     getBindingByE164(e164: string): Promise<StoredBinding | null>;
-    getBindingById(id: string): Promise<StoredBinding | null>;
-    listBindings(): Promise<StoredBinding[]>;
-    listBindingsByIntegrationId(integrationId: string): Promise<StoredBinding[]>;
-    deleteBinding(id: string): Promise<boolean>;
+    getBindingById(id: string, scope: { orgId: string }): Promise<StoredBinding | null>;
+    listBindings(scope: { orgId: string }): Promise<StoredBinding[]>;
+    listBindingsByIntegrationId(
+        integrationId: string,
+        scope: { orgId: string }
+    ): Promise<StoredBinding[]>;
+    deleteBinding(id: string, scope: { orgId: string }): Promise<boolean>;
 }

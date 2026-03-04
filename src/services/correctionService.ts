@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type {
     Correction,
+    ConversationContextItem,
     CreateCorrectionRequest,
     UpdateCorrectionRequest,
 } from '../types/index.js';
@@ -10,11 +11,39 @@ import { logger } from '../lib/logger.js';
 
 const MAX_CORRECTIONS_PER_AGENT = 50;
 
-async function distillRule(originalAnswer: string, userFeedback: string): Promise<string> {
+function buildFallbackRule(
+    originalAnswer: string,
+    userFeedback: string,
+    conversationContext?: ConversationContextItem[],
+): string {
+    const userQuestion =
+        conversationContext?.findLast((m: ConversationContextItem) => m.role === 'user')?.content ??
+        '';
+    const questionPart = userQuestion
+        ? `When asked "${userQuestion.slice(0, 500)}", `
+        : 'When responding, ';
+    return `${questionPart}you answered "${originalAnswer.slice(0, 500)}", and the user instructed you to: ${userFeedback.trim()}`;
+}
+
+function formatConversationContext(context: ConversationContextItem[]): string {
+    return context
+        .map((m) => `[${m.role}]: ${m.content}`)
+        .join('\n');
+}
+
+async function distillRule(
+    originalAnswer: string,
+    userFeedback: string,
+    conversationContext?: ConversationContextItem[],
+): Promise<string> {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-        return userFeedback.trim();
+        return buildFallbackRule(originalAnswer, userFeedback, conversationContext);
     }
+
+    const contextSection = conversationContext?.length
+        ? `\n\nConversation context (surrounding messages):\n${formatConversationContext(conversationContext)}`
+        : '';
 
     try {
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -24,18 +53,18 @@ async function distillRule(originalAnswer: string, userFeedback: string): Promis
                 Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-                model: 'gpt-4o-mini',
+                model: 'gpt-5.2',
                 temperature: 0,
-                max_tokens: 150,
+                max_tokens: 300,
                 messages: [
                     {
                         role: 'system',
                         content:
-                            'You are a concise rule writer. Given an AI agent\'s original answer and user feedback about what was wrong, write a single concise correction rule (one sentence, max 120 words) that the agent should follow in future conversations. Start with an action verb. Do not include quotes or bullet points.',
+                            'You are a correction rule writer for a voice AI agent. Given the conversation context, the agent\'s answer, and the reviewer\'s feedback, write a correction rule in this exact format:\n\n"When asked <summarize the user\'s question/topic>, you answered <summarize what the agent said wrong>, and the user instructed you to <summarize the correct behavior>."\n\nKeep each section concise but preserve the important details from the feedback. The rule must be a single paragraph, max 250 words. Do not add quotes around the entire output.',
                     },
                     {
                         role: 'user',
-                        content: `Original agent answer:\n${originalAnswer}\n\nUser feedback:\n${userFeedback}`,
+                        content: `Agent's answer:\n${originalAnswer}\n\nReviewer feedback:\n${userFeedback}${contextSection}`,
                     },
                 ],
             }),
@@ -44,22 +73,22 @@ async function distillRule(originalAnswer: string, userFeedback: string): Promis
         if (!response.ok) {
             logger.warn(
                 { event: 'correction_distill_failed', status: response.status },
-                'OpenAI distillation failed, using raw feedback',
+                'OpenAI distillation failed, using fallback rule',
             );
-            return userFeedback.trim();
+            return buildFallbackRule(originalAnswer, userFeedback, conversationContext);
         }
 
         const data = (await response.json()) as {
             choices?: Array<{ message?: { content?: string } }>;
         };
         const content = data.choices?.[0]?.message?.content?.trim();
-        return content || userFeedback.trim();
+        return content || buildFallbackRule(originalAnswer, userFeedback, conversationContext);
     } catch (error) {
         logger.warn(
             { event: 'correction_distill_error', err: error },
-            'OpenAI distillation error, using raw feedback',
+            'OpenAI distillation error, using fallback rule',
         );
-        return userFeedback.trim();
+        return buildFallbackRule(originalAnswer, userFeedback, conversationContext);
     }
 }
 
@@ -136,7 +165,11 @@ export function createCorrectionService(deps: {
                 );
             }
 
-            const correctedRule = await distillRule(input.originalAnswer, input.userFeedback);
+            const correctedRule = await distillRule(
+                input.originalAnswer,
+                input.userFeedback,
+                input.conversationContext,
+            );
             const now = new Date().toISOString();
             const correction: Correction = {
                 id: randomUUID(),

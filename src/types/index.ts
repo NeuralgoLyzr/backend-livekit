@@ -412,13 +412,19 @@ const BackgroundAudioSchema = z.object({
 
 // ── Answer Corrections ──────────────────────────────────────────────────────
 
+export const ConversationContextItemSchema = z.object({
+    role: z.enum(['user', 'assistant', 'system', 'developer']),
+    content: z.string().max(4_096),
+});
+export type ConversationContextItem = z.infer<typeof ConversationContextItemSchema>;
+
 export const CorrectionSchema = z.object({
     id: z.string().uuid(),
     sourceSessionId: z.string().uuid(),
     sourceMessageId: z.string(),
     originalAnswer: z.string().max(4_096),
     userFeedback: z.string().min(1).max(2_048),
-    correctedRule: z.string().min(1).max(1_024),
+    correctedRule: z.string().min(1).max(4_096),
     enabled: z.boolean(),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -431,13 +437,14 @@ export const CreateCorrectionRequestSchema = z
         sourceMessageId: z.string().min(1),
         originalAnswer: z.string().max(4_096),
         userFeedback: z.string().min(1, 'userFeedback is required').max(2_048),
+        conversationContext: z.array(ConversationContextItemSchema).max(10).optional(),
     })
     .strict();
 export type CreateCorrectionRequest = z.infer<typeof CreateCorrectionRequestSchema>;
 
 export const UpdateCorrectionRequestSchema = z
     .object({
-        correctedRule: z.string().min(1).max(1_024).optional(),
+        correctedRule: z.string().min(1).max(4_096).optional(),
         enabled: z.boolean().optional(),
     })
     .strict();
